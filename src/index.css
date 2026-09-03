@@ -1,0 +1,116 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+  background: #cfeef3;
+  color: #22302a;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* --- HUD --- */
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud .badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 13px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.hud .badge b {
+  font-size: 15px;
+  color: #2f7a40;
+}
+
+.hud .badge span {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #58655c;
+}
+
+.hud .hint {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  max-width: 60vw;
+  padding: 7px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: right;
+  color: #43584a;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* --- 가상 조이스틱 --- */
+.joystick {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 20;
+  width: 122px;
+  height: 122px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  touch-action: none;
+}
+
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28);
+  transition: transform 0.05s linear;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* 데스크톱에서는 조이스틱을 살짝 흐리게 — 키보드가 주 입력 */
+  .joystick {
+    opacity: 0.4;
+  }
+}
