@@ -41,6 +41,12 @@ canvas {
   z-index: 10;
   pointer-events: none;
 }
+.hud button {
+  pointer-events: auto;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+}
 
 .hud .badge {
   position: absolute;
@@ -55,12 +61,10 @@ canvas {
   backdrop-filter: blur(4px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
-
 .hud .badge b {
   font-size: 15px;
   color: #2f7a40;
 }
-
 .hud .badge span {
   font-size: 11px;
   letter-spacing: 0.04em;
@@ -81,6 +85,114 @@ canvas {
   background: rgba(255, 255, 255, 0.7);
 }
 
+/* --- 모드 전환 버튼 --- */
+.mode-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 10px 15px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: #3e9b4f;
+  box-shadow: 0 4px 16px rgba(47, 122, 64, 0.35);
+}
+.mode-btn:active {
+  transform: translateY(1px);
+}
+
+/* --- 선택/안내 바 --- */
+.selbar {
+  position: absolute;
+  left: 50%;
+  top: 66px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 94vw;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+}
+.selbar button {
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #eef1e4;
+  color: #2f4a38;
+  white-space: nowrap;
+}
+.selbar button.danger {
+  background: #f2dede;
+  color: #b5423f;
+}
+.selbar button.ghost {
+  background: transparent;
+  color: #a2554f;
+  font-weight: 500;
+  text-decoration: underline;
+}
+.selbar .tip {
+  font-size: 12px;
+  color: #5a6b5f;
+  line-height: 1.35;
+}
+
+/* --- 카탈로그 --- */
+.catalog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  pointer-events: auto;
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.92),
+    rgba(255, 255, 255, 0.4)
+  );
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.catalog button {
+  flex: 0 0 auto;
+  width: 66px;
+  height: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.catalog button.on {
+  background: #3e9b4f;
+  box-shadow: 0 0 0 3px rgba(62, 155, 79, 0.4);
+}
+.catalog button.on .lbl {
+  color: #fff;
+}
+.catalog .ico {
+  font-size: 22px;
+  line-height: 1;
+}
+.catalog .lbl {
+  font-size: 10.5px;
+  color: #45564b;
+}
+
 /* --- 가상 조이스틱 --- */
 .joystick {
   position: fixed;
@@ -94,7 +206,6 @@ canvas {
   border: 2px solid rgba(255, 255, 255, 0.55);
   touch-action: none;
 }
-
 .joystick-knob {
   position: absolute;
   left: 50%;
@@ -109,7 +220,6 @@ canvas {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  /* 데스크톱에서는 조이스틱을 살짝 흐리게 — 키보드가 주 입력 */
   .joystick {
     opacity: 0.4;
   }

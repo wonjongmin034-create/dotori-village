@@ -1,7 +1,13 @@
-import { Sky, PerformanceMonitor } from '@react-three/drei'
+import { useRef } from 'react'
+import { Sky, PerformanceMonitor, Grid } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
+import type { Group } from 'three'
 import { Island } from './Island'
 import { Player } from './Player'
+import { CameraRig } from './CameraRig'
+import { PlacedObjects } from './PlacedObjects'
+import { EditorControls } from './EditorControls'
+import { useVillage } from './store'
 
 // fps가 떨어지면 렌더 해상도를 낮춘다 (기획서 성능 예산).
 function AdaptiveDpr() {
@@ -18,6 +24,9 @@ function AdaptiveDpr() {
 }
 
 export function Scene() {
+  const itemsRef = useRef<Group>(null)
+  const editing = useVillage((s) => s.mode === 'edit')
+
   return (
     <>
       <AdaptiveDpr />
@@ -28,8 +37,28 @@ export function Scene() {
       <directionalLight position={[10, 14, 6]} intensity={1.15} />
       <Sky sunPosition={[10, 14, 6]} turbidity={5} rayleigh={0.9} />
 
+      {editing && (
+        <Grid
+          position={[0, 0.03, 0]}
+          args={[40, 40]}
+          cellSize={1}
+          cellThickness={0.6}
+          cellColor="#8fae74"
+          sectionSize={5}
+          sectionThickness={1}
+          sectionColor="#5f8a49"
+          fadeDistance={38}
+          fadeStrength={1.5}
+          followCamera={false}
+          infiniteGrid
+        />
+      )}
+
       <Island />
+      <PlacedObjects itemsRef={itemsRef} />
       <Player />
+      <CameraRig />
+      <EditorControls itemsRef={itemsRef} />
     </>
   )
 }

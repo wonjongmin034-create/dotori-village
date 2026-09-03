@@ -9,6 +9,8 @@ import { Canvas } from '@react-three/fiber'
 import { Scene } from './game/Scene'
 import { Joystick } from './game/Joystick'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
+import { CATALOG } from './game/catalog'
+import { useVillage } from './game/store'
 
 export default function App() {
   const [coarse] = useState(
@@ -18,10 +20,19 @@ export default function App() {
       window.matchMedia('(pointer: coarse)').matches,
   )
 
-  // 화면에 닿아 있는 손가락/포인터들
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const lastDragX = useRef<number | null>(null)
   const pinchDist = useRef<number | null>(null)
+
+  const mode = useVillage((s) => s.mode)
+  const placing = useVillage((s) => s.placing)
+  const selected = useVillage((s) => s.selected)
+  const itemCount = useVillage((s) => s.items.length)
+  const setMode = useVillage((s) => s.setMode)
+  const togglePlacing = useVillage((s) => s.togglePlacing)
+  const rotateSelected = useVillage((s) => s.rotateSelected)
+  const deleteSelected = useVillage((s) => s.deleteSelected)
+  const clearAll = useVillage((s) => s.clearAll)
 
   useEffect(() => initKeyboard(), [])
 
@@ -37,16 +48,12 @@ export default function App() {
     p.y = e.clientY
 
     if (pointers.current.size >= 2) {
-      // 두 손가락 → 핀치 줌
       const [a, b] = [...pointers.current.values()]
       const d = Math.hypot(a.x - b.x, a.y - b.y)
-      if (pinchDist.current != null && d > 0) {
-        nudgeZoom(pinchDist.current / d) // 벌리면 가까이(확대), 오므리면 멀리
-      }
+      if (pinchDist.current != null && d > 0) nudgeZoom(pinchDist.current / d)
       pinchDist.current = d
       lastDragX.current = null
     } else if (lastDragX.current != null) {
-      // 한 손가락 / 마우스 → 카메라 회전
       const dx = e.clientX - lastDragX.current
       lastDragX.current = e.clientX
       cameraDrag.yawDelta += -dx * 0.005
@@ -57,7 +64,7 @@ export default function App() {
     pointers.current.delete(e.pointerId)
     if (pointers.current.size < 2) pinchDist.current = null
     if (pointers.current.size === 0) lastDragX.current = null
-    else if (pointers.current.size === 1) {
+    else {
       const [only] = [...pointers.current.values()]
       lastDragX.current = only.x
     }
@@ -66,6 +73,8 @@ export default function App() {
   const onWheel = (e: ReactWheelEvent) => {
     nudgeZoom(e.deltaY > 0 ? 1.09 : 0.92)
   }
+
+  const editing = mode === 'edit'
 
   return (
     <div
@@ -86,16 +95,76 @@ export default function App() {
       <div className="hud">
         <div className="badge">
           <b>도토리 마을</b>
-          <span>M0 · 걸어다니는 섬</span>
+          <span>{editing ? `꾸미는 중 · 물건 ${itemCount}개` : 'M1 · 내 마을'}</span>
         </div>
-        <div className="hint">
-          {coarse
-            ? '조이스틱 이동 · 끌어서 카메라 회전 · 두 손가락으로 확대/축소'
-            : 'WASD / 화살표 이동 · 드래그 카메라 회전 · 휠 확대/축소'}
-        </div>
+
+        <button
+          type="button"
+          className="mode-btn"
+          onClick={() => setMode(editing ? 'browse' : 'edit')}
+        >
+          {editing ? '✓ 다 꾸몄어요' : '🔨 마을 꾸미기'}
+        </button>
+
+        {!editing && (
+          <div className="hint">
+            {coarse
+              ? '조이스틱 이동 · 끌어서 카메라 · 두 손가락 확대/축소'
+              : 'WASD 이동 · 드래그 카메라 · 휠 확대/축소'}
+          </div>
+        )}
+
+        {editing && (
+          <>
+            {selected ? (
+              <div className="selbar">
+                <button type="button" onClick={rotateSelected}>
+                  ↻ 돌리기
+                </button>
+                <button type="button" className="danger" onClick={deleteSelected}>
+                  🗑 지우기
+                </button>
+                <span className="tip">빈 땅을 탭하면 그리로 옮겨져요</span>
+              </div>
+            ) : (
+              <div className="selbar">
+                <span className="tip">
+                  {placing
+                    ? '땅을 탭해서 놓기 · 아이콘 다시 눌러 취소'
+                    : '아래에서 물건을 고르거나, 놓인 물건을 탭하세요'}
+                </span>
+                {itemCount > 0 && (
+                  <button
+                    type="button"
+                    className="danger ghost"
+                    onClick={() => {
+                      if (window.confirm('마을의 모든 물건을 지울까요?')) clearAll()
+                    }}
+                  >
+                    전체 지우기
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="catalog">
+              {CATALOG.map((entry) => (
+                <button
+                  key={entry.type}
+                  type="button"
+                  className={placing === entry.type ? 'on' : ''}
+                  onClick={() => togglePlacing(entry.type)}
+                >
+                  <span className="ico">{entry.emoji}</span>
+                  <span className="lbl">{entry.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      <Joystick />
+      {!editing && <Joystick />}
     </div>
   )
 }
