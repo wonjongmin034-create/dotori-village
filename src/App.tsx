@@ -8,9 +8,17 @@ import {
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './game/Scene'
 import { Joystick } from './game/Joystick'
+import { Quiz } from './game/Quiz'
+import { FarmPanel } from './game/FarmPanel'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
-import { CATALOG } from './game/catalog'
+import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
+
+const CATS: { id: Category; label: string }[] = [
+  { id: 'decor', label: '꾸미기' },
+  { id: 'farm', label: '농사' },
+  { id: 'animal', label: '가축' },
+]
 
 export default function App() {
   const [coarse] = useState(
@@ -19,15 +27,18 @@ export default function App() {
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(pointer: coarse)').matches,
   )
+  const [cat, setCat] = useState<Category>('decor')
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const lastDragX = useRef<number | null>(null)
   const pinchDist = useRef<number | null>(null)
 
   const mode = useVillage((s) => s.mode)
+  const coins = useVillage((s) => s.coins)
   const placing = useVillage((s) => s.placing)
   const selected = useVillage((s) => s.selected)
   const itemCount = useVillage((s) => s.items.length)
+  const msg = useVillage((s) => s.msg)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
   const rotateSelected = useVillage((s) => s.rotateSelected)
@@ -40,13 +51,11 @@ export default function App() {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (pointers.current.size === 1) lastDragX.current = e.clientX
   }
-
   const onPointerMove = (e: ReactPointerEvent) => {
     const p = pointers.current.get(e.pointerId)
     if (!p) return
     p.x = e.clientX
     p.y = e.clientY
-
     if (pointers.current.size >= 2) {
       const [a, b] = [...pointers.current.values()]
       const d = Math.hypot(a.x - b.x, a.y - b.y)
@@ -59,7 +68,6 @@ export default function App() {
       cameraDrag.yawDelta += -dx * 0.005
     }
   }
-
   const onPointerUp = (e: ReactPointerEvent) => {
     pointers.current.delete(e.pointerId)
     if (pointers.current.size < 2) pinchDist.current = null
@@ -69,12 +77,10 @@ export default function App() {
       lastDragX.current = only.x
     }
   }
-
-  const onWheel = (e: ReactWheelEvent) => {
-    nudgeZoom(e.deltaY > 0 ? 1.09 : 0.92)
-  }
+  const onWheel = (e: ReactWheelEvent) => nudgeZoom(e.deltaY > 0 ? 1.09 : 0.92)
 
   const editing = mode === 'edit'
+  const shown = CATALOG.filter((e) => e.category === cat)
 
   return (
     <div
@@ -85,18 +91,17 @@ export default function App() {
       onPointerCancel={onPointerUp}
       onWheel={onWheel}
     >
-      <Canvas
-        dpr={[1, 1.5]}
-        camera={{ fov: 60, position: [0, 8, 14], near: 0.1, far: 240 }}
-      >
+      <Canvas dpr={[1, 1.5]} camera={{ fov: 60, position: [0, 8, 14], near: 0.1, far: 240 }}>
         <Scene />
       </Canvas>
 
       <div className="hud">
         <div className="badge">
           <b>도토리 마을</b>
-          <span>{editing ? `꾸미는 중 · 물건 ${itemCount}개` : 'M1 · 내 마을'}</span>
+          <span>{editing ? `꾸미는 중 · 물건 ${itemCount}개` : 'M2 · 내 마을'}</span>
         </div>
+
+        <div className="coinbar">🌰 {coins}</div>
 
         <button
           type="button"
@@ -109,8 +114,8 @@ export default function App() {
         {!editing && (
           <div className="hint">
             {coarse
-              ? '조이스틱 이동 · 끌어서 카메라 · 두 손가락 확대/축소'
-              : 'WASD 이동 · 드래그 카메라 · 휠 확대/축소'}
+              ? '밭·우리를 탭해서 농사·가축 · 끌어서 카메라 · 두 손가락 확대'
+              : 'WASD 이동 · 밭/우리 클릭 · 드래그 카메라 · 휠 확대'}
           </div>
         )}
 
@@ -147,24 +152,49 @@ export default function App() {
               </div>
             )}
 
-            <div className="catalog">
-              {CATALOG.map((entry) => (
+            <div className="cattabs">
+              {CATS.map((c) => (
                 <button
-                  key={entry.type}
+                  key={c.id}
                   type="button"
-                  className={placing === entry.type ? 'on' : ''}
-                  onClick={() => togglePlacing(entry.type)}
+                  className={cat === c.id ? 'on' : ''}
+                  onClick={() => setCat(c.id)}
                 >
-                  <span className="ico">{entry.emoji}</span>
-                  <span className="lbl">{entry.label}</span>
+                  {c.label}
                 </button>
               ))}
             </div>
+
+            <div className="catalog">
+              {shown.map((entry) => {
+                const broke = entry.cost > coins
+                return (
+                  <button
+                    key={entry.type}
+                    type="button"
+                    className={
+                      (placing === entry.type ? 'on ' : '') + (broke ? 'broke' : '')
+                    }
+                    disabled={broke}
+                    onClick={() => togglePlacing(entry.type)}
+                  >
+                    <span className="ico">{entry.emoji}</span>
+                    <span className="lbl">{entry.label}</span>
+                    <span className="price">{entry.cost === 0 ? '무료' : `🌰${entry.cost}`}</span>
+                  </button>
+                )
+              })}
+            </div>
           </>
         )}
+
+        {msg && <div className="flash">{msg}</div>}
       </div>
 
       {!editing && <Joystick />}
+
+      <FarmPanel />
+      <Quiz />
     </div>
   )
 }

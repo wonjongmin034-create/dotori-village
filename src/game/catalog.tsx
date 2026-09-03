@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react'
 
-// M1 카탈로그 — 지금은 기본 도형으로 만든 로우폴리 소품.
-// 나중에 Kenney / Quaternius glTF 모델로 교체 예정.
+// M2 카탈로그 — 기본 도형 로우폴리. 나중에 Kenney / Quaternius glTF 로 교체.
+// cost: 0 = 무료, 그 외 = 도토리 필요. category: 꾸미기 / 농사 / 가축.
 
 const LEAF = '#4f9e57'
 const LEAF2 = '#63b56b'
@@ -12,13 +12,20 @@ const SAND = '#e6d2a0'
 const WATER = '#5bb7c9'
 const RED = '#c65f5f'
 const CREAM = '#f2e6cf'
+const SOIL = '#7a5230'
+
+export type Category = 'decor' | 'farm' | 'animal'
 
 export type CatalogEntry = {
   type: string
   label: string
   emoji: string
+  cost: number
+  category: Category
   model: ReactElement
 }
+
+/* ---------- 무료 기본 꾸미기 ---------- */
 
 function Tree(): ReactElement {
   return (
@@ -252,7 +259,7 @@ function Pond(): ReactElement {
 
 function Tent(): ReactElement {
   return (
-    <group position={[0, 0, 0]}>
+    <group>
       <mesh position={[0, 0.55, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.95, 1.1, 4]} />
         <meshStandardMaterial color="#d98b5f" flatShading />
@@ -303,24 +310,198 @@ function Campfire(): ReactElement {
   )
 }
 
+/* ---------- 코인 필요 (고급 꾸미기) ---------- */
+
+function BigTree(): ReactElement {
+  return (
+    <group scale={1.5}>
+      <mesh position={[0, 0.8, 0]}>
+        <cylinderGeometry args={[0.22, 0.3, 1.6, 7]} />
+        <meshStandardMaterial color={WOOD} />
+      </mesh>
+      <mesh position={[0, 2.1, 0]}>
+        <icosahedronGeometry args={[1.25, 0]} />
+        <meshStandardMaterial color="#3f8a48" flatShading />
+      </mesh>
+      <mesh position={[0.5, 1.7, 0.3]}>
+        <icosahedronGeometry args={[0.7, 0]} />
+        <meshStandardMaterial color={LEAF} flatShading />
+      </mesh>
+    </group>
+  )
+}
+
+function CherryTree(): ReactElement {
+  return (
+    <group>
+      <mesh position={[0, 0.75, 0]}>
+        <cylinderGeometry args={[0.16, 0.22, 1.5, 6]} />
+        <meshStandardMaterial color="#6b4a30" />
+      </mesh>
+      {[
+        [0, 2, 0, 1],
+        [0.55, 1.75, 0.2, 0.65],
+        [-0.5, 1.7, -0.25, 0.6],
+      ].map(([x, y, z, s], i) => (
+        <mesh key={i} position={[x, y, z]} scale={s}>
+          <icosahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial color="#f4b8d0" flatShading />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function StonePath(): ReactElement {
+  return (
+    <group position={[0, 0.05, 0]}>
+      <mesh>
+        <boxGeometry args={[1, 0.1, 1]} />
+        <meshStandardMaterial color="#b9bcc0" />
+      </mesh>
+      {[
+        [-0.25, 0.06, -0.2],
+        [0.28, 0.06, 0.1],
+        [-0.05, 0.06, 0.3],
+      ].map(([x, y, z], i) => (
+        <mesh key={i} position={[x, y, z]} rotation={[0, i, 0]}>
+          <boxGeometry args={[0.34, 0.06, 0.28]} />
+          <meshStandardMaterial color="#9aa0a6" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function Fountain(): ReactElement {
+  return (
+    <group>
+      <mesh position={[0, 0.15, 0]}>
+        <cylinderGeometry args={[1.1, 1.2, 0.3, 20]} />
+        <meshStandardMaterial color="#c8ccd0" />
+      </mesh>
+      <mesh position={[0, 0.22, 0]}>
+        <cylinderGeometry args={[0.95, 0.95, 0.16, 20]} />
+        <meshStandardMaterial color={WATER} transparent opacity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.55, 0]}>
+        <cylinderGeometry args={[0.1, 0.14, 0.7, 8]} />
+        <meshStandardMaterial color="#d4d8dc" />
+      </mesh>
+      <mesh position={[0, 0.95, 0]}>
+        <sphereGeometry args={[0.22, 12, 10]} />
+        <meshStandardMaterial color={WATER} transparent opacity={0.7} />
+      </mesh>
+    </group>
+  )
+}
+
+function GardenLight(): ReactElement {
+  return (
+    <group>
+      <mesh position={[0, 0.28, 0]}>
+        <cylinderGeometry args={[0.05, 0.07, 0.56, 6]} />
+        <meshStandardMaterial color="#4a5a52" />
+      </mesh>
+      <mesh position={[0, 0.62, 0]}>
+        <sphereGeometry args={[0.14, 12, 10]} />
+        <meshStandardMaterial color="#fff2c2" emissive="#ffdf8a" emissiveIntensity={0.8} />
+      </mesh>
+    </group>
+  )
+}
+
+/* ---------- 농사 · 가축 (땅/우리) ---------- */
+
+function Plot(): ReactElement {
+  return (
+    <group>
+      <mesh position={[0, 0.05, 0]}>
+        <boxGeometry args={[1.4, 0.1, 1.4]} />
+        <meshStandardMaterial color={SOIL} />
+      </mesh>
+      {[-0.4, 0, 0.4].map((z) => (
+        <mesh key={z} position={[0, 0.12, z]}>
+          <boxGeometry args={[1.3, 0.06, 0.18]} />
+          <meshStandardMaterial color="#5f3f24" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function Coop(): ReactElement {
+  return (
+    <group>
+      <mesh position={[0, 0.04, 0]}>
+        <boxGeometry args={[1.8, 0.08, 1.8]} />
+        <meshStandardMaterial color="#8a6b45" />
+      </mesh>
+      {[
+        [-0.82, -0.82],
+        [0.82, -0.82],
+        [-0.82, 0.82],
+        [0.82, 0.82],
+      ].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.35, z]}>
+          <boxGeometry args={[0.1, 0.7, 0.1]} />
+          <meshStandardMaterial color={WOOD2} />
+        </mesh>
+      ))}
+      {[0.25, 0.6].map((y) => (
+        <group key={y}>
+          <mesh position={[0, y, -0.82]}>
+            <boxGeometry args={[1.6, 0.06, 0.06]} />
+            <meshStandardMaterial color={WOOD} />
+          </mesh>
+          <mesh position={[0, y, 0.82]}>
+            <boxGeometry args={[1.6, 0.06, 0.06]} />
+            <meshStandardMaterial color={WOOD} />
+          </mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[0.9, 0.5, 0.9]} />
+        <meshStandardMaterial color="#c98f5c" />
+      </mesh>
+      <mesh position={[0, 0.85, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.8, 0.4, 4]} />
+        <meshStandardMaterial color="#a6522f" />
+      </mesh>
+    </group>
+  )
+}
+
 export const CATALOG: CatalogEntry[] = [
-  { type: 'tree', label: '나무', emoji: '🌳', model: <Tree /> },
-  { type: 'pine', label: '소나무', emoji: '🌲', model: <Pine /> },
-  { type: 'bush', label: '덤불', emoji: '🌿', model: <Bush /> },
-  { type: 'flowers', label: '꽃밭', emoji: '🌷', model: <Flowers /> },
-  { type: 'rock', label: '바위', emoji: '🪨', model: <Rock /> },
-  { type: 'fence', label: '울타리', emoji: '🚧', model: <Fence /> },
-  { type: 'path', label: '길', emoji: '🟫', model: <Path /> },
-  { type: 'lamp', label: '가로등', emoji: '💡', model: <Lamp /> },
-  { type: 'bench', label: '벤치', emoji: '🪑', model: <Bench /> },
-  { type: 'table', label: '탁자', emoji: '🍽️', model: <Table /> },
-  { type: 'mailbox', label: '우편함', emoji: '📮', model: <Mailbox /> },
-  { type: 'sign', label: '표지판', emoji: '🪧', model: <Sign /> },
-  { type: 'pond', label: '연못', emoji: '💧', model: <Pond /> },
-  { type: 'tent', label: '텐트', emoji: '⛺', model: <Tent /> },
-  { type: 'crate', label: '나무상자', emoji: '📦', model: <Crate /> },
-  { type: 'barrel', label: '나무통', emoji: '🛢️', model: <Barrel /> },
-  { type: 'campfire', label: '모닥불', emoji: '🔥', model: <Campfire /> },
+  // 무료 꾸미기
+  { type: 'tree', label: '나무', emoji: '🌳', cost: 0, category: 'decor', model: <Tree /> },
+  { type: 'pine', label: '소나무', emoji: '🌲', cost: 0, category: 'decor', model: <Pine /> },
+  { type: 'bush', label: '덤불', emoji: '🌿', cost: 0, category: 'decor', model: <Bush /> },
+  { type: 'flowers', label: '꽃밭', emoji: '🌷', cost: 0, category: 'decor', model: <Flowers /> },
+  { type: 'rock', label: '바위', emoji: '🪨', cost: 0, category: 'decor', model: <Rock /> },
+  { type: 'fence', label: '울타리', emoji: '🚧', cost: 0, category: 'decor', model: <Fence /> },
+  { type: 'path', label: '흙길', emoji: '🟫', cost: 0, category: 'decor', model: <Path /> },
+  { type: 'lamp', label: '가로등', emoji: '💡', cost: 0, category: 'decor', model: <Lamp /> },
+  { type: 'bench', label: '벤치', emoji: '🪑', cost: 0, category: 'decor', model: <Bench /> },
+  { type: 'table', label: '탁자', emoji: '🍽️', cost: 0, category: 'decor', model: <Table /> },
+  { type: 'mailbox', label: '우편함', emoji: '📮', cost: 0, category: 'decor', model: <Mailbox /> },
+  { type: 'sign', label: '표지판', emoji: '🪧', cost: 0, category: 'decor', model: <Sign /> },
+  { type: 'pond', label: '연못', emoji: '💧', cost: 0, category: 'decor', model: <Pond /> },
+  { type: 'tent', label: '텐트', emoji: '⛺', cost: 0, category: 'decor', model: <Tent /> },
+  { type: 'crate', label: '나무상자', emoji: '📦', cost: 0, category: 'decor', model: <Crate /> },
+  { type: 'barrel', label: '나무통', emoji: '🛢️', cost: 0, category: 'decor', model: <Barrel /> },
+  { type: 'campfire', label: '모닥불', emoji: '🔥', cost: 0, category: 'decor', model: <Campfire /> },
+
+  // 코인 필요 (고급 꾸미기)
+  { type: 'bigtree', label: '큰나무', emoji: '🌳', cost: 15, category: 'decor', model: <BigTree /> },
+  { type: 'cherry', label: '벚나무', emoji: '🌸', cost: 22, category: 'decor', model: <CherryTree /> },
+  { type: 'stonepath', label: '돌길', emoji: '🪧', cost: 6, category: 'decor', model: <StonePath /> },
+  { type: 'gardenlight', label: '정원등', emoji: '🏮', cost: 10, category: 'decor', model: <GardenLight /> },
+  { type: 'fountain', label: '분수대', emoji: '⛲', cost: 40, category: 'decor', model: <Fountain /> },
+
+  // 농사 · 가축
+  { type: 'plot', label: '밭', emoji: '🟫', cost: 0, category: 'farm', model: <Plot /> },
+  { type: 'coop', label: '우리', emoji: '🏠', cost: 0, category: 'animal', model: <Coop /> },
 ]
 
 export const CATALOG_MAP: Record<string, CatalogEntry> = Object.fromEntries(

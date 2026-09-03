@@ -7,6 +7,7 @@ import { Player } from './Player'
 import { CameraRig } from './CameraRig'
 import { PlacedObjects } from './PlacedObjects'
 import { EditorControls } from './EditorControls'
+import { BrowseInteract } from './BrowseInteract'
 import { useVillage } from './store'
 
 // fps가 떨어지면 렌더 해상도를 낮춘다 (기획서 성능 예산).
@@ -59,6 +60,7 @@ export function Scene() {
       <Player />
       <CameraRig />
       <EditorControls itemsRef={itemsRef} />
+      <BrowseInteract itemsRef={itemsRef} />
     </>
   )
 }
