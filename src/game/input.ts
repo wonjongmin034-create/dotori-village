@@ -5,6 +5,12 @@ export const keyboardVec = { x: 0, y: 0 }
 export const joystickVec = { x: 0, y: 0 }
 export const cameraDrag = { yawDelta: 0 }
 
+// 카메라 거리 배율: 1 = 기본, 클수록 멀리(넓게) 보인다.
+export const cameraZoom = { value: 1 }
+export function nudgeZoom(factor: number) {
+  cameraZoom.value = Math.min(2.2, Math.max(0.55, cameraZoom.value * factor))
+}
+
 /** 이동 입력. 조이스틱이 움직이는 중이면 조이스틱 우선, 아니면 키보드. */
 export function getMove(): { x: number; y: number } {
   if (joystickVec.x !== 0 || joystickVec.y !== 0) {

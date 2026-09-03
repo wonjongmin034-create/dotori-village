@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { cameraDrag, getMove } from './input'
+import { cameraDrag, cameraZoom, getMove } from './input'
 
 const ISLAND_RADIUS = 16.5 // 캐릭터가 나갈 수 없는 반경
 const SPEED = 6 // m/s
@@ -31,7 +31,7 @@ export function Player() {
     yaw: Math.PI * 0.12, // 캐릭터 주위를 도는 카메라 각도
     facing: Math.PI, // 캐릭터가 바라보는 방향
     phase: 0, // 걷기 사이클
-    camPos: new THREE.Vector3(0, 6.4, 10.5),
+    camPos: new THREE.Vector3(0, 8, 14),
   })
 
   const tmp = useMemo(
@@ -53,8 +53,8 @@ export function Player() {
     st.yaw += cameraDrag.yawDelta
     cameraDrag.yawDelta = 0
 
-    // 카메라가 있어야 할 위치
-    tmp.offset.set(0, 6.4, 10.5).applyAxisAngle(UP, st.yaw)
+    // 카메라가 있어야 할 위치 (줌 배율만큼 멀리/가까이)
+    tmp.offset.set(0, 8, 14).multiplyScalar(cameraZoom.value).applyAxisAngle(UP, st.yaw)
     tmp.desired.copy(st.pos).add(tmp.offset)
 
     // 카메라 기준 수평 방향
@@ -107,7 +107,7 @@ export function Player() {
     const k = 1 - Math.pow(0.0016, dt)
     st.camPos.lerp(tmp.desired, k)
     camera.position.copy(st.camPos)
-    camera.lookAt(st.pos.x, st.pos.y + 1.15, st.pos.z)
+    camera.lookAt(st.pos.x, st.pos.y + 1.3, st.pos.z)
   })
 
   return (
