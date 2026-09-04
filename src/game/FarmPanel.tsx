@@ -6,11 +6,12 @@ import {
   CARE_COOLDOWN_MS,
   FERTILIZER_COST,
   FERTILIZER_BONUS,
+  fmtLeft,
 } from './economy'
 import { useVillage } from './store'
 import { useNow } from './useNow'
 
-const secs = (ms: number) => `${Math.max(0, Math.ceil(ms / 1000))}초`
+const secs = fmtLeft
 
 export function FarmPanel() {
   const key = useVillage((s) => s.activeFarm)
@@ -54,6 +55,7 @@ export function FarmPanel() {
                   <span className="opt-name">{c.label}</span>
                   <span className="opt-cost">{c.cost === 0 ? '무료' : `🌰 ${c.cost}`}</span>
                   <span className="opt-reward">수확 +{c.reward}</span>
+                  <span className="opt-time">약 {fmtLeft(c.minGrowMs)}</span>
                 </button>
               ))}
             </div>
@@ -129,6 +131,7 @@ export function FarmPanel() {
                   <span className="opt-reward">
                     {a.produceEmoji} +{a.reward}
                   </span>
+                  <span className="opt-time">{fmtLeft(a.produceMs)}마다</span>
                 </button>
               ))}
             </div>

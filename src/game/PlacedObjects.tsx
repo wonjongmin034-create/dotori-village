@@ -31,7 +31,7 @@ export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> 
   const selected = useVillage((s) => s.selected)
   const activeFarm = useVillage((s) => s.activeFarm)
   const editing = useVillage((s) => s.mode === 'edit')
-  const now = useNow(1000)
+  const now = useNow(4000)
 
   return (
     <group ref={itemsRef}>

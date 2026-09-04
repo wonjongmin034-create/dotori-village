@@ -371,6 +371,10 @@ canvas {
   font-size: 11px;
   color: #4b7a4b;
 }
+.farm-opt .opt-time {
+  font-size: 10px;
+  color: #8a8f86;
+}
 .farm-status {
   display: flex;
   flex-direction: column;
