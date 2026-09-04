@@ -70,6 +70,19 @@ export const ANIMALS: AnimalDef[] = [
 
 export const ANIMAL_MAP: Record<string, AnimalDef> = Object.fromEntries(ANIMALS.map((a) => [a.id, a]))
 
+// 우리 집 — 시작은 천막, 코인으로 단계 발전
+export type HouseLevel = { level: number; label: string; cost: number; desc: string }
+export const HOUSE_LEVELS: HouseLevel[] = [
+  { level: 1, label: '천막', cost: 0, desc: '작지만 아늑한 시작' },
+  { level: 2, label: '통나무 오두막', cost: 45, desc: '지붕과 문이 생겼어요' },
+  { level: 3, label: '아담한 집', cost: 130, desc: '창문과 굴뚝, 작은 현관' },
+  { level: 4, label: '이층집', cost: 340, desc: '위층이 생겨 넓어졌어요' },
+  { level: 5, label: '큰 저택', cost: 750, desc: '마을에서 제일 멋진 집' },
+]
+export const MAX_HOUSE_LEVEL = HOUSE_LEVELS.length
+export const houseLevel = (n: number | undefined) =>
+  HOUSE_LEVELS.find((l) => l.level === (n ?? 1)) ?? HOUSE_LEVELS[0]
+
 // 남은 시간을 사람이 읽기 좋게: "3일" / "5시간" / "20분"
 export function fmtLeft(ms: number): string {
   if (ms <= 0) return ''

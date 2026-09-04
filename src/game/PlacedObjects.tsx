@@ -5,6 +5,7 @@ import { CARE_COOLDOWN_MS, CROP_MAP, ANIMAL_MAP } from './economy'
 import { useVillage, type PlacedItem } from './store'
 import { useNow } from './useNow'
 import { CropView, AnimalView, Beacon } from './FarmModels'
+import { HouseView } from './HouseModels'
 
 function beaconColor(it: PlacedItem, now: number): string | null {
   if (it.type === 'plot' && it.crop) {
@@ -37,7 +38,7 @@ export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> 
     <group ref={itemsRef}>
       {items.map((it) => {
         const entry = CATALOG_MAP[it.type]
-        if (!entry) return null
+        if (!entry && it.type !== 'house') return null
         const highlight = editing ? selected === it.key : activeFarm === it.key
         const bc = beaconColor(it, now)
         return (
@@ -47,7 +48,7 @@ export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> 
             rotation={[0, it.rot, 0]}
             userData={{ editorKey: it.key }}
           >
-            {entry.model}
+            {it.type === 'house' ? <HouseView level={it.level ?? 1} /> : entry?.model}
             {it.type === 'plot' && it.crop && <CropView crop={it.crop} now={now} />}
             {it.type === 'coop' && it.animal && <AnimalView animal={it.animal} />}
             {bc && <Beacon color={bc} />}

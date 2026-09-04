@@ -414,6 +414,80 @@ canvas {
   cursor: default;
 }
 
+/* --- 집 업그레이드 --- */
+.house-next {
+  margin: 4px 0 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #eef2e6;
+}
+.house-next-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  color: #33423a;
+}
+.house-next-head .house-cost {
+  font-weight: 800;
+  color: #9a7b2e;
+}
+.house-next p {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: #6a756c;
+}
+.house-next button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: #3e9b4f;
+  cursor: pointer;
+}
+.house-next button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.house-track {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.house-track li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #8a8f86;
+}
+.house-track li span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #ececdf;
+  color: #9a7b2e;
+}
+.house-track li.done {
+  color: #2f4a38;
+  font-weight: 700;
+}
+.house-track li.done span {
+  background: #dcefdc;
+}
+
 /* --- 학습 문제 --- */
 .quiz-card {
   max-width: 400px;

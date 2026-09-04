@@ -7,6 +7,7 @@ import {
   FERTILIZER_BONUS,
   CROP_MAP,
   ANIMAL_MAP,
+  HOUSE_LEVELS,
 } from './economy'
 import { CATALOG_MAP } from './catalog'
 
@@ -34,6 +35,7 @@ export type PlacedItem = {
   rot: number
   crop?: CropState
   animal?: AnimalState
+  level?: number // 우리 집 등급
 }
 
 export type Mode = 'browse' | 'edit'
@@ -76,6 +78,12 @@ function save(coins: number, items: PlacedItem[]) {
 let seq = 0
 const newKey = () => `k${Date.now().toString(36)}_${(seq++).toString(36)}`
 
+// 마을에는 항상 우리 집이 하나 있다. 없으면 천막(1단계)을 놓아준다.
+function ensureHouse(items: PlacedItem[]): PlacedItem[] {
+  if (items.some((i) => i.type === 'house')) return items
+  return [{ key: 'house', type: 'house', x: -5, z: -3, rot: 0, level: 1 }, ...items]
+}
+
 const PLACE_RADIUS = 17.5
 function clampToIsland(x: number, z: number): [number, number] {
   const d = Math.hypot(x, z)
@@ -108,6 +116,7 @@ interface VillageState {
   rotateSelected: () => void
   deleteSelected: () => void
   clearAll: () => void
+  upgradeHouse: () => void
 
   askQuiz: (onPass: () => void) => void
   passQuiz: () => void
@@ -123,7 +132,8 @@ interface VillageState {
   collectProduce: (key: string) => void
 }
 
-const initial = load()
+const initialRaw = load()
+const initial = { coins: initialRaw.coins, items: ensureHouse(initialRaw.items) }
 let msgTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useVillage = create<VillageState>((set, get) => {
@@ -194,13 +204,39 @@ export const useVillage = create<VillageState>((set, get) => {
     deleteSelected: () => {
       const { selected, items } = get()
       if (!selected) return
-      commit(items.filter((it) => it.key !== selected))
+      const it = items.find((i) => i.key === selected)
+      if (it?.type === 'house') {
+        get().flash('우리 집은 지울 수 없어요')
+        return
+      }
+      commit(items.filter((i) => i.key !== selected))
       set({ selected: null })
     },
 
     clearAll: () => {
-      commit([])
+      commit(get().items.filter((i) => i.type === 'house'))
       set({ selected: null, placing: null })
+    },
+
+    upgradeHouse: () => {
+      const { items, coins } = get()
+      const h = items.find((i) => i.type === 'house')
+      if (!h) return
+      const cur = h.level ?? 1
+      const next = HOUSE_LEVELS.find((l) => l.level === cur + 1)
+      if (!next) {
+        get().flash('이미 제일 좋은 집이에요')
+        return
+      }
+      if (coins < next.cost) {
+        get().flash(`${next.cost} 도토리가 필요해요`)
+        return
+      }
+      commit(
+        items.map((i) => (i.type === 'house' ? { ...i, level: cur + 1 } : i)),
+        coins - next.cost,
+      )
+      get().flash(`집이 ${next.label}(으)로 커졌어요! 🏡`)
     },
 
     askQuiz: (onPass) => set({ quiz: { onPass } }),

@@ -10,6 +10,7 @@ import { Scene } from './game/Scene'
 import { Joystick } from './game/Joystick'
 import { Quiz } from './game/Quiz'
 import { FarmPanel } from './game/FarmPanel'
+import { HousePanel } from './game/HousePanel'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
@@ -37,6 +38,7 @@ export default function App() {
   const coins = useVillage((s) => s.coins)
   const placing = useVillage((s) => s.placing)
   const selected = useVillage((s) => s.selected)
+  const selectedType = useVillage((s) => s.items.find((i) => i.key === s.selected)?.type)
   const itemCount = useVillage((s) => s.items.length)
   const msg = useVillage((s) => s.msg)
   const setMode = useVillage((s) => s.setMode)
@@ -126,10 +128,16 @@ export default function App() {
                 <button type="button" onClick={rotateSelected}>
                   ↻ 돌리기
                 </button>
-                <button type="button" className="danger" onClick={deleteSelected}>
-                  🗑 지우기
-                </button>
-                <span className="tip">빈 땅을 탭하면 그리로 옮겨져요</span>
+                {selectedType !== 'house' && (
+                  <button type="button" className="danger" onClick={deleteSelected}>
+                    🗑 지우기
+                  </button>
+                )}
+                <span className="tip">
+                  {selectedType === 'house'
+                    ? '우리 집은 옮길 수만 있어요'
+                    : '빈 땅을 탭하면 그리로 옮겨져요'}
+                </span>
               </div>
             ) : (
               <div className="selbar">
@@ -194,6 +202,7 @@ export default function App() {
       {!editing && <Joystick />}
 
       <FarmPanel />
+      <HousePanel />
       <Quiz />
     </div>
   )

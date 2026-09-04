@@ -28,6 +28,7 @@ export function FarmPanel() {
   const now = useNow(500)
 
   if (!key || !item) return null
+  if (item.type !== 'plot' && item.type !== 'coop') return null
 
   return (
     <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
