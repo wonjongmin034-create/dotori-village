@@ -78,10 +78,17 @@ function save(coins: number, items: PlacedItem[]) {
 let seq = 0
 const newKey = () => `k${Date.now().toString(36)}_${(seq++).toString(36)}`
 
-// 마을에는 항상 우리 집이 하나 있다. 없으면 천막(1단계)을 놓아준다.
+// 마을에는 항상 우리 집이 하나 있다. 없으면 천막(1단계)을 마을 한가운데에 놓아준다.
 function ensureHouse(items: PlacedItem[]): PlacedItem[] {
-  if (items.some((i) => i.type === 'house')) return items
-  return [{ key: 'house', type: 'house', x: -5, z: -3, rot: 0, level: 1 }, ...items]
+  const house = items.find((i) => i.type === 'house')
+  if (!house) {
+    return [{ key: 'house', type: 'house', x: 0, z: 0, rot: 0, level: 1 }, ...items]
+  }
+  // 예전 기본 위치(-5,-3)에 있던 집은 가운데로 한 번 옮긴다
+  if (house.x === -5 && house.z === -3) {
+    return items.map((i) => (i.type === 'house' ? { ...i, x: 0, z: 0 } : i))
+  }
+  return items
 }
 
 const PLACE_RADIUS = 17.5
@@ -133,7 +140,9 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initial = { coins: initialRaw.coins, items: ensureHouse(initialRaw.items) }
+const initialItems = ensureHouse(initialRaw.items)
+const initial = { coins: initialRaw.coins, items: initialItems }
+if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useVillage = create<VillageState>((set, get) => {
