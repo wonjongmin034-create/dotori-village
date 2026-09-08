@@ -67,7 +67,6 @@ function snapshotNow() {
 
 let quizCorrect = 0
 let quizWrong = 0
-let lastGrantCheck = new Date(0).toISOString()
 
 export async function login(
   classCode: string,
@@ -113,13 +112,13 @@ export async function login(
     }
 
     const session: Session = { classCode: code, name: who }
-    lastGrantCheck = new Date().toISOString()
     await refreshClass(code)
     saveLocalSession(session)
     snapshotNow()
     void markSeen()
     useVillage.setState({ session, cloud: 'synced' })
     startPolling()
+    void pollGrants()
     return { ok: true }
   } catch {
     return { ok: false, error: 'network' }
@@ -148,12 +147,12 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
       typeof data.coins === 'number' ? data.coins : 30,
       Array.isArray(data.items) ? (data.items as PlacedItem[]) : [],
     )
-    lastGrantCheck = new Date().toISOString()
     await refreshClass(session.classCode)
     snapshotNow()
     void markSeen()
     useVillage.setState({ session, cloud: 'synced' })
     startPolling()
+    void pollGrants()
     return 'in'
   } catch {
     useVillage.setState({ session, cloud: 'offline' })
@@ -250,11 +249,13 @@ async function pollGrants() {
   const { session } = useVillage.getState()
   if (!session) return
   try {
+    // 최근 7일치 지급을 확인. 중복 적용은 consumed_by로 막는다.
+    const since = new Date(Date.now() - 7 * 86400_000).toISOString()
     const { data, error } = await supabase
       .from('grants')
       .select('id, student, amount, reason, consumed_by, created_at')
       .eq('class_code', session.classCode)
-      .gt('created_at', lastGrantCheck)
+      .gt('created_at', since)
       .order('created_at', { ascending: true })
     if (error || !data) return
     for (const g of data) {
@@ -267,7 +268,6 @@ async function pollGrants() {
         .update({ consumed_by: [...(g.consumed_by || []), session.name] })
         .eq('id', g.id)
     }
-    lastGrantCheck = new Date().toISOString()
   } catch {
     /* noop */
   }
