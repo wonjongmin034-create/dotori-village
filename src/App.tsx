@@ -17,7 +17,8 @@ import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
 import { Login } from './game/Login'
-import { loadLocalSession, resume, logout } from './game/cloud'
+import { TeacherDashboard } from './game/TeacherDashboard'
+import { loadLocalSession, loadLocalTeacher, resume, logout } from './game/cloud'
 
 const CATS: { id: Category; label: string }[] = [
   { id: 'decor', label: '꾸미기' },
@@ -33,7 +34,8 @@ export default function App() {
       window.matchMedia('(pointer: coarse)').matches,
   )
   const [cat, setCat] = useState<Category>('decor')
-  const [gate, setGate] = useState<'checking' | 'login' | 'in'>('checking')
+  const [gate, setGate] = useState<'checking' | 'login' | 'in' | 'teacher'>('checking')
+  const [teacherCode, setTeacherCode] = useState<string | null>(null)
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const lastDragX = useRef<number | null>(null)
@@ -63,6 +65,12 @@ export default function App() {
       params.delete('logout')
       history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''))
       setGate('login')
+      return
+    }
+    const t = loadLocalTeacher()
+    if (t) {
+      setTeacherCode(t)
+      setGate('teacher')
       return
     }
     const s = loadLocalSession()
@@ -119,7 +127,26 @@ export default function App() {
     )
   }
   if (gate === 'login') {
-    return <Login onDone={() => setGate('in')} />
+    return (
+      <Login
+        onStudent={() => setGate('in')}
+        onTeacher={() => {
+          setTeacherCode(loadLocalTeacher())
+          setGate('teacher')
+        }}
+      />
+    )
+  }
+  if (gate === 'teacher' && teacherCode) {
+    return (
+      <TeacherDashboard
+        classCode={teacherCode}
+        onExit={() => {
+          setTeacherCode(null)
+          setGate('login')
+        }}
+      />
+    )
   }
 
   return (

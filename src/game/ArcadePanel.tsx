@@ -14,6 +14,7 @@ const acornEmoji = (lv: number) => (lv >= 9 ? '🌟' : lv >= 6 ? '✨' : lv >= 3
 export function ArcadePanel() {
   const arc = useVillage((s) => s.items.find((i) => i.key === s.activeFarm && i.type === 'arcade'))
   const coins = useVillage((s) => s.coins)
+  const locked = useVillage((s) => s.arcadeLocked)
   const close = useVillage((s) => s.closeFarm)
   const tryOne = useVillage((s) => s.enhanceTry)
   const sell = useVillage((s) => s.enhanceSell)
@@ -37,6 +38,23 @@ export function ArcadePanel() {
   }, [fx])
 
   if (!arc?.enh) return null
+
+  if (locked) {
+    return (
+      <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
+        <div className="farm-card arcade-card">
+          <button type="button" className="farm-x" onClick={close} aria-label="닫기">
+            ✕
+          </button>
+          <h3>🎰 도토리 강화</h3>
+          <div className="arc-acorn">
+            <div className="arc-orb lv0">🔒</div>
+          </div>
+          <p className="farm-note">지금은 선생님이 강화 게임을 잠가뒀어요.</p>
+        </div>
+      </div>
+    )
+  }
 
   const today = dateKey()
   const sameDay = arc.enh.day === today

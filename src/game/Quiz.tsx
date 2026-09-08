@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QUIZ_REWARD } from './economy'
 import { randomQuestion, type Question } from './questions'
 import { useVillage } from './store'
+import { pushQuizStat } from './cloud'
 
 // 돌봄(물주기·먹이주기·비료) 전에 뜨는 학습 문제.
 export function Quiz() {
@@ -12,6 +13,7 @@ export function Quiz() {
   const [q, setQ] = useState<Question>(() => randomQuestion())
   const [picked, setPicked] = useState<number | null>(null)
   const [wrong, setWrong] = useState(false)
+  const logged = useRef(false) // 이 문제에 대해 통계 기록했는지
 
   // quiz 요청이 새로 들어올 때마다 새 문제로 초기화
   useEffect(() => {
@@ -19,6 +21,7 @@ export function Quiz() {
       setQ(randomQuestion())
       setPicked(null)
       setWrong(false)
+      logged.current = false
     }
   }, [quiz])
 
@@ -31,12 +34,17 @@ export function Quiz() {
     if (answered && correct) return
     setPicked(i)
     setWrong(i !== q.answer)
+    if (!logged.current) {
+      logged.current = true
+      void pushQuizStat(i === q.answer)
+    }
   }
 
   const retry = () => {
     setQ((prev) => randomQuestion(prev))
     setPicked(null)
     setWrong(false)
+    logged.current = false
   }
 
   return (

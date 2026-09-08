@@ -149,6 +149,7 @@ export type QuizRequest = { onPass: () => void }
 export type Session = { classCode: string; name: string }
 export type CloudStatus = 'local' | 'synced' | 'offline'
 export type EnhanceFx = { n: number; ok: boolean; from: number; to: number }
+export type Mission = { text: string; reward: number; done: string[] }
 
 interface VillageState {
   mode: Mode
@@ -157,6 +158,8 @@ interface VillageState {
   homework: string
   session: Session | null
   cloud: CloudStatus
+  arcadeLocked: boolean
+  mission: Mission | null
 
   placing: string | null
   selected: string | null
@@ -170,6 +173,8 @@ interface VillageState {
   hydrateHomework: (text: string) => void
   setSession: (s: Session | null) => void
   setCloud: (c: CloudStatus) => void
+  setClassConfig: (cfg: { arcadeEnabled?: boolean; mission?: Mission | null }) => void
+  grantCoins: (amount: number, reason: string) => void
   setMode: (m: Mode) => void
   togglePlacing: (type: string) => void
   select: (key: string | null) => void
@@ -220,6 +225,8 @@ export const useVillage = create<VillageState>((set, get) => {
     homework: initial.homework,
     session: null,
     cloud: 'local',
+    arcadeLocked: false,
+    mission: null,
     placing: null,
     selected: null,
     activeFarm: null,
@@ -246,6 +253,23 @@ export const useVillage = create<VillageState>((set, get) => {
 
     setSession: (session) => set({ session }),
     setCloud: (cloud) => set({ cloud }),
+    setClassConfig: (cfg) =>
+      set((s) => ({
+        arcadeLocked: cfg.arcadeEnabled === undefined ? s.arcadeLocked : !cfg.arcadeEnabled,
+        mission: cfg.mission === undefined ? s.mission : cfg.mission,
+      })),
+
+    // 선생님이 준 도토리를 받는다 (cloud.ts 폴링에서 호출)
+    grantCoins: (amount, reason) => {
+      const next = get().coins + amount
+      save(next, get().items, get().homework)
+      set({ coins: next })
+      get().flash(
+        amount >= 0
+          ? `선생님이 도토리를 줬어요! +${amount}${reason ? ` (${reason})` : ''}`
+          : `도토리 ${amount}${reason ? ` (${reason})` : ''}`,
+      )
+    },
 
     setMode: (mode) =>
       set({ mode, placing: null, selected: null, activeFarm: null }),
@@ -508,6 +532,10 @@ export const useVillage = create<VillageState>((set, get) => {
 
     enhanceTry: () => {
       const { items, coins } = get()
+      if (get().arcadeLocked) {
+        get().flash('강화 게임은 지금 잠겨 있어요')
+        return
+      }
       const arc = items.find((i) => i.type === 'arcade')
       if (!arc?.enh) return
       const today = dateKey()

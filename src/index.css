@@ -522,6 +522,26 @@ canvas {
   color: #6a756c;
   margin-bottom: 18px;
 }
+.login-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 16px;
+}
+.login-tabs button {
+  flex: 1;
+  padding: 9px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a6b5f;
+  background: #ececdf;
+  cursor: pointer;
+}
+.login-tabs button.on {
+  color: #fff;
+  background: #3e9b4f;
+}
 .login-card form {
   display: flex;
   flex-direction: column;
@@ -706,6 +726,296 @@ canvas {
 }
 .lunch-list .lunch-daylabel {
   margin-bottom: 0;
+}
+
+/* --- 선생님 대시보드 --- */
+.dash {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  overflow-y: auto;
+  background: #eef1e6;
+  -webkit-overflow-scrolling: touch;
+}
+.dash-loading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 15px;
+  color: #5a6b5f;
+}
+.dash-loading button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #3e9b4f;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dash-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: #3e9b4f;
+  color: #fff;
+}
+.dash-head b {
+  display: block;
+  font-size: 16px;
+}
+.dash-head span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.dash-head-btns {
+  display: flex;
+  gap: 6px;
+}
+.dash-head-btns button {
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  cursor: pointer;
+}
+.dash-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(40, 55, 46, 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.dash-card {
+  max-width: 620px;
+  margin: 12px auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.dash-card:first-of-type {
+  margin-top: 16px;
+}
+.dash-card h3 {
+  font-size: 15px;
+  color: #2f4a38;
+  margin-bottom: 6px;
+}
+.dash-note {
+  font-size: 12px;
+  color: #7a857c;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.dash-card textarea {
+  width: 100%;
+  padding: 11px;
+  border-radius: 11px;
+  border: 1.5px solid #d8d5c4;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+.dash-card button.primary {
+  background: #3e9b4f;
+  color: #fff;
+}
+.dash-card button.primary:disabled {
+  opacity: 0.4;
+}
+.dash-card button.danger {
+  background: #f2dede;
+  color: #b5423f;
+}
+.dash-card button.wide {
+  width: 100%;
+  padding: 12px;
+  border-radius: 11px;
+  border: none;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.grant-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.grant-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5a6b5f;
+}
+.grant-row .grant-reason {
+  flex: 1;
+  min-width: 140px;
+}
+.grant-row input {
+  padding: 10px;
+  border-radius: 9px;
+  border: 1.5px solid #d8d5c4;
+  font: inherit;
+  font-size: 14px;
+}
+.grant-row input[type='number'] {
+  width: 74px;
+}
+.grant-btns {
+  display: flex;
+  gap: 8px;
+}
+.grant-btns button {
+  flex: 1;
+  padding: 11px;
+  border-radius: 11px;
+  border: none;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.stu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: #f4f5ee;
+  font-size: 12px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.stu.on {
+  background: #dcefdc;
+  outline: 2px solid #8fd39a;
+}
+.stu input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+}
+.stu-name {
+  font-weight: 800;
+  font-size: 13px;
+  color: #2f4a38;
+  min-width: 54px;
+}
+.stu-stat {
+  color: #5a6b5f;
+}
+.stu-stat.dim {
+  color: #a0a89f;
+}
+.stu-mission {
+  font-weight: 700;
+  color: #b0862e;
+}
+.stu-mission.done {
+  color: #3e9b4f;
+}
+.stu-pin {
+  margin-left: auto;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: none;
+  font-size: 11px;
+  background: #e7e4d4;
+  color: #7a6a3e;
+  cursor: pointer;
+}
+
+.mission-track {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+}
+.mission-track p {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.mission-stus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mission-stus button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1.5px solid #dcd9c8;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.mission-stus button.done {
+  background: #dcefdc;
+  border-color: #8fd39a;
+  color: #256b2f;
+  font-weight: 700;
+}
+.dash-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #3a4a3f;
+}
+.dash-switch input {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- 학생 미션 보기 --- */
+.mission-view {
+  padding: 4px 0;
+}
+.mission-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2a3830;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eef4ea;
+  margin-bottom: 10px;
+}
+.mission-count {
+  font-size: 13px;
+  color: #4a5a50;
+  margin-bottom: 4px;
+}
+.mission-done-line {
+  font-size: 13px;
+  color: #4a5a50;
+  margin-bottom: 10px;
 }
 
 /* --- 도토리 강화 --- */

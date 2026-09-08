@@ -20,11 +20,13 @@ function upcomingLunchDays(): { label: string; menu: string[]; today: boolean }[
 export function BoardPanel() {
   const item = useVillage((s) => s.items.find((i) => i.key === s.activeFarm))
   const homework = useVillage((s) => s.homework)
+  const mission = useVillage((s) => s.mission)
+  const session = useVillage((s) => s.session)
   const setHomework = useVillage((s) => s.setHomework)
   const close = useVillage((s) => s.closeFarm)
   const flash = useVillage((s) => s.flash)
 
-  const [tab, setTab] = useState<'hw' | 'lunch'>('hw')
+  const [tab, setTab] = useState<'hw' | 'lunch' | 'mission'>('hw')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -64,7 +66,30 @@ export function BoardPanel() {
           >
             🍚 급식
           </button>
+          {mission && (
+            <button
+              type="button"
+              className={tab === 'mission' ? 'on' : ''}
+              onClick={() => setTab('mission')}
+            >
+              🤝 미션
+            </button>
+          )}
         </div>
+
+        {tab === 'mission' && mission && (
+          <div className="mission-view">
+            <p className="mission-text">{mission.text}</p>
+            <p className="mission-count">
+              전원 완료하면 <b>모두 +{mission.reward} 도토리</b>
+            </p>
+            <p className="mission-done-line">
+              완료한 친구 <b>{mission.done.length}명</b>
+              {session && mission.done.includes(session.name) && ' · 나는 완료 ✓'}
+            </p>
+            <p className="hw-empty">다 같이 채워봐요! 못 한 친구를 도와주면 더 좋아요.</p>
+          </div>
+        )}
 
         {tab === 'hw' &&
           (editing ? (
