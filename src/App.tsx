@@ -12,6 +12,7 @@ import { Quiz } from './game/Quiz'
 import { FarmPanel } from './game/FarmPanel'
 import { HousePanel } from './game/HousePanel'
 import { BoardPanel } from './game/BoardPanel'
+import { ArcadePanel } from './game/ArcadePanel'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
@@ -171,17 +172,21 @@ export default function App() {
                 <button type="button" onClick={rotateSelected}>
                   ↻ 돌리기
                 </button>
-                {selectedType !== 'house' && selectedType !== 'board' && (
-                  <button type="button" className="danger" onClick={deleteSelected}>
-                    🗑 지우기
-                  </button>
-                )}
+                {selectedType !== 'house' &&
+                  selectedType !== 'board' &&
+                  selectedType !== 'arcade' && (
+                    <button type="button" className="danger" onClick={deleteSelected}>
+                      🗑 지우기
+                    </button>
+                  )}
                 <span className="tip">
                   {selectedType === 'house'
                     ? '우리 집은 옮길 수만 있어요'
                     : selectedType === 'board'
                       ? '게시판은 옮길 수만 있어요'
-                      : '빈 땅을 탭하면 그리로 옮겨져요'}
+                      : selectedType === 'arcade'
+                        ? '강화대는 옮길 수만 있어요'
+                        : '빈 땅을 탭하면 그리로 옮겨져요'}
                 </span>
               </div>
             ) : (
@@ -249,6 +254,7 @@ export default function App() {
       <FarmPanel />
       <HousePanel />
       <BoardPanel />
+      <ArcadePanel />
       <Quiz />
     </div>
   )

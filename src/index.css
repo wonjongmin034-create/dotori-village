@@ -708,6 +708,163 @@ canvas {
   margin-bottom: 0;
 }
 
+/* --- 도토리 강화 --- */
+.arcade-card {
+  text-align: center;
+  overflow: hidden;
+}
+.arc-acorn {
+  position: relative;
+  margin: 6px 0 12px;
+}
+.arc-orb {
+  font-size: 56px;
+  line-height: 1;
+  display: inline-block;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15));
+  transition: transform 0.15s;
+}
+.arc-orb.lv3,
+.arc-orb.lv4 {
+  filter: drop-shadow(0 0 8px rgba(255, 200, 90, 0.6));
+}
+.arc-orb.lv5,
+.arc-orb.lv6 {
+  filter: drop-shadow(0 0 14px rgba(255, 190, 60, 0.85));
+  transform: scale(1.12);
+}
+.arc-orb.lv7,
+.arc-orb.lv8 {
+  filter: drop-shadow(0 0 20px rgba(255, 180, 40, 1));
+  transform: scale(1.22);
+}
+.arc-orb.lv9,
+.arc-orb.lv10 {
+  filter: drop-shadow(0 0 26px rgba(255, 220, 120, 1));
+  transform: scale(1.32);
+  animation: orbpulse 1.4s ease-in-out infinite;
+}
+@keyframes orbpulse {
+  0%,
+  100% {
+    transform: scale(1.28);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+.arc-plus {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #b07822;
+}
+
+.arc-flash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 90px;
+  font-size: 30px;
+  font-weight: 900;
+  pointer-events: none;
+  animation: arcflash 1.3s ease-out forwards;
+}
+.arc-flash.ok {
+  color: #2f9e4f;
+  text-shadow: 0 0 18px rgba(90, 220, 130, 0.7);
+}
+.arc-flash.no {
+  color: #9a9a9a;
+}
+@keyframes arcflash {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.arc-info {
+  font-size: 13px;
+  color: #4a5a50;
+  margin-bottom: 12px;
+}
+.arc-info ul {
+  list-style: none;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eef2e6;
+  display: grid;
+  gap: 5px;
+}
+.arc-info b {
+  color: #2f4a38;
+}
+.arc-sellinfo {
+  margin-top: 8px;
+}
+.arc-actions {
+  display: flex;
+  gap: 8px;
+}
+.arc-actions button {
+  flex: 1;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #33423a;
+  background: #e7ecdd;
+}
+.arc-actions button.primary {
+  color: #fff;
+  background: #b07822;
+}
+.arc-actions button:first-child:not(:disabled) {
+  color: #fff;
+  background: #3e9b4f;
+}
+.arc-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.arc-daily {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6a756c;
+}
+.arc-daily.done {
+  color: #b5423f;
+  font-weight: 700;
+}
+.arc-daily .pos {
+  color: #3e9b4f;
+  font-weight: 700;
+}
+.arc-daily .neg {
+  color: #b5715f;
+  font-weight: 700;
+}
+
 /* --- 학습 문제 --- */
 .quiz-card {
   max-width: 400px;

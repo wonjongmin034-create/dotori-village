@@ -8,7 +8,11 @@ import {
   CROP_MAP,
   ANIMAL_MAP,
   HOUSE_LEVELS,
+  ENHANCE_DAILY_LIMIT,
+  enhanceStep,
+  enhanceSell,
 } from './economy'
+import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
 
 export type CropState = {
@@ -27,6 +31,13 @@ export type AnimalState = {
   cycleStart: number // 이번 생산 주기 시작 시각
 }
 
+export type EnhanceState = {
+  level: number
+  day: string // 마지막으로 시도한 날 (YYYY-MM-DD)
+  used: number // 오늘 시도 횟수
+  net: number // 오늘 손익 (도토리)
+}
+
 export type PlacedItem = {
   key: string
   type: string
@@ -36,6 +47,7 @@ export type PlacedItem = {
   crop?: CropState
   animal?: AnimalState
   level?: number // 우리 집 등급
+  enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
 
 export type Mode = 'browse' | 'edit'
@@ -110,6 +122,22 @@ function ensureBoard(items: PlacedItem[]): PlacedItem[] {
   return [...items, { key: 'board', type: 'board', x: -7, z: 3, rot: Math.PI * 0.16 }]
 }
 
+// 천막 옆 도토리 강화 게임대.
+function ensureArcade(items: PlacedItem[]): PlacedItem[] {
+  if (items.some((i) => i.type === 'arcade')) return items
+  return [
+    ...items,
+    {
+      key: 'arcade',
+      type: 'arcade',
+      x: 4.5,
+      z: 2,
+      rot: -Math.PI * 0.15,
+      enh: { level: 0, day: '', used: 0, net: 0 },
+    },
+  ]
+}
+
 const PLACE_RADIUS = 17.5
 function clampToIsland(x: number, z: number): [number, number] {
   const d = Math.hypot(x, z)
@@ -120,6 +148,7 @@ function clampToIsland(x: number, z: number): [number, number] {
 export type QuizRequest = { onPass: () => void }
 export type Session = { classCode: string; name: string }
 export type CloudStatus = 'local' | 'synced' | 'offline'
+export type EnhanceFx = { n: number; ok: boolean; from: number; to: number }
 
 interface VillageState {
   mode: Mode
@@ -134,6 +163,7 @@ interface VillageState {
   activeFarm: string | null // browse 모드에서 열어둔 밭/우리/게시판 key
   quiz: QuizRequest | null
   msg: string | null
+  enhanceFx: EnhanceFx | null
 
   setHomework: (text: string) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
@@ -166,10 +196,13 @@ interface VillageState {
   buyAnimal: (key: string, speciesId: string) => void
   feedAnimal: (key: string) => void
   collectProduce: (key: string) => void
+
+  enhanceTry: () => void
+  enhanceSell: () => void
 }
 
 const initialRaw = load()
-const initialItems = ensureBoard(ensureHouse(initialRaw.items))
+const initialItems = ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))
 const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
 if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
@@ -192,6 +225,7 @@ export const useVillage = create<VillageState>((set, get) => {
     activeFarm: null,
     quiz: null,
     msg: null,
+    enhanceFx: null,
 
     setHomework: (text) => {
       save(get().coins, get().items, text)
@@ -200,7 +234,7 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureBoard(ensureHouse(items))
+      const merged = ensureArcade(ensureBoard(ensureHouse(items)))
       saveLocal(coins, merged, get().homework)
       set({ coins, items: merged })
     },
@@ -266,8 +300,13 @@ export const useVillage = create<VillageState>((set, get) => {
       const { selected, items } = get()
       if (!selected) return
       const it = items.find((i) => i.key === selected)
-      if (it?.type === 'house' || it?.type === 'board') {
-        get().flash(it.type === 'house' ? '우리 집은 지울 수 없어요' : '게시판은 지울 수 없어요')
+      const fixed: Record<string, string> = {
+        house: '우리 집은 지울 수 없어요',
+        board: '게시판은 지울 수 없어요',
+        arcade: '강화대는 지울 수 없어요',
+      }
+      if (it && fixed[it.type]) {
+        get().flash(fixed[it.type])
         return
       }
       commit(items.filter((i) => i.key !== selected))
@@ -275,7 +314,8 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     clearAll: () => {
-      commit(get().items.filter((i) => i.type === 'house' || i.type === 'board'))
+      const keep = new Set(['house', 'board', 'arcade'])
+      commit(get().items.filter((i) => keep.has(i.type)))
       set({ selected: null, placing: null })
     },
 
@@ -462,6 +502,78 @@ export const useVillage = create<VillageState>((set, get) => {
         get().coins + gain,
       )
       get().flash(`${def.produceLabel} 거둠! +${gain} 도토리${wellFed ? ' (잘 키웠어요!)' : ''}`)
+    },
+
+    /* ---------- 도토리 강화 게임 ---------- */
+
+    enhanceTry: () => {
+      const { items, coins } = get()
+      const arc = items.find((i) => i.type === 'arcade')
+      if (!arc?.enh) return
+      const today = dateKey()
+      // 날짜 바뀌면 일일 카운트 리셋
+      let e = arc.enh.day === today ? arc.enh : { ...arc.enh, day: today, used: 0, net: 0 }
+
+      const step = enhanceStep(e.level)
+      if (!step) {
+        get().flash('이미 최고 레벨이에요')
+        return
+      }
+      if (e.used >= ENHANCE_DAILY_LIMIT) {
+        get().flash('오늘은 여기까지! 내일 또 도전해요')
+        return
+      }
+      if (coins < step.cost) {
+        get().flash(`${step.cost} 도토리가 필요해요`)
+        return
+      }
+
+      const success = Math.random() < step.chance
+      const before = e.level
+      const after = success
+        ? e.level + 1
+        : Math.max(0, e.level + step.onFail)
+
+      e = { ...e, level: after, used: e.used + 1, net: e.net - step.cost }
+
+      commit(
+        items.map((i) => (i.type === 'arcade' ? { ...i, enh: e } : i)),
+        coins - step.cost,
+      )
+      set((s) => ({
+        enhanceFx: { n: (s.enhanceFx?.n ?? 0) + 1, ok: success, from: before, to: after },
+      }))
+      get().flash(
+        success
+          ? `강화 성공! +${before} → +${after} ✨`
+          : after === before
+            ? `강화 실패… +${before} 유지`
+            : `강화 실패… +${before} → +${after}`,
+      )
+    },
+
+    enhanceSell: () => {
+      const { items, coins } = get()
+      const arc = items.find((i) => i.type === 'arcade')
+      if (!arc?.enh) return
+      const price = enhanceSell(arc.enh.level)
+      if (price <= 0) {
+        get().flash('강화된 도토리가 없어요')
+        return
+      }
+      const today = dateKey()
+      const sameDay = arc.enh.day === today
+      const e: EnhanceState = {
+        level: 0,
+        day: today,
+        used: sameDay ? arc.enh.used : 0,
+        net: (sameDay ? arc.enh.net : 0) + price,
+      }
+      commit(
+        items.map((i) => (i.type === 'arcade' ? { ...i, enh: e } : i)),
+        coins + price,
+      )
+      get().flash(`+${arc.enh.level} 도토리 판매! +${price} 도토리`)
     },
   }
 })

@@ -70,6 +70,42 @@ export const ANIMALS: AnimalDef[] = [
 
 export const ANIMAL_MAP: Record<string, AnimalDef> = Object.fromEntries(ANIMALS.map((a) => [a.id, a]))
 
+/* ---------- 도토리 강화 게임 ---------- */
+// 하루 시도 제한 (도박 중독 방지)
+export const ENHANCE_DAILY_LIMIT = 20
+
+export type EnhanceStep = {
+  cost: number // 이 레벨에서 강화 시도 비용
+  chance: number // 성공 확률 (0~1)
+  onFail: number // 실패 시 레벨 변화 (0 = 유지, -1 = 한 단계 하락 …)
+  sell: number // 이 레벨에서 팔 때 받는 도토리
+}
+
+// ENHANCE[i] = 현재 +i 일 때의 정보. 마지막 항목(+9) 다음이 최고 레벨 +10.
+export const ENHANCE: EnhanceStep[] = [
+  { cost: 3, chance: 0.95, onFail: 0, sell: 0 },
+  { cost: 4, chance: 0.9, onFail: 0, sell: 5 },
+  { cost: 6, chance: 0.8, onFail: 0, sell: 12 },
+  { cost: 8, chance: 0.68, onFail: 0, sell: 24 },
+  { cost: 12, chance: 0.55, onFail: -1, sell: 42 },
+  { cost: 16, chance: 0.44, onFail: -1, sell: 72 },
+  { cost: 22, chance: 0.34, onFail: -1, sell: 120 },
+  { cost: 30, chance: 0.24, onFail: -2, sell: 200 },
+  { cost: 42, chance: 0.15, onFail: -2, sell: 340 },
+  { cost: 60, chance: 0.08, onFail: -3, sell: 560 },
+]
+export const ENHANCE_MAX = ENHANCE.length // +10
+export const ENHANCE_MAX_SELL = 950
+
+export function enhanceStep(level: number): EnhanceStep | null {
+  return level >= 0 && level < ENHANCE_MAX ? ENHANCE[level] : null
+}
+export function enhanceSell(level: number): number {
+  if (level <= 0) return 0
+  if (level >= ENHANCE_MAX) return ENHANCE_MAX_SELL
+  return ENHANCE[level].sell
+}
+
 // 우리 집 — 시작은 천막, 코인으로 단계 발전
 export type HouseLevel = { level: number; label: string; cost: number; desc: string }
 export const HOUSE_LEVELS: HouseLevel[] = [

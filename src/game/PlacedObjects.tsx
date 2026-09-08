@@ -7,6 +7,7 @@ import { useNow } from './useNow'
 import { CropView, AnimalView, Beacon } from './FarmModels'
 import { HouseView } from './HouseModels'
 import { BoardModel } from './BoardModel'
+import { ArcadeModel } from './ArcadeModel'
 
 function beaconColor(it: PlacedItem, now: number): string | null {
   if (it.type === 'plot' && it.crop) {
@@ -39,7 +40,7 @@ export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> 
     <group ref={itemsRef}>
       {items.map((it) => {
         const entry = CATALOG_MAP[it.type]
-        const special = it.type === 'house' || it.type === 'board'
+        const special = it.type === 'house' || it.type === 'board' || it.type === 'arcade'
         if (!entry && !special) return null
         const highlight = editing ? selected === it.key : activeFarm === it.key
         const bc = beaconColor(it, now)
@@ -54,6 +55,8 @@ export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> 
               <HouseView level={it.level ?? 1} />
             ) : it.type === 'board' ? (
               <BoardModel />
+            ) : it.type === 'arcade' ? (
+              <ArcadeModel level={it.enh?.level ?? 0} />
             ) : (
               entry?.model
             )}
