@@ -65,7 +65,7 @@ function load(): Persisted {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-function save(coins: number, items: PlacedItem[], homework: string) {
+function saveLocal(coins: number, items: PlacedItem[], homework: string) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     try {
@@ -74,6 +74,18 @@ function save(coins: number, items: PlacedItem[], homework: string) {
       // 저장 불가 — 무시
     }
   }, 120)
+}
+
+// 클라우드 저장 훅 — cloud.ts가 등록한다. store는 cloud.ts를 import하지 않는다(순환 방지).
+type CloudHook = (coins: number, items: PlacedItem[], homework: string) => void
+let cloudHook: CloudHook | null = null
+export function registerCloudHook(fn: CloudHook) {
+  cloudHook = fn
+}
+
+function save(coins: number, items: PlacedItem[], homework: string) {
+  saveLocal(coins, items, homework)
+  cloudHook?.(coins, items, homework)
 }
 
 let seq = 0
@@ -106,12 +118,16 @@ function clampToIsland(x: number, z: number): [number, number] {
 }
 
 export type QuizRequest = { onPass: () => void }
+export type Session = { classCode: string; name: string }
+export type CloudStatus = 'local' | 'synced' | 'offline'
 
 interface VillageState {
   mode: Mode
   coins: number
   items: PlacedItem[]
   homework: string
+  session: Session | null
+  cloud: CloudStatus
 
   placing: string | null
   selected: string | null
@@ -120,6 +136,10 @@ interface VillageState {
   msg: string | null
 
   setHomework: (text: string) => void
+  hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
+  hydrateHomework: (text: string) => void
+  setSession: (s: Session | null) => void
+  setCloud: (c: CloudStatus) => void
   setMode: (m: Mode) => void
   togglePlacing: (type: string) => void
   select: (key: string | null) => void
@@ -165,6 +185,8 @@ export const useVillage = create<VillageState>((set, get) => {
     coins: initial.coins,
     items: initial.items,
     homework: initial.homework,
+    session: null,
+    cloud: 'local',
     placing: null,
     selected: null,
     activeFarm: null,
@@ -176,6 +198,20 @@ export const useVillage = create<VillageState>((set, get) => {
       set({ homework: text })
       get().flash('숙제를 저장했어요')
     },
+
+    hydrateFromCloud: (coins, items) => {
+      const merged = ensureBoard(ensureHouse(items))
+      saveLocal(coins, merged, get().homework)
+      set({ coins, items: merged })
+    },
+
+    hydrateHomework: (text) => {
+      saveLocal(get().coins, get().items, text)
+      set({ homework: text })
+    },
+
+    setSession: (session) => set({ session }),
+    setCloud: (cloud) => set({ cloud }),
 
     setMode: (mode) =>
       set({ mode, placing: null, selected: null, activeFarm: null }),

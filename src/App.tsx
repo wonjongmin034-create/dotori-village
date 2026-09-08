@@ -15,6 +15,8 @@ import { BoardPanel } from './game/BoardPanel'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
+import { Login } from './game/Login'
+import { loadLocalSession, resume, logout } from './game/cloud'
 
 const CATS: { id: Category; label: string }[] = [
   { id: 'decor', label: '꾸미기' },
@@ -30,6 +32,7 @@ export default function App() {
       window.matchMedia('(pointer: coarse)').matches,
   )
   const [cat, setCat] = useState<Category>('decor')
+  const [gate, setGate] = useState<'checking' | 'login' | 'in'>('checking')
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const lastDragX = useRef<number | null>(null)
@@ -37,6 +40,8 @@ export default function App() {
 
   const mode = useVillage((s) => s.mode)
   const coins = useVillage((s) => s.coins)
+  const cloud = useVillage((s) => s.cloud)
+  const session = useVillage((s) => s.session)
   const placing = useVillage((s) => s.placing)
   const selected = useVillage((s) => s.selected)
   const selectedType = useVillage((s) => s.items.find((i) => i.key === s.selected)?.type)
@@ -49,6 +54,23 @@ export default function App() {
   const clearAll = useVillage((s) => s.clearAll)
 
   useEffect(() => initKeyboard(), [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.has('logout')) {
+      logout()
+      params.delete('logout')
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''))
+      setGate('login')
+      return
+    }
+    const s = loadLocalSession()
+    if (!s) {
+      setGate('login')
+      return
+    }
+    resume(s).then((r) => setGate(r === 'in' ? 'in' : 'login'))
+  }, [])
 
   const onPointerDown = (e: ReactPointerEvent) => {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -85,6 +107,20 @@ export default function App() {
   const editing = mode === 'edit'
   const shown = CATALOG.filter((e) => e.category === cat)
 
+  if (gate === 'checking') {
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-logo">🌰</div>
+          <p className="login-sub">불러오는 중…</p>
+        </div>
+      </div>
+    )
+  }
+  if (gate === 'login') {
+    return <Login onDone={() => setGate('in')} />
+  }
+
   return (
     <div
       className="stage"
@@ -101,7 +137,13 @@ export default function App() {
       <div className="hud">
         <div className="badge">
           <b>도토리 마을</b>
-          <span>{editing ? `꾸미는 중 · 물건 ${itemCount}개` : 'M2 · 내 마을'}</span>
+          <span>
+            {editing
+              ? `꾸미는 중 · 물건 ${itemCount}개`
+              : session
+                ? `${session.name}${cloud === 'offline' ? ' · 📴 오프라인' : ''}`
+                : '둘러보는 중'}
+          </span>
         </div>
 
         <div className="coinbar">🌰 {coins}</div>
