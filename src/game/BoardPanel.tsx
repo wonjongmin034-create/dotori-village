@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { TEACHER_PIN } from './config'
-import { LUNCH, lunchFor, dateKey, dateLabel } from './lunch'
+import { LUNCH, lunchFor, noSchoolReason, dateKey, dateLabel } from './lunch'
 import { useVillage } from './store'
 
 // 앞으로 2주 안에서 급식 데이터가 있는 날들
@@ -42,6 +42,7 @@ export function BoardPanel() {
   }
 
   const todayMenu = lunchFor(dateKey())
+  const todayOff = noSchoolReason(dateKey())
   const days = upcomingLunchDays()
 
   return (
@@ -112,6 +113,8 @@ export function BoardPanel() {
                     <li key={i}>{m}</li>
                   ))}
                 </ul>
+              ) : todayOff ? (
+                <p className="hw-empty">오늘은 {todayOff}예요. 급식이 없어요.</p>
               ) : (
                 <p className="hw-empty">오늘 급식 정보가 없어요.</p>
               )}
