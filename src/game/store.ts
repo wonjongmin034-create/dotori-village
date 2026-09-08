@@ -42,15 +42,16 @@ export type Mode = 'browse' | 'edit'
 
 const STORAGE_KEY = 'dotori.village.v2'
 
-type Persisted = { coins: number; items: PlacedItem[] }
+type Persisted = { coins: number; items: PlacedItem[]; homework: string }
 
 function load(): Persisted {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { coins: START_COINS, items: [] }
+    if (!raw) return { coins: START_COINS, items: [], homework: '' }
     const p = JSON.parse(raw) as Partial<Persisted>
     return {
       coins: typeof p.coins === 'number' ? p.coins : START_COINS,
+      homework: typeof p.homework === 'string' ? p.homework : '',
       items: Array.isArray(p.items)
         ? p.items.filter(
             (o): o is PlacedItem =>
@@ -59,16 +60,16 @@ function load(): Persisted {
         : [],
     }
   } catch {
-    return { coins: START_COINS, items: [] }
+    return { coins: START_COINS, items: [], homework: '' }
   }
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
-function save(coins: number, items: PlacedItem[]) {
+function save(coins: number, items: PlacedItem[], homework: string) {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ coins, items }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ coins, items, homework }))
     } catch {
       // 저장 불가 — 무시
     }
@@ -91,6 +92,12 @@ function ensureHouse(items: PlacedItem[]): PlacedItem[] {
   return items
 }
 
+// 마을엔 항상 게시판(숙제·급식)이 하나 있다.
+function ensureBoard(items: PlacedItem[]): PlacedItem[] {
+  if (items.some((i) => i.type === 'board')) return items
+  return [...items, { key: 'board', type: 'board', x: -7, z: 3, rot: Math.PI * 0.16 }]
+}
+
 const PLACE_RADIUS = 17.5
 function clampToIsland(x: number, z: number): [number, number] {
   const d = Math.hypot(x, z)
@@ -104,13 +111,15 @@ interface VillageState {
   mode: Mode
   coins: number
   items: PlacedItem[]
+  homework: string
 
   placing: string | null
   selected: string | null
-  activeFarm: string | null // browse 모드에서 열어둔 밭/우리 key
+  activeFarm: string | null // browse 모드에서 열어둔 밭/우리/게시판 key
   quiz: QuizRequest | null
   msg: string | null
 
+  setHomework: (text: string) => void
   setMode: (m: Mode) => void
   togglePlacing: (type: string) => void
   select: (key: string | null) => void
@@ -140,14 +149,14 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initialItems = ensureHouse(initialRaw.items)
-const initial = { coins: initialRaw.coins, items: initialItems }
-if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems)
+const initialItems = ensureBoard(ensureHouse(initialRaw.items))
+const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
+if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useVillage = create<VillageState>((set, get) => {
   const commit = (items: PlacedItem[], coins = get().coins) => {
-    save(coins, items)
+    save(coins, items, get().homework)
     set({ items, coins })
   }
 
@@ -155,11 +164,18 @@ export const useVillage = create<VillageState>((set, get) => {
     mode: 'browse',
     coins: initial.coins,
     items: initial.items,
+    homework: initial.homework,
     placing: null,
     selected: null,
     activeFarm: null,
     quiz: null,
     msg: null,
+
+    setHomework: (text) => {
+      save(get().coins, get().items, text)
+      set({ homework: text })
+      get().flash('숙제를 저장했어요')
+    },
 
     setMode: (mode) =>
       set({ mode, placing: null, selected: null, activeFarm: null }),
@@ -214,8 +230,8 @@ export const useVillage = create<VillageState>((set, get) => {
       const { selected, items } = get()
       if (!selected) return
       const it = items.find((i) => i.key === selected)
-      if (it?.type === 'house') {
-        get().flash('우리 집은 지울 수 없어요')
+      if (it?.type === 'house' || it?.type === 'board') {
+        get().flash(it.type === 'house' ? '우리 집은 지울 수 없어요' : '게시판은 지울 수 없어요')
         return
       }
       commit(items.filter((i) => i.key !== selected))
@@ -223,7 +239,7 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     clearAll: () => {
-      commit(get().items.filter((i) => i.type === 'house'))
+      commit(get().items.filter((i) => i.type === 'house' || i.type === 'board'))
       set({ selected: null, placing: null })
     },
 
@@ -253,7 +269,7 @@ export const useVillage = create<VillageState>((set, get) => {
       const q = get().quiz
       if (!q) return
       set({ quiz: null, coins: get().coins + QUIZ_REWARD })
-      save(get().coins, get().items)
+      save(get().coins, get().items, get().homework)
       q.onPass()
     },
     cancelQuiz: () => set({ quiz: null }),

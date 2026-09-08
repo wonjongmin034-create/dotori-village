@@ -49,7 +49,13 @@ export function BrowseInteract({ itemsRef }: { itemsRef: RefObject<THREE.Group |
       while (o && o.userData.editorKey === undefined) o = o.parent
       const key = o?.userData.editorKey as string | undefined
       const item = key ? st.items.find((i) => i.key === key) : undefined
-      if (item && (item.type === 'plot' || item.type === 'coop' || item.type === 'house'))
+      if (
+        item &&
+        (item.type === 'plot' ||
+          item.type === 'coop' ||
+          item.type === 'house' ||
+          item.type === 'board')
+      )
         st.openFarm(item.key)
       else if (st.activeFarm) st.closeFarm()
     }
