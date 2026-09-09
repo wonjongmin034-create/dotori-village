@@ -17,6 +17,9 @@ import {
 } from './economy'
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
+import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
+
+export type { Avatar }
 
 export type CropState = {
   seed: string
@@ -51,6 +54,7 @@ export type PlacedItem = {
   animal?: AnimalState
   level?: number // 우리 집 등급
   land?: number // (집에만) 마을 땅 반쪽 크기
+  avatar?: Avatar // (집에만) 내 캐릭터 외형
   enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
 
@@ -111,7 +115,10 @@ const newKey = () => `k${Date.now().toString(36)}_${(seq++).toString(36)}`
 function ensureHouse(items: PlacedItem[]): PlacedItem[] {
   const house = items.find((i) => i.type === 'house')
   if (!house) {
-    return [{ key: 'house', type: 'house', x: 0, z: 0, rot: 0, level: 1, land: LAND_START }, ...items]
+    return [
+      { key: 'house', type: 'house', x: 0, z: 0, rot: 0, level: 1, land: LAND_START, avatar: DEFAULT_AVATAR },
+      ...items,
+    ]
   }
   let next = items
   // 예전 기본 위치(-5,-3)에 있던 집은 가운데로 한 번 옮긴다
@@ -151,6 +158,9 @@ function ensureArcade(items: PlacedItem[]): PlacedItem[] {
 export const landHalf = (items: PlacedItem[]) =>
   items.find((i) => i.type === 'house')?.land ?? LAND_OLD
 
+const avatarOf = (items: PlacedItem[]) =>
+  normalizeAvatar(items.find((i) => i.type === 'house')?.avatar)
+
 function clampToLand(x: number, z: number, half: number): [number, number] {
   const b = half - 0.5
   return [Math.max(-b, Math.min(b, x)), Math.max(-b, Math.min(b, z))]
@@ -171,6 +181,7 @@ interface VillageState {
   cloud: CloudStatus
   arcadeLocked: boolean
   mission: Mission | null
+  avatar: Avatar
 
   placing: string | null
   selected: string | null
@@ -180,6 +191,7 @@ interface VillageState {
   enhanceFx: EnhanceFx | null
 
   setHomework: (text: string) => void
+  setAvatar: (a: Avatar) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
   hydrateHomework: (text: string) => void
   setSession: (s: Session | null) => void
@@ -239,6 +251,7 @@ export const useVillage = create<VillageState>((set, get) => {
     cloud: 'local',
     arcadeLocked: false,
     mission: null,
+    avatar: avatarOf(initial.items),
     placing: null,
     selected: null,
     activeFarm: null,
@@ -252,10 +265,16 @@ export const useVillage = create<VillageState>((set, get) => {
       get().flash('숙제를 저장했어요')
     },
 
+    setAvatar: (a) => {
+      const next = get().items.map((i) => (i.type === 'house' ? { ...i, avatar: a } : i))
+      save(get().coins, next, get().homework)
+      set({ items: next, avatar: normalizeAvatar(a) })
+    },
+
     hydrateFromCloud: (coins, items) => {
       const merged = ensureArcade(ensureBoard(ensureHouse(items)))
       saveLocal(coins, merged, get().homework)
-      set({ coins, items: merged })
+      set({ coins, items: merged, avatar: avatarOf(merged) })
     },
 
     hydrateHomework: (text) => {
