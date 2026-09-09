@@ -11,6 +11,9 @@ import {
   ENHANCE_DAILY_LIMIT,
   enhanceStep,
   enhanceSell,
+  LAND_START,
+  LAND_OLD,
+  landExpand,
 } from './economy'
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
@@ -47,6 +50,7 @@ export type PlacedItem = {
   crop?: CropState
   animal?: AnimalState
   level?: number // 우리 집 등급
+  land?: number // (집에만) 마을 땅 반쪽 크기
   enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
 
@@ -107,42 +111,49 @@ const newKey = () => `k${Date.now().toString(36)}_${(seq++).toString(36)}`
 function ensureHouse(items: PlacedItem[]): PlacedItem[] {
   const house = items.find((i) => i.type === 'house')
   if (!house) {
-    return [{ key: 'house', type: 'house', x: 0, z: 0, rot: 0, level: 1 }, ...items]
+    return [{ key: 'house', type: 'house', x: 0, z: 0, rot: 0, level: 1, land: LAND_START }, ...items]
   }
+  let next = items
   // 예전 기본 위치(-5,-3)에 있던 집은 가운데로 한 번 옮긴다
   if (house.x === -5 && house.z === -3) {
-    return items.map((i) => (i.type === 'house' ? { ...i, x: 0, z: 0 } : i))
+    next = next.map((i) => (i.type === 'house' ? { ...i, x: 0, z: 0 } : i))
   }
-  return items
+  // 땅 크기가 없는 기존 마을은 예전(둥근) 크기로 유지
+  if (house.land == null) {
+    next = next.map((i) => (i.type === 'house' ? { ...i, land: LAND_OLD } : i))
+  }
+  return next
+}
+
+const isNewVillage = (items: PlacedItem[]) => {
+  const h = items.find((i) => i.type === 'house')
+  return items.filter((i) => i.type !== 'house' && i.type !== 'board' && i.type !== 'arcade').length === 0 &&
+    (h?.land ?? LAND_OLD) === LAND_START
 }
 
 // 마을엔 항상 게시판(숙제·급식)이 하나 있다.
 function ensureBoard(items: PlacedItem[]): PlacedItem[] {
   if (items.some((i) => i.type === 'board')) return items
-  return [...items, { key: 'board', type: 'board', x: -7, z: 3, rot: Math.PI * 0.16 }]
+  const [x, z] = isNewVillage(items) ? [-3.5, 2.5] : [-7, 3]
+  return [...items, { key: 'board', type: 'board', x, z, rot: Math.PI * 0.16 }]
 }
 
 // 천막 옆 도토리 강화 게임대.
 function ensureArcade(items: PlacedItem[]): PlacedItem[] {
   if (items.some((i) => i.type === 'arcade')) return items
+  const [x, z] = isNewVillage(items) ? [3.5, 2.5] : [4.5, 2]
   return [
     ...items,
-    {
-      key: 'arcade',
-      type: 'arcade',
-      x: 4.5,
-      z: 2,
-      rot: -Math.PI * 0.15,
-      enh: { level: 0, day: '', used: 0, net: 0 },
-    },
+    { key: 'arcade', type: 'arcade', x, z, rot: -Math.PI * 0.15, enh: { level: 0, day: '', used: 0, net: 0 } },
   ]
 }
 
-const PLACE_RADIUS = 17.5
-function clampToIsland(x: number, z: number): [number, number] {
-  const d = Math.hypot(x, z)
-  if (d > PLACE_RADIUS) return [(x / d) * PLACE_RADIUS, (z / d) * PLACE_RADIUS]
-  return [x, z]
+export const landHalf = (items: PlacedItem[]) =>
+  items.find((i) => i.type === 'house')?.land ?? LAND_OLD
+
+function clampToLand(x: number, z: number, half: number): [number, number] {
+  const b = half - 0.5
+  return [Math.max(-b, Math.min(b, x)), Math.max(-b, Math.min(b, z))]
 }
 
 export type QuizRequest = { onPass: () => void }
@@ -188,6 +199,7 @@ interface VillageState {
   deleteSelected: () => void
   clearAll: () => void
   upgradeHouse: () => void
+  expandLand: () => void
 
   askQuiz: (onPass: () => void) => void
   passQuiz: () => void
@@ -297,7 +309,7 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`도토리가 부족해요 (${entry.cost}개 필요)`)
         return
       }
-      const [cx, cz] = clampToIsland(Math.round(x), Math.round(z))
+      const [cx, cz] = clampToLand(Math.round(x), Math.round(z), landHalf(items))
       const item: PlacedItem = { key: newKey(), type: placing, x: cx, z: cz, rot: 0 }
       commit([...items, item], coins - entry.cost)
       set({ selected: item.key })
@@ -306,7 +318,7 @@ export const useVillage = create<VillageState>((set, get) => {
     moveSelectedTo: (x, z) => {
       const { selected, items } = get()
       if (!selected) return
-      const [cx, cz] = clampToIsland(Math.round(x), Math.round(z))
+      const [cx, cz] = clampToLand(Math.round(x), Math.round(z), landHalf(items))
       commit(items.map((it) => (it.key === selected ? { ...it, x: cx, z: cz } : it)))
     },
 
@@ -362,6 +374,26 @@ export const useVillage = create<VillageState>((set, get) => {
         coins - next.cost,
       )
       get().flash(`집이 ${next.label}(으)로 커졌어요! 🏡`)
+    },
+
+    expandLand: () => {
+      const { items, coins } = get()
+      const h = items.find((i) => i.type === 'house')
+      const cur = h?.land ?? LAND_OLD
+      const info = landExpand(cur)
+      if (!info) {
+        get().flash('땅을 더 넓힐 수 없어요')
+        return
+      }
+      if (coins < info.cost) {
+        get().flash(`${info.cost} 도토리가 필요해요`)
+        return
+      }
+      commit(
+        items.map((i) => (i.type === 'house' ? { ...i, land: info.next } : i)),
+        coins - info.cost,
+      )
+      get().flash(`땅을 +${info.addTiles}평 넓혔어요! 🟩`)
     },
 
     askQuiz: (onPass) => set({ quiz: { onPass } }),

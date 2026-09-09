@@ -3,9 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getMove } from './input'
 import { playerPos } from './player-state'
-import { useVillage } from './store'
+import { useVillage, landHalf } from './store'
 
-const ISLAND_RADIUS = 16.5 // 캐릭터가 나갈 수 없는 반경
 const SPEED = 6 // m/s
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -59,11 +58,10 @@ export function Player() {
       if (tmp.dir.lengthSq() > 1e-6) tmp.dir.normalize()
 
       playerPos.addScaledVector(tmp.dir, SPEED * mag * dt)
-      const d = Math.hypot(playerPos.x, playerPos.z)
-      if (d > ISLAND_RADIUS) {
-        playerPos.x = (playerPos.x / d) * ISLAND_RADIUS
-        playerPos.z = (playerPos.z / d) * ISLAND_RADIUS
-      }
+      // 네모 섬 밖으로 못 나가게
+      const b = landHalf(useVillage.getState().items) - 0.4
+      playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
+      playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
 
       const targetFacing = Math.atan2(tmp.dir.x, tmp.dir.z)
       st.facing = dampAngle(st.facing, targetFacing, 12, dt)

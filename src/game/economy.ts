@@ -119,6 +119,24 @@ export const MAX_HOUSE_LEVEL = HOUSE_LEVELS.length
 export const houseLevel = (n: number | undefined) =>
   HOUSE_LEVELS.find((l) => l.level === (n ?? 1)) ?? HOUSE_LEVELS[0]
 
+// ── 마을 땅 (네모) ──
+// half = 반쪽 크기. 땅은 (half*2) x (half*2) 정사각형. 1칸 = "1평".
+export const LAND_START = 5 // 처음: 10 x 10 = 100평
+export const LAND_MAX = 18 // 최대: 36 x 36
+export const LAND_STEP = 1 // 한 번 넓히면 반쪽 +1 (가로세로 각 +2)
+export const LAND_PRICE_PER_TILE = 1 // 평당 도토리
+export const LAND_OLD = 17 // 예전(둥근) 마을 크기 — 기존 학생은 이걸로 유지
+
+export function landPyeong(half: number) {
+  return (half * 2) * (half * 2)
+}
+export function landExpand(half: number): { next: number; addTiles: number; cost: number } | null {
+  if (half >= LAND_MAX) return null
+  const next = half + LAND_STEP
+  const addTiles = landPyeong(next) - landPyeong(half)
+  return { next, addTiles, cost: addTiles * LAND_PRICE_PER_TILE }
+}
+
 // 남은 시간을 사람이 읽기 좋게: "3일" / "5시간" / "20분"
 export function fmtLeft(ms: number): string {
   if (ms <= 0) return ''

@@ -1,4 +1,4 @@
-import { HOUSE_LEVELS, houseLevel } from './economy'
+import { HOUSE_LEVELS, houseLevel, landExpand, landPyeong, LAND_OLD } from './economy'
 import { useVillage } from './store'
 
 export function HousePanel() {
@@ -6,12 +6,16 @@ export function HousePanel() {
   const coins = useVillage((s) => s.coins)
   const close = useVillage((s) => s.closeFarm)
   const upgrade = useVillage((s) => s.upgradeHouse)
+  const expandLand = useVillage((s) => s.expandLand)
 
   if (!item || item.type !== 'house') return null
 
   const cur = item.level ?? 1
   const curDef = houseLevel(cur)
   const next = HOUSE_LEVELS.find((l) => l.level === cur + 1)
+
+  const half = item.land ?? LAND_OLD
+  const land = landExpand(half)
 
   return (
     <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -61,6 +65,34 @@ export function HousePanel() {
             </li>
           ))}
         </ol>
+
+        <h3 className="land-h">🟩 마을 땅</h3>
+        <div className="farm-status">
+          <div>
+            지금: <b>{half * 2} × {half * 2}칸</b> ({landPyeong(half)}평)
+          </div>
+        </div>
+        {land ? (
+          <div className="house-next">
+            <div className="house-next-head">
+              <span>
+                +{land.addTiles}평 넓히기 ({half * 2} → {land.next * 2}칸)
+              </span>
+              <span className="house-cost">🌰 {land.cost}</span>
+            </div>
+            <p>평당 도토리 1개예요.</p>
+            <button
+              type="button"
+              className="primary"
+              disabled={coins < land.cost}
+              onClick={expandLand}
+            >
+              🟩 땅 넓히기
+            </button>
+          </div>
+        ) : (
+          <p className="farm-note">땅이 최대 크기예요.</p>
+        )}
       </div>
     </div>
   )
