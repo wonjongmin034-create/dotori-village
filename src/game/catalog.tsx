@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react'
+import { toonGradient } from './toon'
 
 // M2 카탈로그 — 기본 도형 로우폴리. 나중에 Kenney / Quaternius glTF 로 교체.
 // cost: 0 = 무료, 그 외 = 도토리 필요. category: 꾸미기 / 농사 / 가축.
@@ -32,11 +33,11 @@ function Tree(): ReactElement {
     <group>
       <mesh position={[0, 0.7, 0]}>
         <cylinderGeometry args={[0.16, 0.22, 1.4, 6]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, 1.9, 0]}>
         <icosahedronGeometry args={[1.1, 0]} />
-        <meshStandardMaterial color={LEAF} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF} />
       </mesh>
     </group>
   )
@@ -47,15 +48,15 @@ function Pine(): ReactElement {
     <group>
       <mesh position={[0, 0.5, 0]}>
         <cylinderGeometry args={[0.13, 0.18, 1, 6]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, 1.3, 0]}>
         <coneGeometry args={[0.85, 1.2, 7]} />
-        <meshStandardMaterial color={LEAF} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF} />
       </mesh>
       <mesh position={[0, 2.0, 0]}>
         <coneGeometry args={[0.6, 1, 7]} />
-        <meshStandardMaterial color={LEAF2} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF2} />
       </mesh>
     </group>
   )
@@ -66,15 +67,15 @@ function Bush(): ReactElement {
     <group position={[0, 0.35, 0]}>
       <mesh>
         <icosahedronGeometry args={[0.5, 0]} />
-        <meshStandardMaterial color={LEAF2} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF2} />
       </mesh>
       <mesh position={[0.4, -0.05, 0.1]}>
         <icosahedronGeometry args={[0.35, 0]} />
-        <meshStandardMaterial color={LEAF} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF} />
       </mesh>
       <mesh position={[-0.35, -0.05, -0.1]}>
         <icosahedronGeometry args={[0.33, 0]} />
-        <meshStandardMaterial color={LEAF} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF} />
       </mesh>
     </group>
   )
@@ -92,17 +93,17 @@ function Flowers(): ReactElement {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <circleGeometry args={[0.6, 16]} />
-        <meshStandardMaterial color="#6b8f4e" />
+        <meshToonMaterial gradientMap={toonGradient} color="#6b8f4e" />
       </mesh>
       {spots.map(([x, z, c], i) => (
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, 0.18, 0]}>
             <cylinderGeometry args={[0.02, 0.02, 0.36, 4]} />
-            <meshStandardMaterial color="#3f7a3f" />
+            <meshToonMaterial gradientMap={toonGradient} color="#3f7a3f" />
           </mesh>
           <mesh position={[0, 0.38, 0]}>
             <icosahedronGeometry args={[0.1, 0]} />
-            <meshStandardMaterial color={c} flatShading />
+            <meshToonMaterial gradientMap={toonGradient} color={c} />
           </mesh>
         </group>
       ))}
@@ -115,11 +116,11 @@ function Rock(): ReactElement {
     <group position={[0, 0.28, 0]}>
       <mesh rotation={[0.3, 0.6, 0.1]}>
         <dodecahedronGeometry args={[0.55, 0]} />
-        <meshStandardMaterial color={STONE} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={STONE} />
       </mesh>
       <mesh position={[0.45, -0.15, 0.2]} rotation={[0.1, 1, 0.4]}>
         <dodecahedronGeometry args={[0.28, 0]} />
-        <meshStandardMaterial color="#adb2b8" flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color="#adb2b8" />
       </mesh>
     </group>
   )
@@ -131,13 +132,13 @@ function Fence(): ReactElement {
       {[-0.45, 0.45].map((x) => (
         <mesh key={x} position={[x, 0.35, 0]}>
           <boxGeometry args={[0.12, 0.7, 0.12]} />
-          <meshStandardMaterial color={WOOD2} />
+          <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
         </mesh>
       ))}
       {[0.2, 0.48].map((y) => (
         <mesh key={y} position={[0, y, 0]}>
           <boxGeometry args={[1, 0.09, 0.07]} />
-          <meshStandardMaterial color={WOOD} />
+          <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
         </mesh>
       ))}
     </group>
@@ -148,7 +149,7 @@ function Path(): ReactElement {
   return (
     <mesh position={[0, 0.04, 0]}>
       <boxGeometry args={[1, 0.08, 1]} />
-      <meshStandardMaterial color={SAND} />
+      <meshToonMaterial gradientMap={toonGradient} color={SAND} />
     </mesh>
   )
 }
@@ -158,11 +159,11 @@ function Lamp(): ReactElement {
     <group>
       <mesh position={[0, 0.9, 0]}>
         <cylinderGeometry args={[0.06, 0.08, 1.8, 6]} />
-        <meshStandardMaterial color="#3c4a44" />
+        <meshToonMaterial gradientMap={toonGradient} color="#3c4a44" />
       </mesh>
       <mesh position={[0, 1.9, 0]}>
         <boxGeometry args={[0.26, 0.3, 0.26]} />
-        <meshStandardMaterial color="#ffe9a8" emissive="#ffcf5c" emissiveIntensity={0.5} />
+        <meshToonMaterial gradientMap={toonGradient} color="#ffe9a8" emissive="#ffcf5c" emissiveIntensity={0.5} />
       </mesh>
     </group>
   )
@@ -173,16 +174,16 @@ function Bench(): ReactElement {
     <group position={[0, 0.25, 0]}>
       <mesh>
         <boxGeometry args={[1.1, 0.1, 0.4]} />
-        <meshStandardMaterial color={WOOD2} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
       </mesh>
       <mesh position={[0, 0.28, -0.16]}>
         <boxGeometry args={[1.1, 0.45, 0.08]} />
-        <meshStandardMaterial color={WOOD2} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
       </mesh>
       {[-0.45, 0.45].map((x) => (
         <mesh key={x} position={[x, -0.18, 0]}>
           <boxGeometry args={[0.1, 0.3, 0.36]} />
-          <meshStandardMaterial color={WOOD} />
+          <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
         </mesh>
       ))}
     </group>
@@ -194,15 +195,15 @@ function Table(): ReactElement {
     <group position={[0, 0.42, 0]}>
       <mesh>
         <cylinderGeometry args={[0.55, 0.55, 0.1, 16]} />
-        <meshStandardMaterial color={CREAM} />
+        <meshToonMaterial gradientMap={toonGradient} color={CREAM} />
       </mesh>
       <mesh position={[0, -0.25, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 0.5, 8]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, -0.48, 0]}>
         <cylinderGeometry args={[0.3, 0.3, 0.06, 12]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
     </group>
   )
@@ -213,15 +214,15 @@ function Mailbox(): ReactElement {
     <group>
       <mesh position={[0, 0.5, 0]}>
         <cylinderGeometry args={[0.05, 0.05, 1, 6]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, 1.05, 0]}>
         <boxGeometry args={[0.36, 0.28, 0.5]} />
-        <meshStandardMaterial color={RED} />
+        <meshToonMaterial gradientMap={toonGradient} color={RED} />
       </mesh>
       <mesh position={[0, 1.19, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.18, 0.18, 0.5, 10, 1, false, 0, Math.PI]} />
-        <meshStandardMaterial color="#d97b7b" />
+        <meshToonMaterial gradientMap={toonGradient} color="#d97b7b" />
       </mesh>
     </group>
   )
@@ -232,11 +233,11 @@ function Sign(): ReactElement {
     <group>
       <mesh position={[0, 0.45, 0]}>
         <cylinderGeometry args={[0.06, 0.06, 0.9, 6]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, 0.85, 0]}>
         <boxGeometry args={[0.7, 0.4, 0.08]} />
-        <meshStandardMaterial color={WOOD2} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
       </mesh>
     </group>
   )
@@ -247,11 +248,11 @@ function Pond(): ReactElement {
     <group>
       <mesh position={[0, 0.02, 0]}>
         <cylinderGeometry args={[1.2, 1.2, 0.12, 20]} />
-        <meshStandardMaterial color={SAND} />
+        <meshToonMaterial gradientMap={toonGradient} color={SAND} />
       </mesh>
       <mesh position={[0, 0.06, 0]}>
         <cylinderGeometry args={[1, 1, 0.08, 20]} />
-        <meshStandardMaterial color={WATER} transparent opacity={0.85} />
+        <meshToonMaterial gradientMap={toonGradient} color={WATER} transparent opacity={0.85} />
       </mesh>
     </group>
   )
@@ -262,11 +263,11 @@ function Tent(): ReactElement {
     <group>
       <mesh position={[0, 0.55, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.95, 1.1, 4]} />
-        <meshStandardMaterial color="#d98b5f" flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color="#d98b5f" />
       </mesh>
       <mesh position={[0, 0.28, 0.5]}>
         <coneGeometry args={[0.3, 0.55, 3]} />
-        <meshStandardMaterial color="#3a2a20" />
+        <meshToonMaterial gradientMap={toonGradient} color="#3a2a20" />
       </mesh>
     </group>
   )
@@ -276,7 +277,7 @@ function Crate(): ReactElement {
   return (
     <mesh position={[0, 0.3, 0]}>
       <boxGeometry args={[0.6, 0.6, 0.6]} />
-      <meshStandardMaterial color={WOOD2} />
+      <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
     </mesh>
   )
 }
@@ -285,7 +286,7 @@ function Barrel(): ReactElement {
   return (
     <mesh position={[0, 0.4, 0]}>
       <cylinderGeometry args={[0.32, 0.28, 0.8, 12]} />
-      <meshStandardMaterial color={WOOD} />
+      <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
     </mesh>
   )
 }
@@ -298,13 +299,13 @@ function Campfire(): ReactElement {
         return (
           <mesh key={i} position={[Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3]} rotation={[0, -a, 0]}>
             <cylinderGeometry args={[0.05, 0.06, 0.5, 5]} />
-            <meshStandardMaterial color={WOOD} />
+            <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
           </mesh>
         )
       })}
       <mesh position={[0, 0.22, 0]}>
         <coneGeometry args={[0.18, 0.4, 6]} />
-        <meshStandardMaterial color="#ff9d3c" emissive="#ff7a1a" emissiveIntensity={0.7} />
+        <meshToonMaterial gradientMap={toonGradient} color="#ff9d3c" emissive="#ff7a1a" emissiveIntensity={0.7} />
       </mesh>
     </group>
   )
@@ -317,15 +318,15 @@ function BigTree(): ReactElement {
     <group scale={1.5}>
       <mesh position={[0, 0.8, 0]}>
         <cylinderGeometry args={[0.22, 0.3, 1.6, 7]} />
-        <meshStandardMaterial color={WOOD} />
+        <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
       </mesh>
       <mesh position={[0, 2.1, 0]}>
         <icosahedronGeometry args={[1.25, 0]} />
-        <meshStandardMaterial color="#3f8a48" flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color="#3f8a48" />
       </mesh>
       <mesh position={[0.5, 1.7, 0.3]}>
         <icosahedronGeometry args={[0.7, 0]} />
-        <meshStandardMaterial color={LEAF} flatShading />
+        <meshToonMaterial gradientMap={toonGradient} color={LEAF} />
       </mesh>
     </group>
   )
@@ -336,7 +337,7 @@ function CherryTree(): ReactElement {
     <group>
       <mesh position={[0, 0.75, 0]}>
         <cylinderGeometry args={[0.16, 0.22, 1.5, 6]} />
-        <meshStandardMaterial color="#6b4a30" />
+        <meshToonMaterial gradientMap={toonGradient} color="#6b4a30" />
       </mesh>
       {[
         [0, 2, 0, 1],
@@ -345,7 +346,7 @@ function CherryTree(): ReactElement {
       ].map(([x, y, z, s], i) => (
         <mesh key={i} position={[x, y, z]} scale={s}>
           <icosahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color="#f4b8d0" flatShading />
+          <meshToonMaterial gradientMap={toonGradient} color="#f4b8d0" />
         </mesh>
       ))}
     </group>
@@ -357,7 +358,7 @@ function StonePath(): ReactElement {
     <group position={[0, 0.05, 0]}>
       <mesh>
         <boxGeometry args={[1, 0.1, 1]} />
-        <meshStandardMaterial color="#b9bcc0" />
+        <meshToonMaterial gradientMap={toonGradient} color="#b9bcc0" />
       </mesh>
       {[
         [-0.25, 0.06, -0.2],
@@ -366,7 +367,7 @@ function StonePath(): ReactElement {
       ].map(([x, y, z], i) => (
         <mesh key={i} position={[x, y, z]} rotation={[0, i, 0]}>
           <boxGeometry args={[0.34, 0.06, 0.28]} />
-          <meshStandardMaterial color="#9aa0a6" />
+          <meshToonMaterial gradientMap={toonGradient} color="#9aa0a6" />
         </mesh>
       ))}
     </group>
@@ -378,19 +379,19 @@ function Fountain(): ReactElement {
     <group>
       <mesh position={[0, 0.15, 0]}>
         <cylinderGeometry args={[1.1, 1.2, 0.3, 20]} />
-        <meshStandardMaterial color="#c8ccd0" />
+        <meshToonMaterial gradientMap={toonGradient} color="#c8ccd0" />
       </mesh>
       <mesh position={[0, 0.22, 0]}>
         <cylinderGeometry args={[0.95, 0.95, 0.16, 20]} />
-        <meshStandardMaterial color={WATER} transparent opacity={0.9} />
+        <meshToonMaterial gradientMap={toonGradient} color={WATER} transparent opacity={0.9} />
       </mesh>
       <mesh position={[0, 0.55, 0]}>
         <cylinderGeometry args={[0.1, 0.14, 0.7, 8]} />
-        <meshStandardMaterial color="#d4d8dc" />
+        <meshToonMaterial gradientMap={toonGradient} color="#d4d8dc" />
       </mesh>
       <mesh position={[0, 0.95, 0]}>
         <sphereGeometry args={[0.22, 12, 10]} />
-        <meshStandardMaterial color={WATER} transparent opacity={0.7} />
+        <meshToonMaterial gradientMap={toonGradient} color={WATER} transparent opacity={0.7} />
       </mesh>
     </group>
   )
@@ -401,11 +402,11 @@ function GardenLight(): ReactElement {
     <group>
       <mesh position={[0, 0.28, 0]}>
         <cylinderGeometry args={[0.05, 0.07, 0.56, 6]} />
-        <meshStandardMaterial color="#4a5a52" />
+        <meshToonMaterial gradientMap={toonGradient} color="#4a5a52" />
       </mesh>
       <mesh position={[0, 0.62, 0]}>
         <sphereGeometry args={[0.14, 12, 10]} />
-        <meshStandardMaterial color="#fff2c2" emissive="#ffdf8a" emissiveIntensity={0.8} />
+        <meshToonMaterial gradientMap={toonGradient} color="#fff2c2" emissive="#ffdf8a" emissiveIntensity={0.8} />
       </mesh>
     </group>
   )
@@ -418,12 +419,12 @@ function Plot(): ReactElement {
     <group>
       <mesh position={[0, 0.05, 0]}>
         <boxGeometry args={[1.4, 0.1, 1.4]} />
-        <meshStandardMaterial color={SOIL} />
+        <meshToonMaterial gradientMap={toonGradient} color={SOIL} />
       </mesh>
       {[-0.4, 0, 0.4].map((z) => (
         <mesh key={z} position={[0, 0.12, z]}>
           <boxGeometry args={[1.3, 0.06, 0.18]} />
-          <meshStandardMaterial color="#5f3f24" />
+          <meshToonMaterial gradientMap={toonGradient} color="#5f3f24" />
         </mesh>
       ))}
     </group>
@@ -435,7 +436,7 @@ function Coop(): ReactElement {
     <group>
       <mesh position={[0, 0.04, 0]}>
         <boxGeometry args={[1.8, 0.08, 1.8]} />
-        <meshStandardMaterial color="#8a6b45" />
+        <meshToonMaterial gradientMap={toonGradient} color="#8a6b45" />
       </mesh>
       {[
         [-0.82, -0.82],
@@ -445,28 +446,28 @@ function Coop(): ReactElement {
       ].map(([x, z], i) => (
         <mesh key={i} position={[x, 0.35, z]}>
           <boxGeometry args={[0.1, 0.7, 0.1]} />
-          <meshStandardMaterial color={WOOD2} />
+          <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
         </mesh>
       ))}
       {[0.25, 0.6].map((y) => (
         <group key={y}>
           <mesh position={[0, y, -0.82]}>
             <boxGeometry args={[1.6, 0.06, 0.06]} />
-            <meshStandardMaterial color={WOOD} />
+            <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
           </mesh>
           <mesh position={[0, y, 0.82]}>
             <boxGeometry args={[1.6, 0.06, 0.06]} />
-            <meshStandardMaterial color={WOOD} />
+            <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
           </mesh>
         </group>
       ))}
       <mesh position={[0, 0.5, 0]}>
         <boxGeometry args={[0.9, 0.5, 0.9]} />
-        <meshStandardMaterial color="#c98f5c" />
+        <meshToonMaterial gradientMap={toonGradient} color="#c98f5c" />
       </mesh>
       <mesh position={[0, 0.85, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.8, 0.4, 4]} />
-        <meshStandardMaterial color="#a6522f" />
+        <meshToonMaterial gradientMap={toonGradient} color="#a6522f" />
       </mesh>
     </group>
   )

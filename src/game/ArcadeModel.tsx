@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react'
+import { toonGradient } from './toon'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useVillage } from './store'
@@ -66,12 +67,12 @@ function Acorn({
       {/* 뚜껑 */}
       <mesh position={[0, 0.26, 0]} scale={[1.15, 0.6, 1.15]}>
         <sphereGeometry args={[0.34, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-        <meshStandardMaterial color={s.cap} roughness={0.85} />
+        <meshToonMaterial gradientMap={toonGradient} color={s.cap} />
       </mesh>
       {/* 꼭지 */}
       <mesh position={[0, 0.48, 0]}>
         <cylinderGeometry args={[0.03, 0.045, 0.14, 6]} />
-        <meshStandardMaterial color="#5b3a1e" />
+        <meshToonMaterial gradientMap={toonGradient} color="#5b3a1e" />
       </mesh>
 
       {/* 아우라 링 */}
@@ -85,7 +86,7 @@ function Acorn({
       {s.crown && (
         <mesh position={[0, 0.62, 0]} rotation={[0, 0, Math.PI / 5]}>
           <torusGeometry args={[0.1, 0.03, 6, 5]} />
-          <meshStandardMaterial color="#fff0b0" emissive="#ffd24a" emissiveIntensity={1} />
+          <meshToonMaterial gradientMap={toonGradient} color="#fff0b0" emissive="#ffd24a" emissiveIntensity={1} />
         </mesh>
       )}
 
@@ -197,24 +198,24 @@ export function ArcadeModel({ level }: { level: number }) {
       {/* 그루터기 받침 */}
       <mesh position={[0, 0.35, 0]}>
         <cylinderGeometry args={[0.6, 0.7, 0.7, 12]} />
-        <meshStandardMaterial color="#6f4a2c" />
+        <meshToonMaterial gradientMap={toonGradient} color="#6f4a2c" />
       </mesh>
       <mesh position={[0, 0.71, 0]}>
         <cylinderGeometry args={[0.62, 0.62, 0.06, 12]} />
-        <meshStandardMaterial color="#8a5f39" />
+        <meshToonMaterial gradientMap={toonGradient} color="#8a5f39" />
       </mesh>
       {/* 모루 */}
       <mesh position={[0, 0.92, 0]}>
         <boxGeometry args={[0.9, 0.22, 0.5]} />
-        <meshStandardMaterial color="#3a3d42" metalness={0.7} roughness={0.35} />
+        <meshToonMaterial gradientMap={toonGradient} color="#3a3d42" />
       </mesh>
       <mesh position={[0, 0.78, 0]}>
         <boxGeometry args={[0.4, 0.16, 0.34]} />
-        <meshStandardMaterial color="#2c2f33" metalness={0.7} roughness={0.4} />
+        <meshToonMaterial gradientMap={toonGradient} color="#2c2f33" />
       </mesh>
       <mesh position={[0.5, 0.95, 0]} rotation={[0, 0, 0.15]}>
         <coneGeometry args={[0.14, 0.36, 4]} />
-        <meshStandardMaterial color="#3a3d42" metalness={0.7} roughness={0.35} />
+        <meshToonMaterial gradientMap={toonGradient} color="#3a3d42" />
       </mesh>
 
       <Acorn level={level} shakeRef={shakeRef} popRef={popRef} />

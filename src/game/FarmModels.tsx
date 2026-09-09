@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { toonGradient } from './toon'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { CROP_MAP, ANIMAL_MAP } from './economy'
@@ -26,14 +27,14 @@ export function CropView({ crop, now }: { crop: CropState; now: number }) {
       {spots.map(([x, z], i) => (
         <mesh key={i} position={[x, h / 2, z]}>
           <cylinderGeometry args={[0.05, 0.08, h, 5]} />
-          <meshStandardMaterial color={ripe ? '#7a9a4e' : '#5aa15a'} flatShading />
+          <meshToonMaterial gradientMap={toonGradient} color={ripe ? '#7a9a4e' : '#5aa15a'} />
         </mesh>
       ))}
       {ripe &&
         spots.map(([x, z], i) => (
           <mesh key={`f${i}`} position={[x, h + 0.06, z]}>
             <icosahedronGeometry args={[0.14, 0]} />
-            <meshStandardMaterial color={def.color} flatShading />
+            <meshToonMaterial gradientMap={toonGradient} color={def.color} />
           </mesh>
         ))}
     </group>
@@ -56,19 +57,19 @@ export function AnimalView({ animal }: { animal: AnimalState }) {
     <group ref={ref} position={[0, base, 0]} scale={size}>
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <capsuleGeometry args={[0.4, 0.5, 4, 10]} />
-        <meshStandardMaterial color={def.body} />
+        <meshToonMaterial gradientMap={toonGradient} color={def.body} />
       </mesh>
       <mesh position={[0, 0.28, 0.5]}>
         <sphereGeometry args={[0.3, 14, 12]} />
-        <meshStandardMaterial color={def.body} />
+        <meshToonMaterial gradientMap={toonGradient} color={def.body} />
       </mesh>
       <mesh position={[0.12, 0.32, 0.74]}>
         <sphereGeometry args={[0.04, 6, 6]} />
-        <meshStandardMaterial color="#222" />
+        <meshToonMaterial gradientMap={toonGradient} color="#222" />
       </mesh>
       <mesh position={[-0.12, 0.32, 0.74]}>
         <sphereGeometry args={[0.04, 6, 6]} />
-        <meshStandardMaterial color="#222" />
+        <meshToonMaterial gradientMap={toonGradient} color="#222" />
       </mesh>
       {(
         [
@@ -80,7 +81,7 @@ export function AnimalView({ animal }: { animal: AnimalState }) {
       ).map(([x, z], i) => (
         <mesh key={i} position={[x, -0.42, z]}>
           <cylinderGeometry args={[0.07, 0.07, 0.4, 6]} />
-          <meshStandardMaterial color={def.accent} />
+          <meshToonMaterial gradientMap={toonGradient} color={def.accent} />
         </mesh>
       ))}
     </group>

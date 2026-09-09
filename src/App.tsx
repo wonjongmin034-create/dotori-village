@@ -150,6 +150,8 @@ export default function App() {
         <Scene />
       </Canvas>
 
+      <div className="vignette" aria-hidden="true" />
+
       <div className="hud">
         <div className="badge">
           <b>도토리 마을</b>

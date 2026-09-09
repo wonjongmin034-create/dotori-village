@@ -33,6 +33,20 @@ canvas {
   touch-action: none;
 }
 
+/* 화면 가장자리 살짝 어둡게 — 아늑한 느낌 */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 100% at 50% 42%,
+    transparent 55%,
+    rgba(30, 55, 60, 0.13) 88%,
+    rgba(25, 45, 50, 0.22) 100%
+  );
+}
+
 /* --- HUD --- */
 .hud {
   position: fixed;

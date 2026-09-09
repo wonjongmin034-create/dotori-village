@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react'
+import { toonGradient } from './toon'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getMove } from './input'
@@ -94,50 +95,50 @@ export function Player() {
         <group ref={bob}>
           <mesh position={[0, 0.62, 0]}>
             <capsuleGeometry args={[0.3, 0.4, 6, 14]} />
-            <meshStandardMaterial color="#5cc06b" />
+            <meshToonMaterial gradientMap={toonGradient} color="#5cc06b" />
           </mesh>
           <mesh position={[0, 1.3, 0]}>
             <sphereGeometry args={[0.42, 22, 18]} />
-            <meshStandardMaterial color="#ffe1bd" />
+            <meshToonMaterial gradientMap={toonGradient} color="#ffe1bd" />
           </mesh>
           <mesh position={[0.15, 1.34, 0.37]}>
             <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial color="#2a2a2a" />
+            <meshToonMaterial gradientMap={toonGradient} color="#2a2a2a" />
           </mesh>
           <mesh position={[-0.15, 1.34, 0.37]}>
             <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial color="#2a2a2a" />
+            <meshToonMaterial gradientMap={toonGradient} color="#2a2a2a" />
           </mesh>
           <mesh position={[0, 1.6, 0]}>
             <sphereGeometry args={[0.34, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-            <meshStandardMaterial color="#a56b2b" />
+            <meshToonMaterial gradientMap={toonGradient} color="#a56b2b" />
           </mesh>
           <mesh position={[0, 1.88, 0]}>
             <coneGeometry args={[0.07, 0.16, 8]} />
-            <meshStandardMaterial color="#7c4e1e" />
+            <meshToonMaterial gradientMap={toonGradient} color="#7c4e1e" />
           </mesh>
           <group ref={armL} position={[0.4, 0.9, 0]}>
             <mesh position={[0, -0.22, 0]}>
               <capsuleGeometry args={[0.1, 0.3, 4, 8]} />
-              <meshStandardMaterial color="#4bad5a" />
+              <meshToonMaterial gradientMap={toonGradient} color="#4bad5a" />
             </mesh>
           </group>
           <group ref={armR} position={[-0.4, 0.9, 0]}>
             <mesh position={[0, -0.22, 0]}>
               <capsuleGeometry args={[0.1, 0.3, 4, 8]} />
-              <meshStandardMaterial color="#4bad5a" />
+              <meshToonMaterial gradientMap={toonGradient} color="#4bad5a" />
             </mesh>
           </group>
           <group ref={legL} position={[0.15, 0.36, 0]}>
             <mesh position={[0, -0.18, 0]}>
               <capsuleGeometry args={[0.12, 0.2, 4, 8]} />
-              <meshStandardMaterial color="#d79f66" />
+              <meshToonMaterial gradientMap={toonGradient} color="#d79f66" />
             </mesh>
           </group>
           <group ref={legR} position={[-0.15, 0.36, 0]}>
             <mesh position={[0, -0.18, 0]}>
               <capsuleGeometry args={[0.12, 0.2, 4, 8]} />
-              <meshStandardMaterial color="#d79f66" />
+              <meshToonMaterial gradientMap={toonGradient} color="#d79f66" />
             </mesh>
           </group>
         </group>
