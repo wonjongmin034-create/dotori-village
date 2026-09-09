@@ -18,7 +18,7 @@ import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
 import { Login } from './game/Login'
 import { TeacherDashboard } from './game/TeacherDashboard'
-import { loadLocalSession, loadLocalTeacher, resume, logout } from './game/cloud'
+import { loadLocalTeacher, logout } from './game/cloud'
 
 const CATS: { id: Category; label: string }[] = [
   { id: 'decor', label: '꾸미기' },
@@ -64,21 +64,9 @@ export default function App() {
       logout()
       params.delete('logout')
       history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''))
-      setGate('login')
-      return
     }
-    const t = loadLocalTeacher()
-    if (t) {
-      setTeacherCode(t)
-      setGate('teacher')
-      return
-    }
-    const s = loadLocalSession()
-    if (!s) {
-      setGate('login')
-      return
-    }
-    resume(s).then((r) => setGate(r === 'in' ? 'in' : 'login'))
+    // 매번 로그인 화면을 띄운다 (공용 기기 안전). 반 코드·이름은 Login에서 미리 채워짐.
+    setGate('login')
   }, [])
 
   const onPointerDown = (e: ReactPointerEvent) => {

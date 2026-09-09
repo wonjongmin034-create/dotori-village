@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { login, teacherLogin } from './cloud'
+import { login, teacherLogin, loadLocalSession, loadLocalTeacher } from './cloud'
 
 export function Login({
   onStudent,
@@ -9,9 +9,13 @@ export function Login({
   onTeacher: () => void
 }) {
   const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '')
-  const [tab, setTab] = useState<'student' | 'teacher'>(params.has('teacher') ? 'teacher' : 'student')
-  const [code, setCode] = useState(params.get('class') ?? '')
-  const [name, setName] = useState('')
+  const savedS = loadLocalSession()
+  const savedT = loadLocalTeacher()
+  const [tab, setTab] = useState<'student' | 'teacher'>(
+    params.has('teacher') || (!savedS && !!savedT) ? 'teacher' : 'student',
+  )
+  const [code, setCode] = useState(params.get('class') ?? savedS?.classCode ?? savedT ?? '')
+  const [name, setName] = useState(savedS?.name ?? '')
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
