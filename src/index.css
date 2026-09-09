@@ -1286,12 +1286,12 @@ canvas {
 .wd-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 12px;
 }
 .wd-tabs button {
-  flex: 1 0 auto;
-  padding: 8px 10px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid #e3e1d2;
   background: #fff;

@@ -3,7 +3,15 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useVillage } from './store'
 import { Character, type CharacterRefs } from './Character'
-import { WARDROBE, SLOTS, SLOT_LABEL, itemsForSlot, ownsItem, type Slot } from './wardrobe'
+import {
+  WARDROBE,
+  SLOTS,
+  SLOT_LABEL,
+  COLOR_SLOTS,
+  itemsForSlot,
+  ownsItem,
+  type Slot,
+} from './wardrobe'
 import type { Avatar } from './avatar'
 
 function PreviewCharacter({ avatar }: { avatar: Avatar }) {
@@ -23,7 +31,7 @@ function PreviewCharacter({ avatar }: { avatar: Avatar }) {
 
   useFrame((s, dt) => {
     const el = s.clock.elapsedTime
-    if (spin.current) spin.current.rotation.y = Math.sin(el * 0.4) * 0.7
+    if (spin.current) spin.current.rotation.y = el * 0.5
     if (refs.bob.current) refs.bob.current.position.y = Math.sin(el * 2) * 0.02
     if (refs.body.current) refs.body.current.scale.y = 1 + Math.sin(el * 2) * 0.03
     blink.current.t -= dt
@@ -56,7 +64,7 @@ export function WardrobePanel() {
 
   if (!open) return null
 
-  const isColor = slot === 'hairColor' || slot === 'shirt' || slot === 'pants' || slot === 'shoes'
+  const isColor = COLOR_SLOTS.includes(slot)
   const current = (avatar[slot] as string | null) ?? 'none'
 
   return (

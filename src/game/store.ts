@@ -299,7 +299,8 @@ export const useVillage = create<VillageState>((set, get) => {
         return
       }
       const nextOwned = has ? owned : [...owned, key]
-      const nextAvatar = { ...get().avatar, [slot]: slot === 'hat' && id === 'none' ? null : id }
+      const nullable = slot === 'hat' || slot === 'acc' || slot === 'costume'
+      const nextAvatar = { ...get().avatar, [slot]: nullable && id === 'none' ? null : id }
       const nextItems = items.map((i) =>
         i.type === 'house' ? { ...i, avatar: nextAvatar, wardrobe: nextOwned } : i,
       )
