@@ -18,6 +18,7 @@ import {
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
+import { findItem, ownsItem, type Slot } from './wardrobe'
 
 export type { Avatar }
 
@@ -55,6 +56,7 @@ export type PlacedItem = {
   level?: number // 우리 집 등급
   land?: number // (집에만) 마을 땅 반쪽 크기
   avatar?: Avatar // (집에만) 내 캐릭터 외형
+  wardrobe?: string[] // (집에만) 산 옷 id들 ("slot:id")
   enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
 
@@ -155,11 +157,22 @@ function ensureArcade(items: PlacedItem[]): PlacedItem[] {
   ]
 }
 
+// 옷장 (캐릭터 꾸미기).
+function ensureWardrobe(items: PlacedItem[]): PlacedItem[] {
+  if (items.some((i) => i.type === 'wardrobe')) return items
+  const [x, z] = isNewVillage(items) ? [-3.5, -2.5] : [-5, -4]
+  return [...items, { key: 'wardrobe', type: 'wardrobe', x, z, rot: Math.PI * 0.1 }]
+}
+
 export const landHalf = (items: PlacedItem[]) =>
   items.find((i) => i.type === 'house')?.land ?? LAND_OLD
 
 const avatarOf = (items: PlacedItem[]) =>
   normalizeAvatar(items.find((i) => i.type === 'house')?.avatar)
+const wardrobeOf = (items: PlacedItem[]) => {
+  const w = items.find((i) => i.type === 'house')?.wardrobe
+  return Array.isArray(w) ? w : []
+}
 
 function clampToLand(x: number, z: number, half: number): [number, number] {
   const b = half - 0.5
@@ -182,6 +195,7 @@ interface VillageState {
   arcadeLocked: boolean
   mission: Mission | null
   avatar: Avatar
+  wardrobe: string[]
 
   placing: string | null
   selected: string | null
@@ -192,6 +206,7 @@ interface VillageState {
 
   setHomework: (text: string) => void
   setAvatar: (a: Avatar) => void
+  chooseWardrobe: (slot: Slot, id: string) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
   hydrateHomework: (text: string) => void
   setSession: (s: Session | null) => void
@@ -231,7 +246,7 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initialItems = ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))
+const initialItems = ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items))))
 const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
 if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
@@ -252,6 +267,7 @@ export const useVillage = create<VillageState>((set, get) => {
     arcadeLocked: false,
     mission: null,
     avatar: avatarOf(initial.items),
+    wardrobe: wardrobeOf(initial.items),
     placing: null,
     selected: null,
     activeFarm: null,
@@ -271,10 +287,32 @@ export const useVillage = create<VillageState>((set, get) => {
       set({ items: next, avatar: normalizeAvatar(a) })
     },
 
+    chooseWardrobe: (slot, id) => {
+      const item = findItem(slot, id)
+      if (!item) return
+      const { items, coins } = get()
+      const owned = wardrobeOf(items)
+      const key = `${slot}:${id}`
+      const has = ownsItem(item, owned)
+      if (!has && coins < item.cost) {
+        get().flash(`${item.cost} 도토리가 필요해요`)
+        return
+      }
+      const nextOwned = has ? owned : [...owned, key]
+      const nextAvatar = { ...get().avatar, [slot]: slot === 'hat' && id === 'none' ? null : id }
+      const nextItems = items.map((i) =>
+        i.type === 'house' ? { ...i, avatar: nextAvatar, wardrobe: nextOwned } : i,
+      )
+      const nextCoins = has ? coins : coins - item.cost
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, coins: nextCoins, avatar: normalizeAvatar(nextAvatar), wardrobe: nextOwned })
+      if (!has) get().flash(`${item.label} 구매! -${item.cost} 도토리`)
+    },
+
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureArcade(ensureBoard(ensureHouse(items)))
+      const merged = ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items))))
       saveLocal(coins, merged, get().homework)
-      set({ coins, items: merged, avatar: avatarOf(merged) })
+      set({ coins, items: merged, avatar: avatarOf(merged), wardrobe: wardrobeOf(merged) })
     },
 
     hydrateHomework: (text) => {
@@ -359,6 +397,7 @@ export const useVillage = create<VillageState>((set, get) => {
         house: '우리 집은 지울 수 없어요',
         board: '게시판은 지울 수 없어요',
         arcade: '강화대는 지울 수 없어요',
+        wardrobe: '옷장은 지울 수 없어요',
       }
       if (it && fixed[it.type]) {
         get().flash(fixed[it.type])
@@ -369,7 +408,7 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     clearAll: () => {
-      const keep = new Set(['house', 'board', 'arcade'])
+      const keep = new Set(['house', 'board', 'arcade', 'wardrobe'])
       commit(get().items.filter((i) => keep.has(i.type)))
       set({ selected: null, placing: null })
     },

@@ -1271,3 +1271,94 @@ canvas {
 .quiz-feedback.wrong-fb button {
   background: #b5715f;
 }
+
+/* ── 옷장 ── */
+.wardrobe-card {
+  max-width: 420px;
+}
+.wd-preview {
+  height: 190px;
+  margin: 6px 0 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #dff1f6, #eef6e6);
+  overflow: hidden;
+}
+.wd-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.wd-tabs button {
+  flex: 1 0 auto;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid #e3e1d2;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a655c;
+  cursor: pointer;
+}
+.wd-tabs button.on {
+  background: #3e9b4f;
+  border-color: #3e9b4f;
+  color: #fff;
+}
+.wd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.wd-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.wd-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border: 1px solid #e3e1d2;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.wd-swatches .wd-opt {
+  padding: 6px;
+}
+.wd-opt.equipped {
+  border-color: #3e9b4f;
+  background: #edf7ee;
+}
+.wd-opt.poor {
+  opacity: 0.5;
+}
+.wd-color {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+}
+.wd-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #33423a;
+}
+.wd-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9a7b2e;
+  min-height: 12px;
+}
+.wd-opt.equipped .wd-tag {
+  color: #3e9b4f;
+}
+.wd-hint {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #8a8f86;
+  line-height: 1.45;
+}

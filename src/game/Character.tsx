@@ -19,8 +19,75 @@ function Toon({ color }: { color: string }) {
   return <meshToonMaterial gradientMap={toonGradient} color={color} />
 }
 
+function ShortBase({ color }: { color: string }) {
+  return (
+    <>
+      <mesh position={[0, 0.14, -0.06]} scale={[1.05, 0.9, 1.05]}>
+        <sphereGeometry args={[0.5, 22, 16, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
+        <Toon color={color} />
+      </mesh>
+      <mesh position={[0, 0.02, -0.1]} scale={[1.05, 1, 0.9]}>
+        <sphereGeometry args={[0.5, 22, 16, Math.PI * 0.35, Math.PI * 1.3, 0, Math.PI * 0.72]} />
+        <Toon color={color} />
+      </mesh>
+    </>
+  )
+}
+
 function Hair({ style, color }: { style: string; color: string }) {
   if (style === 'none') return null
+  if (style === 'pigtails') {
+    return (
+      <group>
+        <ShortBase color={color} />
+        {[-1, 1].map((s) => (
+          <group key={s} position={[s * 0.5, -0.05, -0.05]}>
+            <mesh>
+              <sphereGeometry args={[0.14, 12, 10]} />
+              <Toon color={color} />
+            </mesh>
+            <mesh position={[s * 0.02, -0.22, 0]} scale={[1, 1.6, 1]}>
+              <capsuleGeometry args={[0.08, 0.2, 4, 8]} />
+              <Toon color={color} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    )
+  }
+  if (style === 'long') {
+    return (
+      <group>
+        <ShortBase color={color} />
+        <mesh position={[0, -0.18, -0.16]} scale={[0.9, 1.5, 0.55]}>
+          <sphereGeometry args={[0.42, 16, 14]} />
+          <Toon color={color} />
+        </mesh>
+      </group>
+    )
+  }
+  if (style === 'spiky') {
+    return (
+      <group>
+        <mesh position={[0, 0.1, -0.04]} scale={[1.02, 0.75, 1.02]}>
+          <sphereGeometry args={[0.5, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+          <Toon color={color} />
+        </mesh>
+        {[
+          [0, 0.42, 0],
+          [0.28, 0.3, 0.1],
+          [-0.28, 0.3, 0.1],
+          [0.12, 0.36, -0.24],
+          [-0.14, 0.34, -0.22],
+        ].map(([x, y, z], i) => (
+          <mesh key={i} position={[x, y, z]} rotation={[z * 2, 0, -x * 2]}>
+            <coneGeometry args={[0.1, 0.28, 5]} />
+            <Toon color={color} />
+          </mesh>
+        ))}
+      </group>
+    )
+  }
   if (style === 'bun') {
     return (
       <group>
@@ -35,18 +102,10 @@ function Hair({ style, color }: { style: string; color: string }) {
       </group>
     )
   }
-  // short (기본) — 둥근 바가지, 앞쪽 이마는 살짝 드러나게
+  // short (기본)
   return (
     <group>
-      <mesh position={[0, 0.14, -0.06]} scale={[1.05, 0.9, 1.05]}>
-        <sphereGeometry args={[0.5, 22, 16, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-        <Toon color={color} />
-      </mesh>
-      {/* 옆·뒤 머리 */}
-      <mesh position={[0, 0.02, -0.1]} scale={[1.05, 1, 0.9]}>
-        <sphereGeometry args={[0.5, 22, 16, Math.PI * 0.35, Math.PI * 1.3, 0, Math.PI * 0.72]} />
-        <Toon color={color} />
-      </mesh>
+      <ShortBase color={color} />
       <mesh position={[0, 0.44, 0]}>
         <sphereGeometry args={[0.08, 10, 8]} />
         <Toon color={color} />
@@ -99,6 +158,61 @@ function Hat({ id }: { id: string }) {
         <mesh>
           <sphereGeometry args={[0.05, 8, 6]} />
           <Toon color="#f2c14e" />
+        </mesh>
+      </group>
+    )
+  }
+  if (id === 'party') {
+    return (
+      <group position={[0, 0.5, 0]}>
+        <mesh position={[0, 0.18, 0]}>
+          <coneGeometry args={[0.26, 0.6, 16]} />
+          <Toon color="#f2955b" />
+        </mesh>
+        <mesh position={[0, 0.5, 0]}>
+          <sphereGeometry args={[0.08, 10, 8]} />
+          <Toon color="#f4f4f4" />
+        </mesh>
+      </group>
+    )
+  }
+  if (id === 'straw') {
+    return (
+      <group position={[0, 0.42, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.6, 0.6, 0.04, 20]} />
+          <Toon color="#e6c878" />
+        </mesh>
+        <mesh position={[0, 0.12, 0]} scale={[1, 0.8, 1]}>
+          <sphereGeometry args={[0.34, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+          <Toon color="#d9b45f" />
+        </mesh>
+        <mesh position={[0, 0.06, 0.34]} rotation={[-Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.35, 0.03, 8, 20, Math.PI]} />
+          <Toon color="#c14a4a" />
+        </mesh>
+      </group>
+    )
+  }
+  if (id === 'crown') {
+    return (
+      <group position={[0, 0.46, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.42, 0.42, 0.12, 12, 1, true]} />
+          <Toon color="#f2c94e" />
+        </mesh>
+        {[0, 1, 2, 3, 4, 5].map((i) => {
+          const a = (i / 6) * Math.PI * 2
+          return (
+            <mesh key={i} position={[Math.cos(a) * 0.42, 0.12, Math.sin(a) * 0.42]}>
+              <coneGeometry args={[0.06, 0.18, 4]} />
+              <Toon color="#f2c94e" />
+            </mesh>
+          )
+        })}
+        <mesh position={[0, 0.02, 0.42]}>
+          <sphereGeometry args={[0.05, 8, 8]} />
+          <Toon color="#e0526b" />
         </mesh>
       </group>
     )

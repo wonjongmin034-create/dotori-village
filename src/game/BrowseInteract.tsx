@@ -55,7 +55,8 @@ export function BrowseInteract({ itemsRef }: { itemsRef: RefObject<THREE.Group |
           item.type === 'coop' ||
           item.type === 'house' ||
           item.type === 'board' ||
-          item.type === 'arcade')
+          item.type === 'arcade' ||
+          item.type === 'wardrobe')
       )
         st.openFarm(item.key)
       else if (st.activeFarm) st.closeFarm()
