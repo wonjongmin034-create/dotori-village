@@ -1612,3 +1612,128 @@ canvas {
 .lw-a b.good {
   color: #2f7a40;
 }
+
+/* ── 선생님: 문제 만들기 ── */
+.qm-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.qm-counts span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a8f86;
+  background: #f0efe6;
+}
+.qm-counts span.has {
+  color: #2f7a40;
+  background: #e6f2e4;
+}
+.qm-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.qm-tabs button {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #e3e1d2;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a655c;
+}
+.qm-tabs button.on {
+  background: #3e9b4f;
+  border-color: #3e9b4f;
+  color: #fff;
+}
+.qm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.qm-form select,
+.qm-form input,
+.qm-form textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #dcdaca;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.qm-form textarea {
+  resize: vertical;
+}
+.qm-bulk {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.qm-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qm-choice input[type='radio'] {
+  width: auto;
+  flex: 0 0 auto;
+}
+.qm-help {
+  font-size: 11px;
+  color: #8a8f86;
+  line-height: 1.6;
+}
+.qm-help code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f0efe6;
+  font-size: 11px;
+}
+.qm-note {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2f7a40;
+}
+.qm-list {
+  margin-top: 12px;
+  border-top: 1px solid #ececdf;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qm-list-sub {
+  font-size: 11px;
+  font-weight: 800;
+  color: #2f7a40;
+  margin-bottom: 3px;
+}
+.qm-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  color: #4a4a44;
+}
+.qm-item-q {
+  flex: 1;
+  line-height: 1.4;
+}
+.qm-item-q b {
+  color: #2f7a40;
+}
+.qm-item button {
+  flex: 0 0 auto;
+  background: none;
+  font-size: 13px;
+  opacity: 0.7;
+}

@@ -6,13 +6,14 @@ import { useVillage } from './store'
 export function DailyLearnPanel() {
   const open = useVillage((s) => s.learnOpen)
   const daily = useVillage((s) => s.daily)
+  const classQuestions = useVillage((s) => s.classQuestions)
   const close = useVillage((s) => s.closeLearn)
   const answerDaily = useVillage((s) => s.answerDaily)
   const claimDaily = useVillage((s) => s.claimDaily)
 
   const set = useMemo(
-    () => (daily ? dailySet(daily.day, DAILY_PER_SUBJECT) : []),
-    [daily?.day],
+    () => (daily ? dailySet(daily.day, DAILY_PER_SUBJECT, classQuestions) : []),
+    [daily?.day, classQuestions],
   )
   const [fb, setFb] = useState<{ q: Question; pick: number } | null>(null)
 

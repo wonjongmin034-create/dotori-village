@@ -508,6 +508,7 @@ export function randomQuestion(exclude?: Question): Question {
 
 /* ---------- 오늘의 학습: 날짜로 정해지는 20문제 ---------- */
 // 같은 반 학생은 같은 날 같은 문제를 푼다 (공정성 + 선생님이 반 전체 오답을 보기 쉬움).
+// extra = 선생님이 그 반에 추가한 문제. 기본 문제와 같은 풀에서 뽑는다.
 
 function hashStr(s: string): number {
   let h = 2166136261
@@ -518,28 +519,119 @@ function hashStr(s: string): number {
   return h >>> 0
 }
 
-function mulberry32(seed: number): () => number {
-  let a = seed
-  return () => {
-    a |= 0
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+// 날짜+id 해시로 순서를 정한다 (문제를 더 넣어도 나머지 순서는 거의 안 바뀜).
+function byDayHash(dayKey: string, pool: Question[]): Question[] {
+  return pool
+    .map((q) => ({ q, k: hashStr(`${dayKey}|${q.id}`) }))
+    .sort((a, b) => a.k - b.k || (a.q.id < b.q.id ? -1 : 1))
+    .map((x) => x.q)
 }
 
-// dayKey: "YYYY-MM-DD". 과목마다 perSubject개씩 뽑아 이어 붙인다.
-export function dailySet(dayKey: string, perSubject = 4): Question[] {
-  const rng = mulberry32(hashStr(dayKey))
+// dayKey: "YYYY-MM-DD". 과목마다 perSubject개씩. 선생님 문제(extra)를 먼저 채우고
+// 모자라는 만큼 기본 문제로 채운다 → 문제를 많이 넣을수록 우리 반 문제가 자주 나온다.
+export function dailySet(dayKey: string, perSubject = 4, extra: Question[] = []): Question[] {
   const out: Question[] = []
   for (const sub of SUBJECTS) {
-    const pool = QUESTIONS.filter((q) => q.subject === sub)
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1))
-      ;[pool[i], pool[j]] = [pool[j], pool[i]]
-    }
-    out.push(...pool.slice(0, Math.min(perSubject, pool.length)))
+    const custom = byDayHash(
+      dayKey,
+      extra.filter((q) => q.subject === sub),
+    )
+    const bundled = byDayHash(
+      dayKey,
+      QUESTIONS.filter((q) => q.subject === sub),
+    )
+    const picked = [...custom, ...bundled].slice(0, perSubject)
+    out.push(...picked)
   }
   return out
+}
+
+/* ---------- 선생님이 추가한 문제 다루기 ---------- */
+
+const isSubject = (s: unknown): s is Subject => SUBJECTS.includes(s as Subject)
+
+// DB(jsonb)나 붙여넣기에서 온 값을 안전한 Question[]로 거른다.
+export function sanitizeQuestions(raw: unknown): Question[] {
+  if (!Array.isArray(raw)) return []
+  const out: Question[] = []
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const o = r as Record<string, unknown>
+    const choices = Array.isArray(o.choices) ? o.choices.map((c) => String(c).trim()).filter(Boolean) : []
+    const answer = typeof o.answer === 'number' ? o.answer : -1
+    if (
+      typeof o.id !== 'string' ||
+      !isSubject(o.subject) ||
+      typeof o.q !== 'string' ||
+      !o.q.trim() ||
+      choices.length < 2 ||
+      answer < 0 ||
+      answer >= choices.length
+    )
+      continue
+    out.push({
+      id: o.id,
+      subject: o.subject,
+      q: o.q.trim(),
+      choices,
+      answer,
+      explain: typeof o.explain === 'string' ? o.explain.trim() : '',
+    })
+  }
+  return out
+}
+
+export function newQuestionId(): string {
+  return `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+}
+
+// 여러 문제를 한 번에 붙여넣기용 파서.
+//   [수학] 3 + 4 = ?
+//   - 5
+//   * 7          ← * 가 정답
+//   - 8
+//   해설: 3 더하기 4는 7
+//   (빈 줄로 문제 구분)
+export function parseQuestions(text: string): { questions: Question[]; errors: number } {
+  const blocks = text
+    .replace(/\r/g, '')
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+  const questions: Question[] = []
+  let errors = 0
+  for (const block of blocks) {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean)
+    const head = lines[0]?.match(/^\[(.+?)\]\s*(.*)$/)
+    if (!head || !isSubject(head[1].trim())) {
+      errors++
+      continue
+    }
+    const subject = head[1].trim() as Subject
+    let q = head[2].trim()
+    const choices: string[] = []
+    let answer = -1
+    let explain = ''
+    for (const line of lines.slice(1)) {
+      const ex = line.match(/^(해설|설명)\s*[:：]\s*(.*)$/)
+      if (ex) {
+        explain = ex[2].trim()
+        continue
+      }
+      const ch = line.match(/^([*\-•])\s*(.+)$/)
+      if (ch) {
+        if (ch[1] === '*') answer = choices.length
+        choices.push(ch[2].trim())
+        continue
+      }
+      // 보기 앞에 오는 추가 문제 줄
+      if (choices.length === 0) q = `${q} ${line}`.trim()
+    }
+    if (!q || choices.length < 2 || answer < 0) {
+      errors++
+      continue
+    }
+    questions.push({ id: newQuestionId(), subject, q, choices, answer, explain })
+  }
+  return { questions, errors }
 }

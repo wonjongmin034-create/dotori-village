@@ -18,7 +18,7 @@ import {
   LAND_OLD,
   landExpand,
 } from './economy'
-import { dailySet } from './questions'
+import { dailySet, type Question } from './questions'
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
@@ -210,13 +210,13 @@ const learnLogOf = (items: PlacedItem[]): DailyResult[] => {
 }
 
 // 하루가 지나면 지난 학습을 기록으로 넘기고 오늘치를 새로 만든다.
-function ensureDaily(items: PlacedItem[]): PlacedItem[] {
+function ensureDaily(items: PlacedItem[], extra: Question[] = []): PlacedItem[] {
   const today = dateKey()
   const cur = dailyOf(items)
   if (cur && cur.day === today) return items
   let log = learnLogOf(items)
   if (cur && Object.keys(cur.picks).length > 0) {
-    const set = dailySet(cur.day, DAILY_PER_SUBJECT)
+    const set = dailySet(cur.day, DAILY_PER_SUBJECT, extra)
     const wrong = set.filter((q) => cur.picks[q.id] != null && cur.picks[q.id] !== q.answer).map((q) => q.id)
     log = [{ day: cur.day, score: cur.score, total: set.length, wrong }, ...log].slice(0, 20)
   }
@@ -248,6 +248,7 @@ interface VillageState {
   avatar: Avatar
   wardrobe: string[]
   daily: DailyLearn | null
+  classQuestions: Question[] // 선생님이 이 반에 추가한 문제
 
   placing: string | null
   selected: string | null
@@ -264,7 +265,11 @@ interface VillageState {
   hydrateHomework: (text: string) => void
   setSession: (s: Session | null) => void
   setCloud: (c: CloudStatus) => void
-  setClassConfig: (cfg: { arcadeEnabled?: boolean; mission?: Mission | null }) => void
+  setClassConfig: (cfg: {
+    arcadeEnabled?: boolean
+    mission?: Mission | null
+    questions?: Question[]
+  }) => void
   grantCoins: (amount: number, reason: string) => void
   setMode: (m: Mode) => void
   togglePlacing: (type: string) => void
@@ -327,6 +332,7 @@ export const useVillage = create<VillageState>((set, get) => {
     avatar: avatarOf(initial.items),
     wardrobe: wardrobeOf(initial.items),
     daily: dailyOf(initial.items),
+    classQuestions: [],
     placing: null,
     selected: null,
     activeFarm: null,
@@ -371,7 +377,10 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))))
+      const merged = ensureDaily(
+        ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
+        get().classQuestions,
+      )
       saveLocal(coins, merged, get().homework)
       set({
         coins,
@@ -393,6 +402,7 @@ export const useVillage = create<VillageState>((set, get) => {
       set((s) => ({
         arcadeLocked: cfg.arcadeEnabled === undefined ? s.arcadeLocked : !cfg.arcadeEnabled,
         mission: cfg.mission === undefined ? s.mission : cfg.mission,
+        classQuestions: cfg.questions === undefined ? s.classQuestions : cfg.questions,
       })),
 
     // 선생님이 준 도토리를 받는다 (cloud.ts 폴링에서 호출)
@@ -528,7 +538,7 @@ export const useVillage = create<VillageState>((set, get) => {
       const { items } = get()
       const d = dailyOf(items)
       if (!d || d.claimed) return
-      const set_ = dailySet(d.day, DAILY_PER_SUBJECT)
+      const set_ = dailySet(d.day, DAILY_PER_SUBJECT, get().classQuestions)
       if (d.idx >= set_.length) return
       const q = set_[d.idx]
       if (d.picks[q.id] != null) return
@@ -549,7 +559,7 @@ export const useVillage = create<VillageState>((set, get) => {
       const { items } = get()
       const d = dailyOf(items)
       if (!d || d.claimed) return
-      const set_ = dailySet(d.day, DAILY_PER_SUBJECT)
+      const set_ = dailySet(d.day, DAILY_PER_SUBJECT, get().classQuestions)
       if (d.idx < set_.length) return
       const rate = set_.length ? d.score / set_.length : 0
       const add = dailyBonus(rate)?.add ?? 0

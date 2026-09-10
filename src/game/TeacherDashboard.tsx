@@ -4,6 +4,7 @@ import {
   teacherGrant,
   teacherSetHomework,
   teacherSetMission,
+  teacherSetQuestions,
   teacherToggleArcade,
   teacherResetPin,
   teacherLogout,
@@ -11,13 +12,13 @@ import {
   type StudentRow,
 } from './cloud'
 import { DAILY_PER_SUBJECT } from './economy'
-import { dailySet } from './questions'
+import { dailySet, parseQuestions, newQuestionId, SUBJECTS, type Question } from './questions'
 import type { Mission } from './store'
 
 // 학생이 오늘 틀린 문제 목록
-function wrongToday(s: StudentRow) {
+function wrongToday(s: StudentRow, extra: Question[]) {
   if (!s.daily) return []
-  const set = dailySet(s.daily.day, DAILY_PER_SUBJECT)
+  const set = dailySet(s.daily.day, DAILY_PER_SUBJECT, extra)
   return set
     .filter((q) => s.dailyPicks[q.id] != null && s.dailyPicks[q.id] !== q.answer)
     .map((q) => ({
@@ -26,7 +27,13 @@ function wrongToday(s: StudentRow) {
     }))
 }
 
-function DailyLearnCard({ students }: { students: StudentRow[] }) {
+function DailyLearnCard({
+  students,
+  customQuestions,
+}: {
+  students: StudentRow[]
+  customQuestions: Question[]
+}) {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const toggle = (n: string) =>
     setOpen((p) => {
@@ -37,16 +44,16 @@ function DailyLearnCard({ students }: { students: StudentRow[] }) {
 
   // 오늘 반 전체가 많이 틀린 문제 top 3
   const hardest = useMemo(() => {
-    const count = new Map<string, { q: ReturnType<typeof wrongToday>[number]['q']; n: number }>()
+    const count = new Map<string, { q: Question; n: number }>()
     for (const s of students) {
-      for (const w of wrongToday(s)) {
+      for (const w of wrongToday(s, customQuestions)) {
         const e = count.get(w.q.id) ?? { q: w.q, n: 0 }
         e.n++
         count.set(w.q.id, e)
       }
     }
     return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 3)
-  }, [students])
+  }, [students, customQuestions])
 
   const did = students.filter((s) => s.daily && s.daily.idx > 0)
 
@@ -74,7 +81,7 @@ function DailyLearnCard({ students }: { students: StudentRow[] }) {
         {did.length === 0 && <p className="dash-note">아직 오늘 학습을 시작한 학생이 없어요.</p>}
         {did.map((s) => {
           const d = s.daily!
-          const wrong = wrongToday(s)
+          const wrong = wrongToday(s, customQuestions)
           const state = d.idx >= d.total ? (d.claimed ? '완료' : '다 풂') : `${d.idx}/${d.total}`
           return (
             <div key={s.name} className="learn-stu">
@@ -121,6 +128,184 @@ function DailyLearnCard({ students }: { students: StudentRow[] }) {
           )
         })}
       </div>
+    </section>
+  )
+}
+
+function QuestionMakerCard({
+  classCode,
+  questions,
+  onSaved,
+}: {
+  classCode: string
+  questions: Question[]
+  onSaved: () => void
+}) {
+  const [mode, setMode] = useState<'one' | 'bulk'>('one')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+
+  const [subject, setSubject] = useState<Question['subject']>('수학')
+  const [q, setQ] = useState('')
+  const [choices, setChoices] = useState(['', '', '', ''])
+  const [answer, setAnswer] = useState(0)
+  const [explain, setExplain] = useState('')
+  const [bulk, setBulk] = useState('')
+
+  const save = async (next: Question[]) => {
+    setBusy(true)
+    const ok = await teacherSetQuestions(classCode, next)
+    setBusy(false)
+    if (!ok) {
+      setNote('저장 실패 — Supabase에서 schema-3-questions.sql 을 먼저 실행하세요')
+      return false
+    }
+    onSaved()
+    return true
+  }
+
+  const addOne = async () => {
+    const cs = choices.map((c) => c.trim()).filter(Boolean)
+    if (!q.trim() || cs.length < 2 || answer >= cs.length) {
+      setNote('문제 · 보기 2개 이상 · 정답 위치를 확인하세요')
+      return
+    }
+    const ok = await save([
+      ...questions,
+      { id: newQuestionId(), subject, q: q.trim(), choices: cs, answer, explain: explain.trim() },
+    ])
+    if (!ok) return
+    setQ('')
+    setChoices(['', '', '', ''])
+    setAnswer(0)
+    setExplain('')
+    setNote('문제를 추가했어요')
+  }
+
+  const addBulk = async () => {
+    const { questions: parsed, errors } = parseQuestions(bulk)
+    if (parsed.length === 0) {
+      setNote('형식에 맞는 문제를 찾지 못했어요')
+      return
+    }
+    const ok = await save([...questions, ...parsed])
+    if (!ok) return
+    setBulk('')
+    setNote(`${parsed.length}문제 추가${errors ? ` · ${errors}개는 건너뜀` : ''}`)
+  }
+
+  const remove = (id: string) => save(questions.filter((x) => x.id !== id))
+
+  return (
+    <section className="dash-card">
+      <h3>📝 문제 만들기</h3>
+      <p className="dash-note">
+        여기서 추가한 문제는 기본 문제와 함께 &ldquo;오늘의 학습&rdquo;에 나와요. 과목당 하루 4문제라, 많이 넣을수록 우리 반 문제가 자주 나옵니다.
+      </p>
+
+      <div className="qm-counts">
+        {SUBJECTS.map((sub) => {
+          const n = questions.filter((x) => x.subject === sub).length
+          return (
+            <span key={sub} className={n ? 'has' : ''}>
+              {sub} {n}
+            </span>
+          )
+        })}
+      </div>
+
+      <div className="qm-tabs">
+        <button type="button" className={mode === 'one' ? 'on' : ''} onClick={() => setMode('one')}>
+          하나씩
+        </button>
+        <button type="button" className={mode === 'bulk' ? 'on' : ''} onClick={() => setMode('bulk')}>
+          여러 개 붙여넣기
+        </button>
+      </div>
+
+      {mode === 'one' ? (
+        <div className="qm-form">
+          <select
+            value={subject}
+            onChange={(e) => setSubject(e.target.value as Question['subject'])}
+          >
+            {SUBJECTS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <textarea rows={2} placeholder="문제" value={q} onChange={(e) => setQ(e.target.value)} />
+          {choices.map((c, i) => (
+            <label key={i} className="qm-choice">
+              <input
+                type="radio"
+                name="qm-ans"
+                checked={answer === i}
+                onChange={() => setAnswer(i)}
+              />
+              <input
+                placeholder={`보기 ${i + 1}${i > 1 ? ' (선택)' : ''}`}
+                value={c}
+                onChange={(e) =>
+                  setChoices((cs) => cs.map((x, j) => (j === i ? e.target.value : x)))
+                }
+              />
+            </label>
+          ))}
+          <input
+            placeholder="해설 (선택)"
+            value={explain}
+            onChange={(e) => setExplain(e.target.value)}
+          />
+          <button type="button" className="primary wide" disabled={busy} onClick={addOne}>
+            문제 추가
+          </button>
+        </div>
+      ) : (
+        <div className="qm-form">
+          <textarea
+            rows={9}
+            className="qm-bulk"
+            value={bulk}
+            onChange={(e) => setBulk(e.target.value)}
+            placeholder={
+              '[수학] 3 + 4 = ?\n- 5\n* 7\n- 8\n- 9\n해설: 3 더하기 4는 7\n\n[국어] 다음 중 높임말은?\n* 진지\n- 밥\n- 물\n- 손'
+            }
+          />
+          <p className="qm-help">
+            <code>[과목]</code> 으로 시작 · <code>-</code> 보기 · <code>*</code> 정답 ·{' '}
+            <code>해설:</code> 선택 · 빈 줄로 문제 구분
+          </p>
+          <button type="button" className="primary wide" disabled={busy} onClick={addBulk}>
+            붙여넣은 문제 추가
+          </button>
+        </div>
+      )}
+
+      {note && <p className="qm-note">{note}</p>}
+
+      {questions.length > 0 && (
+        <div className="qm-list">
+          {SUBJECTS.filter((sub) => questions.some((x) => x.subject === sub)).map((sub) => (
+            <div key={sub}>
+              <div className="qm-list-sub">{sub}</div>
+              {questions
+                .filter((x) => x.subject === sub)
+                .map((x) => (
+                  <div key={x.id} className="qm-item">
+                    <span className="qm-item-q">
+                      {x.q} <b>→ {x.choices[x.answer]}</b>
+                    </span>
+                    <button type="button" onClick={() => remove(x.id)}>
+                      🗑
+                    </button>
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -351,7 +536,13 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
         </div>
       </section>
 
-      <DailyLearnCard students={data.students} />
+      <DailyLearnCard students={data.students} customQuestions={data.customQuestions} />
+
+      <QuestionMakerCard
+        classCode={classCode}
+        questions={data.customQuestions}
+        onSaved={load}
+      />
 
       {/* 숙제 */}
       <section className="dash-card">

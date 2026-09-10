@@ -8,7 +8,7 @@ import {
   type DailyResult,
 } from './store'
 import { DAILY_PER_SUBJECT } from './economy'
-import { dailySet } from './questions'
+import { dailySet, sanitizeQuestions, type Question } from './questions'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -208,6 +208,21 @@ async function markSeen() {
 
 /* ---------- 반 설정 (숙제 · 강화 잠금 · 미션) ---------- */
 
+// questions 컬럼은 schema-3 실행 전에는 없을 수 있다 → 따로 조회하고 실패해도 무시.
+export async function fetchClassQuestions(classCode: string): Promise<Question[]> {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('questions')
+      .eq('code', classCode)
+      .maybeSingle()
+    if (error || !data) return []
+    return sanitizeQuestions(data.questions)
+  } catch {
+    return []
+  }
+}
+
 export async function refreshClass(classCode: string) {
   try {
     const { data, error } = await supabase
@@ -227,6 +242,7 @@ export async function refreshClass(classCode: string) {
         m && typeof m.text === 'string' && m.text
           ? { text: m.text, reward: typeof m.reward === 'number' ? m.reward : 0, done: Array.isArray(m.done) ? m.done : [] }
           : null,
+      questions: await fetchClassQuestions(classCode),
     })
   } catch {
     /* noop */
@@ -380,6 +396,7 @@ export type ClassData = {
   arcadeEnabled: boolean
   mission: Mission | null
   teacherPin: string
+  customQuestions: Question[]
   students: StudentRow[]
 }
 
@@ -399,6 +416,7 @@ export async function teacherFetch(classCode: string): Promise<ClassData | null>
     ])
     if (!cls) return null
     const m = cls.mission && typeof cls.mission === 'object' ? (cls.mission as Partial<Mission>) : null
+    const customQuestions = await fetchClassQuestions(classCode)
     const students: StudentRow[] = (vs ?? []).map((v) => {
       const items = Array.isArray(v.items) ? (v.items as PlacedItem[]) : []
       const house = items.find((i) => i.type === 'house')
@@ -411,7 +429,7 @@ export async function teacherFetch(classCode: string): Promise<ClassData | null>
           ? {
               day: d.day,
               idx: d.idx ?? 0,
-              total: dailySet(d.day, DAILY_PER_SUBJECT).length,
+              total: dailySet(d.day, DAILY_PER_SUBJECT, customQuestions).length,
               score: d.score ?? 0,
               claimed: !!d.claimed,
             }
@@ -436,6 +454,7 @@ export async function teacherFetch(classCode: string): Promise<ClassData | null>
         m && typeof m.text === 'string' && m.text
           ? { text: m.text, reward: typeof m.reward === 'number' ? m.reward : 0, done: Array.isArray(m.done) ? m.done : [] }
           : null,
+      customQuestions,
       students,
     }
   } catch {
@@ -461,6 +480,21 @@ export async function teacherSetHomework(classCode: string, text: string) {
     .from('classes')
     .update({ homework: text, updated_at: new Date().toISOString() })
     .eq('code', classCode)
+}
+
+export async function teacherSetQuestions(
+  classCode: string,
+  questions: Question[],
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('classes')
+      .update({ questions, updated_at: new Date().toISOString() })
+      .eq('code', classCode)
+    return !error
+  } catch {
+    return false
+  }
 }
 
 export async function teacherSetMission(classCode: string, mission: Mission | null) {

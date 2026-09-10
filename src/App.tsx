@@ -55,6 +55,7 @@ export default function App() {
   const itemCount = useVillage((s) => s.items.length)
   const msg = useVillage((s) => s.msg)
   const daily = useVillage((s) => s.daily)
+  const classQuestions = useVillage((s) => s.classQuestions)
   const openLearn = useVillage((s) => s.openLearn)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
@@ -183,7 +184,7 @@ export default function App() {
         {!editing &&
           daily &&
           (() => {
-            const total = dailySet(daily.day, DAILY_PER_SUBJECT).length
+            const total = dailySet(daily.day, DAILY_PER_SUBJECT, classQuestions).length
             const done = daily.idx >= total
             return (
               <button
