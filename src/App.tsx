@@ -14,6 +14,9 @@ import { HousePanel } from './game/HousePanel'
 import { BoardPanel } from './game/BoardPanel'
 import { ArcadePanel } from './game/ArcadePanel'
 import { WardrobePanel } from './game/WardrobePanel'
+import { DailyLearnPanel } from './game/DailyLearnPanel'
+import { DAILY_PER_SUBJECT } from './game/economy'
+import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
 import { useVillage } from './game/store'
@@ -51,6 +54,8 @@ export default function App() {
   const selectedType = useVillage((s) => s.items.find((i) => i.key === s.selected)?.type)
   const itemCount = useVillage((s) => s.items.length)
   const msg = useVillage((s) => s.msg)
+  const daily = useVillage((s) => s.daily)
+  const openLearn = useVillage((s) => s.openLearn)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
   const rotateSelected = useVillage((s) => s.rotateSelected)
@@ -175,6 +180,23 @@ export default function App() {
           {editing ? '✓ 다 꾸몄어요' : '🔨 마을 꾸미기'}
         </button>
 
+        {!editing &&
+          daily &&
+          (() => {
+            const total = dailySet(daily.day, DAILY_PER_SUBJECT).length
+            const done = daily.idx >= total
+            return (
+              <button
+                type="button"
+                className={`learn-btn${done && daily.claimed ? ' done' : ''}${!done ? ' todo' : ''}`}
+                onClick={openLearn}
+              >
+                📚 오늘의 학습{' '}
+                {done ? (daily.claimed ? '✓' : '결과 보기') : `${daily.idx}/${total}`}
+              </button>
+            )
+          })()}
+
         {!editing && (
           <div className="hint">
             {coarse
@@ -277,6 +299,7 @@ export default function App() {
       <BoardPanel />
       <ArcadePanel />
       <WardrobePanel />
+      <DailyLearnPanel />
       <Quiz />
     </div>
   )

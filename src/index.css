@@ -1362,3 +1362,253 @@ canvas {
   color: #8a8f86;
   line-height: 1.45;
 }
+
+/* ── 오늘의 학습: HUD 버튼 ── */
+.learn-btn {
+  position: absolute;
+  top: 92px;
+  right: 14px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: #e8892f;
+  box-shadow: 0 4px 16px rgba(180, 110, 40, 0.4);
+}
+.learn-btn:active {
+  transform: translateY(1px);
+}
+.learn-btn.done {
+  background: #6a8f74;
+  box-shadow: none;
+}
+.learn-btn.todo {
+  animation: learn-pulse 1.8s ease-in-out infinite;
+}
+@keyframes learn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(180, 110, 40, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 22px rgba(232, 137, 47, 0.85);
+  }
+}
+
+/* ── 오늘의 학습: 패널 ── */
+.learn-card {
+  max-width: 420px;
+}
+.learn-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 6px;
+}
+.learn-sub-tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2f7a40;
+  background: #e6f2e4;
+}
+.learn-progress {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a8f86;
+}
+.learn-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #ececdf;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.learn-bar > div {
+  height: 100%;
+  background: #e8892f;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.learn-hint {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #8a8f86;
+  line-height: 1.45;
+}
+.learn-score {
+  font-size: 16px;
+  color: #33423a;
+  margin: 6px 0 12px;
+}
+.learn-score b {
+  font-size: 22px;
+  color: #2f7a40;
+}
+.learn-tier {
+  color: #e8892f;
+  font-weight: 800;
+}
+.learn-subgrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.learn-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 2px;
+  border-radius: 10px;
+  background: #f2f1e8;
+  font-size: 11px;
+  color: #5a655c;
+}
+.learn-sub b {
+  font-size: 13px;
+  color: #33423a;
+}
+.learn-sub.full {
+  background: #e6f2e4;
+}
+.learn-sub.full b {
+  color: #2f7a40;
+}
+.learn-reward {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff6e9;
+  font-size: 13px;
+  color: #6a5330;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.learn-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2cfa9;
+  font-weight: 700;
+}
+.learn-total b {
+  color: #b56a1e;
+}
+.learn-claimed {
+  text-align: center;
+  font-size: 13px;
+  color: #6a756c;
+}
+
+/* ── 선생님: 오늘의 학습 카드 ── */
+.learn-hard {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fbeceb;
+  font-size: 12px;
+  color: #7a4a44;
+  margin-bottom: 12px;
+}
+.learn-hard > b {
+  display: block;
+  margin-bottom: 6px;
+}
+.learn-hard-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.learn-hard-n {
+  flex: 0 0 auto;
+  font-weight: 800;
+  color: #c0433f;
+}
+.learn-hard-sub {
+  flex: 0 0 auto;
+  color: #9a6a64;
+}
+.learn-hard-q {
+  flex: 1;
+  color: #5a4a48;
+}
+.learn-stus {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.learn-stu {
+  border: 1px solid #e6e3d4;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.learn-stu-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  background: #fff;
+  font-size: 12px;
+  text-align: left;
+}
+.learn-stu-name {
+  flex: 1;
+  font-weight: 700;
+  color: #33423a;
+}
+.learn-stu-score {
+  color: #2f7a40;
+  font-weight: 700;
+}
+.learn-stu-state {
+  color: #8a8f86;
+}
+.learn-stu-wrong {
+  color: #c0433f;
+  font-weight: 700;
+}
+.learn-detail {
+  padding: 8px 11px 11px;
+  background: #faf9f2;
+}
+.learn-recent {
+  font-size: 11px;
+  color: #6a756c;
+  margin-bottom: 8px;
+}
+.learn-wrong-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.learn-wrong-list li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4a4a44;
+}
+.lw-sub {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2f7a40;
+  background: #e6f2e4;
+}
+.lw-q {
+  display: block;
+  margin: 2px 0;
+}
+.lw-a b.bad {
+  color: #c0433f;
+}
+.lw-a b.good {
+  color: #2f7a40;
+}

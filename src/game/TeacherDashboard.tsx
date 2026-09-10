@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   teacherFetch,
   teacherGrant,
@@ -8,8 +8,122 @@ import {
   teacherResetPin,
   teacherLogout,
   type ClassData,
+  type StudentRow,
 } from './cloud'
+import { DAILY_PER_SUBJECT } from './economy'
+import { dailySet } from './questions'
 import type { Mission } from './store'
+
+// 학생이 오늘 틀린 문제 목록
+function wrongToday(s: StudentRow) {
+  if (!s.daily) return []
+  const set = dailySet(s.daily.day, DAILY_PER_SUBJECT)
+  return set
+    .filter((q) => s.dailyPicks[q.id] != null && s.dailyPicks[q.id] !== q.answer)
+    .map((q) => ({
+      q,
+      picked: s.dailyPicks[q.id],
+    }))
+}
+
+function DailyLearnCard({ students }: { students: StudentRow[] }) {
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const toggle = (n: string) =>
+    setOpen((p) => {
+      const x = new Set(p)
+      x.has(n) ? x.delete(n) : x.add(n)
+      return x
+    })
+
+  // 오늘 반 전체가 많이 틀린 문제 top 3
+  const hardest = useMemo(() => {
+    const count = new Map<string, { q: ReturnType<typeof wrongToday>[number]['q']; n: number }>()
+    for (const s of students) {
+      for (const w of wrongToday(s)) {
+        const e = count.get(w.q.id) ?? { q: w.q, n: 0 }
+        e.n++
+        count.set(w.q.id, e)
+      }
+    }
+    return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 3)
+  }, [students])
+
+  const did = students.filter((s) => s.daily && s.daily.idx > 0)
+
+  return (
+    <section className="dash-card">
+      <h3>📚 오늘의 학습</h3>
+      <p className="dash-note">
+        하루 20문제(국어·수학·사회·과학·영어). 같은 반은 같은 문제를 풀어요. 학생별로 틀린 문제를 볼 수 있어요.
+      </p>
+
+      {hardest.length > 0 && (
+        <div className="learn-hard">
+          <b>반이 많이 틀린 문제</b>
+          {hardest.map((h) => (
+            <div key={h.q.id} className="learn-hard-row">
+              <span className="learn-hard-n">{h.n}명</span>
+              <span className="learn-hard-sub">{h.q.subject}</span>
+              <span className="learn-hard-q">{h.q.q}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="learn-stus">
+        {did.length === 0 && <p className="dash-note">아직 오늘 학습을 시작한 학생이 없어요.</p>}
+        {did.map((s) => {
+          const d = s.daily!
+          const wrong = wrongToday(s)
+          const state = d.idx >= d.total ? (d.claimed ? '완료' : '다 풂') : `${d.idx}/${d.total}`
+          return (
+            <div key={s.name} className="learn-stu">
+              <button type="button" className="learn-stu-head" onClick={() => toggle(s.name)}>
+                <span className="learn-stu-name">{s.name}</span>
+                <span className="learn-stu-score">
+                  {d.score}/{d.total} 맞힘
+                </span>
+                <span className="learn-stu-state">{state}</span>
+                <span className="learn-stu-wrong">
+                  {wrong.length > 0 ? `틀림 ${wrong.length} ▾` : '전부 정답 ✓'}
+                </span>
+              </button>
+              {open.has(s.name) && (
+                <div className="learn-detail">
+                  {s.learnLog.length > 0 && (
+                    <p className="learn-recent">
+                      지난 결과{' '}
+                      {s.learnLog
+                        .slice(0, 6)
+                        .map((r) => `${r.score}/${r.total}`)
+                        .join(' · ')}
+                    </p>
+                  )}
+                  {wrong.length > 0 ? (
+                    <ul className="learn-wrong-list">
+                      {wrong.map(({ q, picked }) => (
+                        <li key={q.id}>
+                          <span className="lw-sub">{q.subject}</span>
+                          <span className="lw-q">{q.q}</span>
+                          <span className="lw-a">
+                            학생: <b className="bad">{q.choices[picked]}</b> · 정답:{' '}
+                            <b className="good">{q.choices[q.answer]}</b>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="dash-note">오늘 틀린 문제가 없어요.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 const ago = (iso: string | null) => {
   if (!iso) return '접속 전'
@@ -202,15 +316,17 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
         <div className="stu-list">
           {data.students.length === 0 && <p className="dash-note">아직 들어온 학생이 없어요.</p>}
           {data.students.map((s) => {
-            const total = s.quizCorrect + s.quizWrong
-            const rate = total ? Math.round((s.quizCorrect / total) * 100) : null
             return (
               <label key={s.name} className={`stu ${picked.has(s.name) ? 'on' : ''}`}>
                 <input type="checkbox" checked={picked.has(s.name)} onChange={() => toggle(s.name)} />
                 <span className="stu-name">{s.name}</span>
                 <span className="stu-stat">🌰 {s.coins}</span>
                 <span className="stu-stat">집 Lv{s.houseLevel}</span>
-                <span className="stu-stat">{rate == null ? '퀴즈 —' : `정답률 ${rate}%`}</span>
+                <span className="stu-stat">
+                  {s.daily && s.daily.idx > 0
+                    ? `학습 ${s.daily.score}/${s.daily.total}`
+                    : '학습 —'}
+                </span>
                 <span className="stu-stat dim">{ago(s.lastSeen)}</span>
                 {data.mission && (
                   <span className={`stu-mission ${missionDone.includes(s.name) ? 'done' : ''}`}>
@@ -234,6 +350,8 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
           })}
         </div>
       </section>
+
+      <DailyLearnCard students={data.students} />
 
       {/* 숙제 */}
       <section className="dash-card">

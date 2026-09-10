@@ -9,12 +9,16 @@ import {
   ANIMAL_MAP,
   HOUSE_LEVELS,
   ENHANCE_DAILY_LIMIT,
+  DAILY_PER_SUBJECT,
+  DAILY_PER_CORRECT,
+  dailyBonus,
   enhanceStep,
   enhanceSell,
   LAND_START,
   LAND_OLD,
   landExpand,
 } from './economy'
+import { dailySet } from './questions'
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
@@ -45,6 +49,17 @@ export type EnhanceState = {
   net: number // 오늘 손익 (도토리)
 }
 
+// 오늘의 학습 — 하루 할당된 문제 풀이 상태
+export type DailyLearn = {
+  day: string // YYYY-MM-DD
+  picks: Record<string, number> // 문제 id → 고른 보기 (첫 제출)
+  idx: number // 지금까지 답한 문제 수 (= 다음에 풀 문제 번호)
+  score: number // 맞힌 개수
+  claimed: boolean // 보상 받았는지
+  earned: number // 받은 도토리
+}
+export type DailyResult = { day: string; score: number; total: number; wrong: string[] }
+
 export type PlacedItem = {
   key: string
   type: string
@@ -57,6 +72,8 @@ export type PlacedItem = {
   land?: number // (집에만) 마을 땅 반쪽 크기
   avatar?: Avatar // (집에만) 내 캐릭터 외형
   wardrobe?: string[] // (집에만) 산 옷 id들 ("slot:id")
+  daily?: DailyLearn // (집에만) 오늘의 학습 상태
+  learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
 
@@ -174,6 +191,40 @@ const wardrobeOf = (items: PlacedItem[]) => {
   return Array.isArray(w) ? w : []
 }
 
+const freshDaily = (day: string): DailyLearn => ({
+  day,
+  picks: {},
+  idx: 0,
+  score: 0,
+  claimed: false,
+  earned: 0,
+})
+
+const dailyOf = (items: PlacedItem[]): DailyLearn | null => {
+  const d = items.find((i) => i.type === 'house')?.daily
+  return d && typeof d === 'object' && typeof d.day === 'string' ? (d as DailyLearn) : null
+}
+const learnLogOf = (items: PlacedItem[]): DailyResult[] => {
+  const l = items.find((i) => i.type === 'house')?.learnLog
+  return Array.isArray(l) ? (l as DailyResult[]) : []
+}
+
+// 하루가 지나면 지난 학습을 기록으로 넘기고 오늘치를 새로 만든다.
+function ensureDaily(items: PlacedItem[]): PlacedItem[] {
+  const today = dateKey()
+  const cur = dailyOf(items)
+  if (cur && cur.day === today) return items
+  let log = learnLogOf(items)
+  if (cur && Object.keys(cur.picks).length > 0) {
+    const set = dailySet(cur.day, DAILY_PER_SUBJECT)
+    const wrong = set.filter((q) => cur.picks[q.id] != null && cur.picks[q.id] !== q.answer).map((q) => q.id)
+    log = [{ day: cur.day, score: cur.score, total: set.length, wrong }, ...log].slice(0, 20)
+  }
+  return items.map((i) =>
+    i.type === 'house' ? { ...i, daily: freshDaily(today), learnLog: log } : i,
+  )
+}
+
 function clampToLand(x: number, z: number, half: number): [number, number] {
   const b = half - 0.5
   return [Math.max(-b, Math.min(b, x)), Math.max(-b, Math.min(b, z))]
@@ -196,10 +247,12 @@ interface VillageState {
   mission: Mission | null
   avatar: Avatar
   wardrobe: string[]
+  daily: DailyLearn | null
 
   placing: string | null
   selected: string | null
   activeFarm: string | null // browse 모드에서 열어둔 밭/우리/게시판 key
+  learnOpen: boolean // 오늘의 학습 패널 열림
   quiz: QuizRequest | null
   msg: string | null
   enhanceFx: EnhanceFx | null
@@ -228,6 +281,11 @@ interface VillageState {
   upgradeHouse: () => void
   expandLand: () => void
 
+  openLearn: () => void
+  closeLearn: () => void
+  answerDaily: (pick: number) => void
+  claimDaily: () => void
+
   askQuiz: (onPass: () => void) => void
   passQuiz: () => void
   cancelQuiz: () => void
@@ -246,7 +304,7 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initialItems = ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items))))
+const initialItems = ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))))
 const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
 if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
@@ -268,9 +326,11 @@ export const useVillage = create<VillageState>((set, get) => {
     mission: null,
     avatar: avatarOf(initial.items),
     wardrobe: wardrobeOf(initial.items),
+    daily: dailyOf(initial.items),
     placing: null,
     selected: null,
     activeFarm: null,
+    learnOpen: false,
     quiz: null,
     msg: null,
     enhanceFx: null,
@@ -311,9 +371,15 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items))))
+      const merged = ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))))
       saveLocal(coins, merged, get().homework)
-      set({ coins, items: merged, avatar: avatarOf(merged), wardrobe: wardrobeOf(merged) })
+      set({
+        coins,
+        items: merged,
+        avatar: avatarOf(merged),
+        wardrobe: wardrobeOf(merged),
+        daily: dailyOf(merged),
+      })
     },
 
     hydrateHomework: (text) => {
@@ -453,6 +519,47 @@ export const useVillage = create<VillageState>((set, get) => {
         coins - info.cost,
       )
       get().flash(`땅을 +${info.addTiles}평 넓혔어요! 🟩`)
+    },
+
+    openLearn: () => set({ learnOpen: true }),
+    closeLearn: () => set({ learnOpen: false }),
+
+    answerDaily: (pick) => {
+      const { items } = get()
+      const d = dailyOf(items)
+      if (!d || d.claimed) return
+      const set_ = dailySet(d.day, DAILY_PER_SUBJECT)
+      if (d.idx >= set_.length) return
+      const q = set_[d.idx]
+      if (d.picks[q.id] != null) return
+      const correct = pick === q.answer
+      const nextDaily: DailyLearn = {
+        ...d,
+        picks: { ...d.picks, [q.id]: pick },
+        idx: d.idx + 1,
+        score: d.score + (correct ? 1 : 0),
+      }
+      const nextCoins = get().coins + (correct ? DAILY_PER_CORRECT : 0)
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, daily: nextDaily } : i))
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, daily: nextDaily, coins: nextCoins })
+    },
+
+    claimDaily: () => {
+      const { items } = get()
+      const d = dailyOf(items)
+      if (!d || d.claimed) return
+      const set_ = dailySet(d.day, DAILY_PER_SUBJECT)
+      if (d.idx < set_.length) return
+      const rate = set_.length ? d.score / set_.length : 0
+      const add = dailyBonus(rate)?.add ?? 0
+      const total = d.score * DAILY_PER_CORRECT + add
+      const nextDaily: DailyLearn = { ...d, claimed: true, earned: total }
+      const nextCoins = get().coins + add // 맞힌 문제 도토리는 풀 때 이미 지급됨
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, daily: nextDaily } : i))
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, daily: nextDaily, coins: nextCoins })
+      get().flash(`오늘의 학습 끝! ${d.score}/${set_.length} · +${total} 도토리`)
     },
 
     askQuiz: (onPass) => set({ quiz: { onPass } }),

@@ -5,7 +5,10 @@ import {
   type PlacedItem,
   type Session,
   type Mission,
+  type DailyResult,
 } from './store'
+import { DAILY_PER_SUBJECT } from './economy'
+import { dailySet } from './questions'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -354,6 +357,13 @@ export function teacherLogout() {
   saveLocalTeacher(null)
 }
 
+export type DailyStatus = {
+  day: string
+  idx: number
+  total: number
+  score: number
+  claimed: boolean
+}
 export type StudentRow = {
   name: string
   coins: number
@@ -361,6 +371,9 @@ export type StudentRow = {
   quizCorrect: number
   quizWrong: number
   lastSeen: string | null
+  daily: DailyStatus | null
+  dailyPicks: Record<string, number> // 오늘 문제 id → 고른 보기
+  learnLog: DailyResult[] // 지난 날 학습 결과
 }
 export type ClassData = {
   homework: string
@@ -389,6 +402,20 @@ export async function teacherFetch(classCode: string): Promise<ClassData | null>
     const students: StudentRow[] = (vs ?? []).map((v) => {
       const items = Array.isArray(v.items) ? (v.items as PlacedItem[]) : []
       const house = items.find((i) => i.type === 'house')
+      const d = house?.daily
+      const log = house?.learnLog
+      const picks =
+        d && d.picks && typeof d.picks === 'object' ? (d.picks as Record<string, number>) : {}
+      const daily: DailyStatus | null =
+        d && typeof d.day === 'string'
+          ? {
+              day: d.day,
+              idx: d.idx ?? 0,
+              total: dailySet(d.day, DAILY_PER_SUBJECT).length,
+              score: d.score ?? 0,
+              claimed: !!d.claimed,
+            }
+          : null
       return {
         name: v.name,
         coins: v.coins ?? 0,
@@ -396,6 +423,9 @@ export async function teacherFetch(classCode: string): Promise<ClassData | null>
         quizCorrect: v.quiz_correct ?? 0,
         quizWrong: v.quiz_wrong ?? 0,
         lastSeen: v.last_seen ?? null,
+        daily,
+        dailyPicks: picks,
+        learnLog: Array.isArray(log) ? (log as DailyResult[]) : [],
       }
     })
     return {

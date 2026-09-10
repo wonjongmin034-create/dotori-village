@@ -18,7 +18,21 @@ const days = (n: number) => n * DAY * SCALE
 const hours = (n: number) => n * HOUR * SCALE
 
 export const START_COINS = 30 // 처음 주는 도토리
-export const QUIZ_REWARD = 2 // 문제 하나 맞히면 주는 도토리
+export const QUIZ_REWARD = 2 // 돌봄(물주기 등) 앞 문제 하나 맞히면 주는 도토리
+
+/* ---------- 오늘의 학습 (하루 할당 문제) ---------- */
+export const DAILY_PER_SUBJECT = 4 // 과목(국어·수학·사회·과학·영어)당 문제 수 → 하루 20문제
+export const DAILY_PER_CORRECT = 1 // 한 문제 맞힐 때마다 주는 도토리
+// 다 풀면 정답률에 따라 추가 보상 (위에서부터 맞는 첫 칸)
+export const DAILY_BONUS: { rate: number; add: number; label: string }[] = [
+  { rate: 1.0, add: 15, label: '만점 🏆' },
+  { rate: 0.9, add: 9, label: '훌륭해요' },
+  { rate: 0.75, add: 5, label: '잘했어요' },
+  { rate: 0.6, add: 2, label: '통과' },
+]
+export function dailyBonus(rate: number): { rate: number; add: number; label: string } | null {
+  return DAILY_BONUS.find((t) => rate >= t.rate - 1e-9) ?? null
+}
 export const CARE_COOLDOWN_MS = hours(10) // 물/먹이 다시 줄 수 있을 때까지 (약 10시간 → 하루 1~2번)
 export const FERTILIZER_COST = 3 // 비료 값
 export const FERTILIZER_BONUS = 1.5 // 비료 주면 수확 보상 배수
