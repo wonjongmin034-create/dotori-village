@@ -2107,3 +2107,104 @@ canvas {
 .ws-sub.draft .ws-sub-st {
   color: #2f6fdd;
 }
+
+/* ── 급식표 ── */
+.lunch-filebtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: #3a7fd5;
+  cursor: pointer;
+}
+.lunch-month {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a655c;
+}
+.lunch-month input {
+  padding: 6px 8px;
+  border: 1px solid #dcdaca;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.lunch-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid #ece9d9;
+  border-radius: 12px;
+  background: #fcfbf5;
+}
+.lunch-block > b {
+  font-size: 13px;
+  color: #33423a;
+}
+.lunch-block textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #dcdaca;
+  border-radius: 8px;
+  font-size: 12px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.lunch-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #eef4fc;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2f5a99;
+}
+.lunch-current span {
+  flex: 1;
+}
+.lunch-current button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lunch-days {
+  font-size: 12px;
+  color: #4a4a44;
+}
+.lunch-days summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #2f7a40;
+}
+.lunch-days ul {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lunch-days li b {
+  display: inline-block;
+  min-width: 38px;
+  color: #2f7a40;
+}
+.qm-note.bad {
+  color: #c0433f;
+}

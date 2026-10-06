@@ -32,7 +32,8 @@ export type SubSummary = {
 const BUCKET = 'worksheets'
 export const MAX_PDF_BYTES = 10 * 1024 * 1024
 
-const publicUrl = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
+export const pdfUrl = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
+const publicUrl = pdfUrl
 
 type WsRow = { id: string; title: string; file_path: string; pages: number; created_at: string }
 const toWorksheet = (r: WsRow): Worksheet => ({
@@ -247,6 +248,30 @@ export async function teacherFetchStrokes(worksheetId: string, student: string):
 }
 
 export type UploadResult = { ok: true } | { ok: false; reason: 'size' | 'type' | 'upload' | 'save' }
+
+// PDF 한 개를 보관함에 올리고 경로를 돌려준다. (학습지·급식표 공용)
+export async function uploadPdf(file: File, prefix = ''): Promise<UploadResult & { path?: string }> {
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'))
+    return { ok: false, reason: 'type' }
+  if (file.size > MAX_PDF_BYTES) return { ok: false, reason: 'size' }
+  const path = `${prefix}${crypto.randomUUID()}.pdf`
+  try {
+    const up = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: 'application/pdf', upsert: false })
+    if (up.error) return { ok: false, reason: 'upload' }
+    return { ok: true, path }
+  } catch {
+    return { ok: false, reason: 'upload' }
+  }
+}
+export async function removePdf(path: string) {
+  try {
+    await supabase.storage.from(BUCKET).remove([path])
+  } catch {
+    /* noop */
+  }
+}
 
 export async function teacherUploadWorksheet(
   classCode: string,

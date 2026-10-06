@@ -10,6 +10,7 @@ import {
 import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, sanitizeQuestions, type Question } from './questions'
 import { refreshSheets, resetSheets } from './sheets'
+import { sanitizeLunch, type ClassLunch } from './lunch'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -227,6 +228,21 @@ export async function fetchClassQuestions(classCode: string): Promise<Question[]
   }
 }
 
+// lunch 컬럼도 schema-5 실행 전에는 없을 수 있어 따로 조회하고 실패하면 빈 값.
+export async function fetchClassLunch(classCode: string): Promise<ClassLunch> {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('lunch')
+      .eq('code', classCode)
+      .maybeSingle()
+    if (error || !data) return {}
+    return sanitizeLunch(data.lunch)
+  } catch {
+    return {}
+  }
+}
+
 export async function refreshClass(classCode: string) {
   try {
     const { data, error } = await supabase
@@ -247,6 +263,7 @@ export async function refreshClass(classCode: string) {
           ? { text: m.text, reward: typeof m.reward === 'number' ? m.reward : 0, done: Array.isArray(m.done) ? m.done : [] }
           : null,
       questions: await fetchClassQuestions(classCode),
+      lunch: await fetchClassLunch(classCode),
     })
   } catch {
     /* noop */
@@ -485,6 +502,33 @@ export async function teacherSetHomework(classCode: string, text: string) {
     .from('classes')
     .update({ homework: text, updated_at: new Date().toISOString() })
     .eq('code', classCode)
+}
+
+// 선생님 화면용: 컬럼이 없으면 'missing' (schema-5 실행 안내를 띄우기 위해)
+export async function teacherFetchLunch(classCode: string): Promise<ClassLunch | 'missing'> {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('lunch')
+      .eq('code', classCode)
+      .maybeSingle()
+    if (error || !data) return 'missing'
+    return sanitizeLunch(data.lunch)
+  } catch {
+    return 'missing'
+  }
+}
+
+export async function teacherSetLunch(classCode: string, lunch: ClassLunch): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('classes')
+      .update({ lunch, updated_at: new Date().toISOString() })
+      .eq('code', classCode)
+    return !error
+  } catch {
+    return false
+  }
 }
 
 export async function teacherSetQuestions(

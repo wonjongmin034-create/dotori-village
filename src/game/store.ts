@@ -20,7 +20,7 @@ import {
 } from './economy'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
-import { dateKey } from './lunch'
+import { dateKey, type ClassLunch } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
 import { findItem, ownsItem, type Slot } from './wardrobe'
@@ -250,6 +250,7 @@ interface VillageState {
   wardrobe: string[]
   daily: DailyLearn | null
   classQuestions: Question[] // 선생님이 이 반에 추가한 문제
+  classLunch: ClassLunch // 선생님이 올린 급식표 (PDF·날짜별 메뉴)
   worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
   mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
   sheetsOpen: boolean // 학습지 목록 패널 열림
@@ -273,6 +274,7 @@ interface VillageState {
     arcadeEnabled?: boolean
     mission?: Mission | null
     questions?: Question[]
+    lunch?: ClassLunch
   }) => void
   grantCoins: (amount: number, reason: string) => void
   setMode: (m: Mode) => void
@@ -339,6 +341,7 @@ export const useVillage = create<VillageState>((set, get) => {
     wardrobe: wardrobeOf(initial.items),
     daily: dailyOf(initial.items),
     classQuestions: [],
+    classLunch: {},
     worksheets: [],
     mySubs: {},
     sheetsOpen: false,
@@ -412,6 +415,7 @@ export const useVillage = create<VillageState>((set, get) => {
         arcadeLocked: cfg.arcadeEnabled === undefined ? s.arcadeLocked : !cfg.arcadeEnabled,
         mission: cfg.mission === undefined ? s.mission : cfg.mission,
         classQuestions: cfg.questions === undefined ? s.classQuestions : cfg.questions,
+        classLunch: cfg.lunch === undefined ? s.classLunch : cfg.lunch,
       })),
 
     // 선생님이 준 도토리를 받는다 (cloud.ts 폴링에서 호출)

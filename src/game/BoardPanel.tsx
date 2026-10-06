@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { TEACHER_PIN } from './config'
-import { LUNCH, lunchFor, noSchoolReason, dateKey, dateLabel } from './lunch'
+import { lunchFor, noSchoolReason, dateKey, dateLabel } from './lunch'
 import { useVillage } from './store'
+import { SheetViewer } from './SheetViewer'
+import { pdfUrl } from './sheets'
 
 // 앞으로 2주 안에서 급식 데이터가 있는 날들
-function upcomingLunchDays(): { label: string; menu: string[]; today: boolean }[] {
+function upcomingLunchDays(
+  custom?: Record<string, string[]>,
+): { label: string; menu: string[]; today: boolean }[] {
   const out: { label: string; menu: string[]; today: boolean }[] = []
   const todayKey = dateKey()
   for (let i = 0; i < 14; i++) {
     const d = new Date()
     d.setDate(d.getDate() + i)
     const k = dateKey(d)
-    const menu = LUNCH[k]
+    const menu = lunchFor(k, custom)
     if (menu) out.push({ label: dateLabel(d), menu, today: k === todayKey })
   }
   return out
@@ -22,6 +26,7 @@ export function BoardPanel() {
   const homework = useVillage((s) => s.homework)
   const mission = useVillage((s) => s.mission)
   const session = useVillage((s) => s.session)
+  const lunch = useVillage((s) => s.classLunch)
   const setHomework = useVillage((s) => s.setHomework)
   const close = useVillage((s) => s.closeFarm)
   const flash = useVillage((s) => s.flash)
@@ -29,8 +34,21 @@ export function BoardPanel() {
   const [tab, setTab] = useState<'hw' | 'lunch' | 'mission'>('hw')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [viewFile, setViewFile] = useState(false)
 
   if (!item || item.type !== 'board') return null
+
+  if (viewFile && lunch.file) {
+    return (
+      <SheetViewer
+        title={lunch.file.title}
+        url={pdfUrl(lunch.file.path)}
+        initial={{}}
+        readOnly
+        onClose={() => setViewFile(false)}
+      />
+    )
+  }
 
   const startEdit = () => {
     const pin = window.prompt('선생님 비밀번호 (4자리)')
@@ -43,9 +61,9 @@ export function BoardPanel() {
     setEditing(true)
   }
 
-  const todayMenu = lunchFor(dateKey())
-  const todayOff = noSchoolReason(dateKey())
-  const days = upcomingLunchDays()
+  const todayMenu = lunchFor(dateKey(), lunch.menu)
+  const todayOff = noSchoolReason(dateKey(), lunch.menu)
+  const days = upcomingLunchDays(lunch.menu)
 
   return (
     <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -161,7 +179,13 @@ export function BoardPanel() {
               </>
             )}
 
-            {Object.keys(LUNCH).length === 0 && (
+            {lunch.file && (
+              <button type="button" className="lunch-filebtn" onClick={() => setViewFile(true)}>
+                📄 {lunch.file.title} 크게 보기
+              </button>
+            )}
+
+            {!lunch.file && days.length === 0 && !todayMenu && (
               <p className="hw-empty">아직 급식표가 등록되지 않았어요.</p>
             )}
           </div>
