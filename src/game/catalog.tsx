@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { toonGradient } from './toon'
+import { Plot, Coop } from './FarmStructures'
 
 // M2 카탈로그 — 기본 도형 로우폴리. 나중에 Kenney / Quaternius glTF 로 교체.
 // cost: 0 = 무료, 그 외 = 도토리 필요. category: 꾸미기 / 농사 / 가축.
@@ -13,7 +14,6 @@ const SAND = '#e6d2a0'
 const WATER = '#5bb7c9'
 const RED = '#c65f5f'
 const CREAM = '#f2e6cf'
-const SOIL = '#7a5230'
 
 export type Category = 'decor' | 'farm' | 'animal'
 
@@ -413,65 +413,6 @@ function GardenLight(): ReactElement {
 }
 
 /* ---------- 농사 · 가축 (땅/우리) ---------- */
-
-function Plot(): ReactElement {
-  return (
-    <group>
-      <mesh position={[0, 0.05, 0]}>
-        <boxGeometry args={[1.4, 0.1, 1.4]} />
-        <meshToonMaterial gradientMap={toonGradient} color={SOIL} />
-      </mesh>
-      {[-0.4, 0, 0.4].map((z) => (
-        <mesh key={z} position={[0, 0.12, z]}>
-          <boxGeometry args={[1.3, 0.06, 0.18]} />
-          <meshToonMaterial gradientMap={toonGradient} color="#5f3f24" />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
-function Coop(): ReactElement {
-  return (
-    <group>
-      <mesh position={[0, 0.04, 0]}>
-        <boxGeometry args={[1.8, 0.08, 1.8]} />
-        <meshToonMaterial gradientMap={toonGradient} color="#8a6b45" />
-      </mesh>
-      {[
-        [-0.82, -0.82],
-        [0.82, -0.82],
-        [-0.82, 0.82],
-        [0.82, 0.82],
-      ].map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.35, z]}>
-          <boxGeometry args={[0.1, 0.7, 0.1]} />
-          <meshToonMaterial gradientMap={toonGradient} color={WOOD2} />
-        </mesh>
-      ))}
-      {[0.25, 0.6].map((y) => (
-        <group key={y}>
-          <mesh position={[0, y, -0.82]}>
-            <boxGeometry args={[1.6, 0.06, 0.06]} />
-            <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
-          </mesh>
-          <mesh position={[0, y, 0.82]}>
-            <boxGeometry args={[1.6, 0.06, 0.06]} />
-            <meshToonMaterial gradientMap={toonGradient} color={WOOD} />
-          </mesh>
-        </group>
-      ))}
-      <mesh position={[0, 0.5, 0]}>
-        <boxGeometry args={[0.9, 0.5, 0.9]} />
-        <meshToonMaterial gradientMap={toonGradient} color="#c98f5c" />
-      </mesh>
-      <mesh position={[0, 0.85, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[0.8, 0.4, 4]} />
-        <meshToonMaterial gradientMap={toonGradient} color="#a6522f" />
-      </mesh>
-    </group>
-  )
-}
 
 export const CATALOG: CatalogEntry[] = [
   // 무료 꾸미기
