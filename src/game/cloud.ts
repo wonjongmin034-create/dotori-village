@@ -172,6 +172,7 @@ export function logout() {
   saveLocalSession(null)
   stopPolling()
   resetSheets()
+  useVillage.getState().setVisiting(null)
   useVillage.setState({ session: null, cloud: 'local' })
 }
 

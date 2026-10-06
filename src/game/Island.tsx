@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { Instance, Instances } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useVillage, landHalf } from './store'
+import { useVillage, landHalf, viewItems } from './store'
 import { toonGradient } from './toon'
 
 /* ---------- 물 ---------- */
@@ -110,7 +110,7 @@ function Detail({ half }: { half: number }) {
 
 /* ---------- 섬 ---------- */
 export function Island() {
-  const half = useVillage((s) => landHalf(s.items))
+  const half = useVillage((s) => landHalf(viewItems(s)))
   const w = half * 2
 
   return (

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { RefObject } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useVillage } from './store'
+import { useVillage, viewItems } from './store'
 
 // 둘러보기 모드에서 밭/우리를 탭하면 관리 패널을 연다.
 export function BrowseInteract({ itemsRef }: { itemsRef: RefObject<THREE.Group | null> }) {
@@ -48,7 +48,13 @@ export function BrowseInteract({ itemsRef }: { itemsRef: RefObject<THREE.Group |
       let o: THREE.Object3D | null = hits[0].object
       while (o && o.userData.editorKey === undefined) o = o.parent
       const key = o?.userData.editorKey as string | undefined
-      const item = key ? st.items.find((i) => i.key === key) : undefined
+      const item = key ? viewItems(st).find((i) => i.key === key) : undefined
+      // 친구 마을에서는 집만 눌러 볼 수 있다 (오두막 레벨 확인)
+      if (st.visiting) {
+        if (item?.type === 'house') st.openFriendInfo()
+        else if (st.friendInfoOpen) st.closeFriendInfo()
+        return
+      }
       if (
         item &&
         (item.type === 'plot' ||

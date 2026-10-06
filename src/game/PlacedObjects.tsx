@@ -2,7 +2,7 @@ import { type RefObject } from 'react'
 import type { Group } from 'three'
 import { CATALOG_MAP } from './catalog'
 import { CARE_COOLDOWN_MS, CROP_MAP, ANIMAL_MAP } from './economy'
-import { useVillage, type PlacedItem } from './store'
+import { useVillage, viewItems, type PlacedItem } from './store'
 import { useNow } from './useNow'
 import { CropView, AnimalView, Beacon } from './FarmModels'
 import { HouseView } from './HouseModels'
@@ -31,7 +31,7 @@ function beaconColor(it: PlacedItem, now: number): string | null {
 }
 
 export function PlacedObjects({ itemsRef }: { itemsRef: RefObject<Group | null> }) {
-  const items = useVillage((s) => s.items)
+  const items = useVillage(viewItems)
   const selected = useVillage((s) => s.selected)
   const activeFarm = useVillage((s) => s.activeFarm)
   const editing = useVillage((s) => s.mode === 'edit')

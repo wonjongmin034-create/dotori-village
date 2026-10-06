@@ -232,6 +232,11 @@ function clampToLand(x: number, z: number, half: number): [number, number] {
 }
 
 export type QuizRequest = { onPass: () => void }
+// 친구 마을을 놀러 간 상태 (읽기 전용 — 내 마을 데이터는 그대로)
+export type Visiting = { name: string; items: PlacedItem[]; avatar: Avatar }
+// 지금 화면에 보이는 마을의 물건들 (놀러 가 있으면 친구 것)
+export const viewItems = (s: { visiting: Visiting | null; items: PlacedItem[] }) =>
+  s.visiting ? s.visiting.items : s.items
 export type Session = { classCode: string; name: string }
 export type CloudStatus = 'local' | 'synced' | 'offline'
 export type EnhanceFx = { n: number; ok: boolean; from: number; to: number }
@@ -251,6 +256,9 @@ interface VillageState {
   daily: DailyLearn | null
   classQuestions: Question[] // 선생님이 이 반에 추가한 문제
   classLunch: ClassLunch // 선생님이 올린 급식표 (PDF·날짜별 메뉴)
+  visiting: Visiting | null // 놀러 간 친구 마을
+  friendsOpen: boolean // 친구 목록 패널
+  friendInfoOpen: boolean // 친구 집 정보 패널
   worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
   mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
   sheetsOpen: boolean // 학습지 목록 패널 열림
@@ -296,6 +304,11 @@ interface VillageState {
   closeLearn: () => void
   openSheets: () => void
   closeSheets: () => void
+  openFriends: () => void
+  closeFriends: () => void
+  openFriendInfo: () => void
+  closeFriendInfo: () => void
+  setVisiting: (v: Visiting | null) => void
   answerDaily: (pick: number) => void
   claimDaily: () => void
 
@@ -342,6 +355,9 @@ export const useVillage = create<VillageState>((set, get) => {
     daily: dailyOf(initial.items),
     classQuestions: [],
     classLunch: {},
+    visiting: null,
+    friendsOpen: false,
+    friendInfoOpen: false,
     worksheets: [],
     mySubs: {},
     sheetsOpen: false,
@@ -548,6 +564,23 @@ export const useVillage = create<VillageState>((set, get) => {
     closeLearn: () => set({ learnOpen: false }),
     openSheets: () => set({ sheetsOpen: true }),
     closeSheets: () => set({ sheetsOpen: false }),
+    openFriends: () => set({ friendsOpen: true }),
+    closeFriends: () => set({ friendsOpen: false }),
+    openFriendInfo: () => set({ friendInfoOpen: true }),
+    closeFriendInfo: () => set({ friendInfoOpen: false }),
+    setVisiting: (visiting) =>
+      set({
+        visiting,
+        friendsOpen: false,
+        friendInfoOpen: false,
+        activeFarm: null,
+        selected: null,
+        placing: null,
+        mode: 'browse',
+        learnOpen: false,
+        sheetsOpen: false,
+        quiz: null,
+      }),
 
     answerDaily: (pick) => {
       const { items } = get()

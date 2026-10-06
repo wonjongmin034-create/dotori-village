@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getMove } from './input'
 import { playerPos } from './player-state'
-import { useVillage, landHalf } from './store'
+import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 
 const SPEED = 6 // m/s
@@ -59,7 +59,7 @@ export function Player() {
       if (tmp.dir.lengthSq() > 1e-6) tmp.dir.normalize()
 
       playerPos.addScaledVector(tmp.dir, SPEED * mag * dt)
-      const b = landHalf(useVillage.getState().items) - 0.4
+      const b = landHalf(viewItems(useVillage.getState())) - 0.4
       playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
       playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
 

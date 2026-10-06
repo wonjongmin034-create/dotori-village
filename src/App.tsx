@@ -16,6 +16,9 @@ import { ArcadePanel } from './game/ArcadePanel'
 import { WardrobePanel } from './game/WardrobePanel'
 import { DailyLearnPanel } from './game/DailyLearnPanel'
 import { SheetPanel } from './game/SheetPanel'
+import { FriendsPanel } from './game/FriendsPanel'
+import { FriendInfoPanel } from './game/FriendInfoPanel'
+import { endVisit } from './game/friends'
 import { DAILY_PER_SUBJECT } from './game/economy'
 import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
@@ -61,6 +64,8 @@ export default function App() {
   const worksheets = useVillage((s) => s.worksheets)
   const mySubs = useVillage((s) => s.mySubs)
   const openSheets = useVillage((s) => s.openSheets)
+  const visiting = useVillage((s) => s.visiting)
+  const openFriends = useVillage((s) => s.openFriends)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
   const rotateSelected = useVillage((s) => s.rotateSelected)
@@ -167,7 +172,9 @@ export default function App() {
         <div className="badge">
           <b>도토리 마을</b>
           <span>
-            {editing
+            {visiting
+              ? `${visiting.name}의 마을 놀러 옴`
+              : editing
               ? `꾸미는 중 · 물건 ${itemCount}개`
               : session
                 ? `${session.name}${cloud === 'offline' ? ' · 📴 오프라인' : ''}`
@@ -177,17 +184,24 @@ export default function App() {
 
         <div className="coinbar">🌰 {coins}</div>
 
-        <button
-          type="button"
-          className="mode-btn"
-          onClick={() => setMode(editing ? 'browse' : 'edit')}
-        >
-          {editing ? '✓ 다 꾸몄어요' : '🔨 마을 꾸미기'}
-        </button>
+        {visiting ? (
+          <button type="button" className="mode-btn visit-back" onClick={endVisit}>
+            🏠 내 마을로 돌아가기
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="mode-btn"
+            onClick={() => setMode(editing ? 'browse' : 'edit')}
+          >
+            {editing ? '✓ 다 꾸몄어요' : '🔨 마을 꾸미기'}
+          </button>
+        )}
 
-        {!editing &&
-          daily &&
-          (() => {
+        {!editing && !visiting && (
+          <div className="hud-stack">
+            {daily &&
+              (() => {
             const total = dailySet(daily.day, DAILY_PER_SUBJECT, classQuestions).length
             const done = daily.idx >= total
             return (
@@ -202,26 +216,35 @@ export default function App() {
             )
           })()}
 
-        {!editing &&
-          worksheets.length > 0 &&
-          (() => {
-            const todo = worksheets.filter((w) => mySubs[w.id]?.status !== 'submitted').length
-            return (
-              <button
-                type="button"
-                className={`sheet-btn${todo ? ' todo' : ' done'}`}
-                onClick={openSheets}
-              >
-                📄 학습지 {todo ? `${todo}개 남음` : '✓'}
+            {worksheets.length > 0 &&
+              (() => {
+                const todo = worksheets.filter((w) => mySubs[w.id]?.status !== 'submitted').length
+                return (
+                  <button
+                    type="button"
+                    className={`sheet-btn${todo ? ' todo' : ' done'}`}
+                    onClick={openSheets}
+                  >
+                    📄 학습지 {todo ? `${todo}개 남음` : '✓'}
+                  </button>
+                )
+              })()}
+
+            {session && (
+              <button type="button" className="friends-btn" onClick={openFriends}>
+                👫 친구 마을
               </button>
-            )
-          })()}
+            )}
+          </div>
+        )}
 
         {!editing && (
           <div className="hint">
-            {coarse
-              ? '밭·우리·게시판을 탭 · 끌어서 카메라 · 두 손가락 확대'
-              : 'WASD 이동 · 밭/우리/게시판 클릭 · 드래그 카메라 · 휠 확대'}
+            {visiting
+              ? '친구 집을 탭하면 오두막 레벨을 볼 수 있어요 · 구경만 할 수 있어요'
+              : coarse
+                ? '밭·우리·게시판을 탭 · 끌어서 카메라 · 두 손가락 확대'
+                : 'WASD 이동 · 밭/우리/게시판 클릭 · 드래그 카메라 · 휠 확대'}
           </div>
         )}
 
@@ -321,6 +344,8 @@ export default function App() {
       <WardrobePanel />
       <DailyLearnPanel />
       <SheetPanel />
+      <FriendsPanel />
+      <FriendInfoPanel />
       <Quiz />
     </div>
   )

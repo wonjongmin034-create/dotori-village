@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { cameraDrag, cameraZoom } from './input'
 import { playerPos } from './player-state'
-import { useVillage, landHalf } from './store'
+import { useVillage, landHalf, viewItems } from './store'
 import { LAND_START } from './economy'
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -40,7 +40,7 @@ export function CameraRig() {
     cameraDrag.yawDelta = 0
 
     // 땅이 크면 카메라도 조금 더 물러난다
-    const half = landHalf(useVillage.getState().items)
+    const half = landHalf(viewItems(useVillage.getState()))
     const zoomOut = 1 + Math.max(0, half - LAND_START) * 0.06
 
     if (editing) {
