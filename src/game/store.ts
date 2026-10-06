@@ -19,6 +19,7 @@ import {
   landExpand,
 } from './economy'
 import { dailySet, type Question } from './questions'
+import type { Worksheet, MySub } from './sheets'
 import { dateKey } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
@@ -249,6 +250,9 @@ interface VillageState {
   wardrobe: string[]
   daily: DailyLearn | null
   classQuestions: Question[] // 선생님이 이 반에 추가한 문제
+  worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
+  mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
+  sheetsOpen: boolean // 학습지 목록 패널 열림
 
   placing: string | null
   selected: string | null
@@ -288,6 +292,8 @@ interface VillageState {
 
   openLearn: () => void
   closeLearn: () => void
+  openSheets: () => void
+  closeSheets: () => void
   answerDaily: (pick: number) => void
   claimDaily: () => void
 
@@ -333,6 +339,9 @@ export const useVillage = create<VillageState>((set, get) => {
     wardrobe: wardrobeOf(initial.items),
     daily: dailyOf(initial.items),
     classQuestions: [],
+    worksheets: [],
+    mySubs: {},
+    sheetsOpen: false,
     placing: null,
     selected: null,
     activeFarm: null,
@@ -533,6 +542,8 @@ export const useVillage = create<VillageState>((set, get) => {
 
     openLearn: () => set({ learnOpen: true }),
     closeLearn: () => set({ learnOpen: false }),
+    openSheets: () => set({ sheetsOpen: true }),
+    closeSheets: () => set({ sheetsOpen: false }),
 
     answerDaily: (pick) => {
       const { items } = get()

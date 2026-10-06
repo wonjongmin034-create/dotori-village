@@ -15,6 +15,7 @@ import { BoardPanel } from './game/BoardPanel'
 import { ArcadePanel } from './game/ArcadePanel'
 import { WardrobePanel } from './game/WardrobePanel'
 import { DailyLearnPanel } from './game/DailyLearnPanel'
+import { SheetPanel } from './game/SheetPanel'
 import { DAILY_PER_SUBJECT } from './game/economy'
 import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
@@ -57,6 +58,9 @@ export default function App() {
   const daily = useVillage((s) => s.daily)
   const classQuestions = useVillage((s) => s.classQuestions)
   const openLearn = useVillage((s) => s.openLearn)
+  const worksheets = useVillage((s) => s.worksheets)
+  const mySubs = useVillage((s) => s.mySubs)
+  const openSheets = useVillage((s) => s.openSheets)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
   const rotateSelected = useVillage((s) => s.rotateSelected)
@@ -198,6 +202,21 @@ export default function App() {
             )
           })()}
 
+        {!editing &&
+          worksheets.length > 0 &&
+          (() => {
+            const todo = worksheets.filter((w) => mySubs[w.id]?.status !== 'submitted').length
+            return (
+              <button
+                type="button"
+                className={`sheet-btn${todo ? ' todo' : ' done'}`}
+                onClick={openSheets}
+              >
+                📄 학습지 {todo ? `${todo}개 남음` : '✓'}
+              </button>
+            )
+          })()}
+
         {!editing && (
           <div className="hint">
             {coarse
@@ -301,6 +320,7 @@ export default function App() {
       <ArcadePanel />
       <WardrobePanel />
       <DailyLearnPanel />
+      <SheetPanel />
       <Quiz />
     </div>
   )

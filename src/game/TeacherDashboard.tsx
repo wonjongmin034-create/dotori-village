@@ -13,6 +13,7 @@ import {
 } from './cloud'
 import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, parseQuestions, newQuestionId, SUBJECTS, type Question } from './questions'
+import { TeacherSheets } from './TeacherSheets'
 import type { Mission } from './store'
 
 // 학생이 오늘 틀린 문제 목록
@@ -537,6 +538,12 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
       </section>
 
       <DailyLearnCard students={data.students} customQuestions={data.customQuestions} />
+
+      <TeacherSheets
+        classCode={classCode}
+        students={data.students.map((s) => s.name)}
+        flash={flash}
+      />
 
       <QuestionMakerCard
         classCode={classCode}

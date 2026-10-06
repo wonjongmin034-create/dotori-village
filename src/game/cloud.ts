@@ -9,6 +9,7 @@ import {
 } from './store'
 import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, sanitizeQuestions, type Question } from './questions'
+import { refreshSheets, resetSheets } from './sheets'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -122,6 +123,7 @@ export async function login(
     useVillage.setState({ session, cloud: 'synced' })
     startPolling()
     void pollGrants()
+    void refreshSheets()
     return { ok: true }
   } catch {
     return { ok: false, error: 'network' }
@@ -156,6 +158,7 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
     useVillage.setState({ session, cloud: 'synced' })
     startPolling()
     void pollGrants()
+    void refreshSheets()
     return 'in'
   } catch {
     useVillage.setState({ session, cloud: 'offline' })
@@ -167,6 +170,7 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
 export function logout() {
   saveLocalSession(null)
   stopPolling()
+  resetSheets()
   useVillage.setState({ session: null, cloud: 'local' })
 }
 
@@ -320,6 +324,7 @@ function startPolling() {
     if (!s.session) return
     void refreshClass(s.session.classCode)
     void pollGrants()
+    void refreshSheets()
     void markSeen()
   }, 45_000)
 }
