@@ -259,6 +259,7 @@ interface VillageState {
   visiting: Visiting | null // 놀러 간 친구 마을
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
+  notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
   worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
   mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
   sheetsOpen: boolean // 학습지 목록 패널 열림
@@ -309,6 +310,7 @@ interface VillageState {
   openFriendInfo: () => void
   closeFriendInfo: () => void
   setVisiting: (v: Visiting | null) => void
+  setNotice: (text: string | null) => void
   answerDaily: (pick: number) => void
   claimDaily: () => void
 
@@ -358,6 +360,7 @@ export const useVillage = create<VillageState>((set, get) => {
     visiting: null,
     friendsOpen: false,
     friendInfoOpen: false,
+    notice: null,
     worksheets: [],
     mySubs: {},
     sheetsOpen: false,
@@ -566,6 +569,7 @@ export const useVillage = create<VillageState>((set, get) => {
     closeSheets: () => set({ sheetsOpen: false }),
     openFriends: () => set({ friendsOpen: true }),
     closeFriends: () => set({ friendsOpen: false }),
+    setNotice: (notice) => set({ notice }),
     openFriendInfo: () => set({ friendInfoOpen: true }),
     closeFriendInfo: () => set({ friendInfoOpen: false }),
     setVisiting: (visiting) =>

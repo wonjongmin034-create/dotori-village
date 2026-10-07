@@ -20,6 +20,7 @@ import { FriendsPanel } from './game/FriendsPanel'
 import { FriendInfoPanel } from './game/FriendInfoPanel'
 import { endVisit } from './game/friends'
 import { LiveHud } from './game/LiveHud'
+import { NoticeModal } from './game/NoticeModal'
 import { DAILY_PER_SUBJECT } from './game/economy'
 import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
@@ -28,6 +29,8 @@ import { useVillage } from './game/store'
 import { Login } from './game/Login'
 import { TeacherDashboard } from './game/TeacherDashboard'
 import { loadLocalTeacher, logout } from './game/cloud'
+import { CodeGate } from './game/CodeGate'
+import { checkStoredCode, forgetCode } from './game/appcode'
 
 const CATS: { id: Category; label: string }[] = [
   { id: 'decor', label: '꾸미기' },
@@ -43,7 +46,7 @@ export default function App() {
       window.matchMedia('(pointer: coarse)').matches,
   )
   const [cat, setCat] = useState<Category>('decor')
-  const [gate, setGate] = useState<'checking' | 'login' | 'in' | 'teacher'>('checking')
+  const [gate, setGate] = useState<'checking' | 'code' | 'login' | 'in' | 'teacher'>('checking')
   const [teacherCode, setTeacherCode] = useState<string | null>(null)
 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -82,8 +85,17 @@ export default function App() {
       params.delete('logout')
       history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''))
     }
-    // 매번 로그인 화면을 띄운다 (공용 기기 안전). 반 코드·이름은 Login에서 미리 채워짐.
-    setGate('login')
+    if (params.has('lock')) {
+      forgetCode() // ?lock → 이 기기의 입장 코드를 잊게 한다
+      params.delete('lock')
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''))
+    }
+    // 입장 코드부터 확인한 뒤, 매번 로그인 화면을 띄운다 (공용 기기 안전). 반 코드·이름은 Login에서 미리 채워짐.
+    let dead = false
+    void checkStoredCode().then((r) => !dead && setGate(r === 'ok' ? 'login' : 'code'))
+    return () => {
+      dead = true
+    }
   }, [])
 
   const onPointerDown = (e: ReactPointerEvent) => {
@@ -130,6 +142,9 @@ export default function App() {
         </div>
       </div>
     )
+  }
+  if (gate === 'code') {
+    return <CodeGate onOpen={() => setGate('login')} />
   }
   if (gate === 'login') {
     return (
@@ -346,6 +361,7 @@ export default function App() {
       <DailyLearnPanel />
       <SheetPanel />
       <LiveHud />
+      <NoticeModal />
       <FriendsPanel />
       <FriendInfoPanel />
       <Quiz />
