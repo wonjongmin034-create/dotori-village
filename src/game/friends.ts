@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { useVillage, type PlacedItem } from './store'
 import { normalizeAvatar } from './avatar'
-import { playerPos } from './player-state'
+import { playerPos, spawnAt } from './player-state'
 import { LAND_OLD } from './economy'
 
 export type Friend = {
@@ -68,7 +68,7 @@ export async function visitFriend(name: string): Promise<boolean> {
     if (error || !data) return false
     const items = validItems(data.items)
     const house = items.find((i) => i.type === 'house')
-    playerPos.set(0, 0, 3)
+    spawnAt()
     useVillage.getState().setVisiting({ name, items, avatar: normalizeAvatar(house?.avatar) })
     useVillage.getState().flash(`${name}의 마을에 놀러 왔어요! 🏝️`)
     return true

@@ -6,10 +6,13 @@ import { Character, type CharacterRefs } from './Character'
 import { houseLevel } from './economy'
 import { houseEmoji } from './friends'
 import { useVillage } from './store'
+import { useLive } from './live'
 
 // 친구 마을에 놀러 갔을 때: 친구 캐릭터가 집 앞에 서 있고, 집 위에 오두막 레벨 표시가 뜬다.
 export function FriendStage() {
   const visiting = useVillage((s) => s.visiting)
+  // 친구가 지금 같은 마을에 접속해 있으면 진짜 친구(RemotePlayers)가 보이므로 대역은 숨긴다
+  const friendLive = useLive((s) => (visiting ? s.names.includes(visiting.name) : false))
   const root = useRef<THREE.Group>(null)
   const refs: CharacterRefs = {
     bob: useRef<THREE.Group>(null),
@@ -49,6 +52,7 @@ export function FriendStage() {
   return (
     <>
       {/* 친구 캐릭터 (집 앞, 방문자 쪽을 바라봄) */}
+      {!friendLive && (
       <group ref={root} position={[hx - 1.8, 0, hz + 2.3]} rotation={[0, 0.35, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
           <circleGeometry args={[0.5, 20]} />
@@ -59,6 +63,7 @@ export function FriendStage() {
           <div className="name-tag">{visiting.name}</div>
         </Html>
       </group>
+      )}
 
       {/* 오두막 레벨 표시 */}
       <Html

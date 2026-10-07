@@ -10,4 +10,5 @@ const SUPABASE_ANON_KEY =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false },
+  realtime: { params: { eventsPerSecond: 12 } }, // 같이 걷기 위치 전송
 })

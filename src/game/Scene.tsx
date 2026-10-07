@@ -10,6 +10,7 @@ import { PlacedObjects } from './PlacedObjects'
 import { EditorControls } from './EditorControls'
 import { BrowseInteract } from './BrowseInteract'
 import { FriendStage } from './FriendStage'
+import { RemotePlayers } from './RemotePlayers'
 import { useVillage, viewItems } from './store'
 
 // fps가 떨어지면 렌더 해상도·효과를 낮춘다 (크롬북 성능 예산).
@@ -100,6 +101,7 @@ export function Scene() {
       <Island />
       <PlacedObjects itemsRef={itemsRef} />
       <FriendStage />
+      <RemotePlayers />
       <Player />
       <CameraRig />
       <EditorControls itemsRef={itemsRef} />

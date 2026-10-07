@@ -2334,3 +2334,68 @@ canvas {
   color: #8a4f12;
   background: rgba(255, 244, 214, 0.96);
 }
+
+/* ── 같이 걷기 ── */
+.live-chip {
+  position: absolute;
+  top: 66px;
+  left: 14px;
+  max-width: 55vw;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2f6b45;
+  background: rgba(230, 247, 233, 0.95);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 11;
+}
+.emote-bar {
+  position: absolute;
+  right: 14px;
+  bottom: 62px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+  z-index: 11;
+}
+.emote-bar button {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.emote-bar .emote-toggle {
+  background: #fff7d6;
+}
+.emote-bar button:active {
+  transform: scale(0.9);
+}
+.emote-bubble {
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 22px;
+  line-height: 1.1;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: emote-pop 0.35s ease-out;
+}
+@keyframes emote-pop {
+  from {
+    transform: scale(0.4) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}

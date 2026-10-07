@@ -1,10 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { getMove } from './input'
-import { playerPos } from './player-state'
+import { playerPos, playerMotion } from './player-state'
 import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
+import { useLive } from './live'
 
 const SPEED = 6 // m/s
 const UP = new THREE.Vector3(0, 1, 0)
@@ -32,6 +34,7 @@ export function Player() {
   }
 
   const avatar = useVillage((s) => s.avatar)
+  const myEmote = useLive((s) => s.emotes.__me)
 
   const s = useRef({ facing: Math.PI, phase: 0, blink: 0, nextBlink: 2.5 })
   const tmp = useMemo(
@@ -59,6 +62,8 @@ export function Player() {
       if (tmp.dir.lengthSq() > 1e-6) tmp.dir.normalize()
 
       playerPos.addScaledVector(tmp.dir, SPEED * mag * dt)
+      playerMotion.vx = tmp.dir.x * SPEED * mag
+      playerMotion.vz = tmp.dir.z * SPEED * mag
       const b = landHalf(viewItems(useVillage.getState())) - 0.4
       playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
       playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
@@ -67,7 +72,10 @@ export function Player() {
       st.phase += dt * (7 + mag * 5)
     } else {
       st.phase += dt * 2
+      playerMotion.vx = 0
+      playerMotion.vz = 0
     }
+    playerMotion.facing = st.facing
 
     root.current?.position.copy(playerPos)
     if (yawGroup.current) yawGroup.current.rotation.y = st.facing
@@ -120,6 +128,11 @@ export function Player() {
       <group ref={yawGroup}>
         <Character avatar={avatar} refs={refs} />
       </group>
+      {myEmote && (
+        <Html position={[0, 2.8, 0]} center zIndexRange={[6, 0]} style={{ pointerEvents: 'none' }}>
+          <div className="emote-bubble">{myEmote}</div>
+        </Html>
+      )}
     </group>
   )
 }

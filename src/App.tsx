@@ -19,6 +19,7 @@ import { SheetPanel } from './game/SheetPanel'
 import { FriendsPanel } from './game/FriendsPanel'
 import { FriendInfoPanel } from './game/FriendInfoPanel'
 import { endVisit } from './game/friends'
+import { LiveHud } from './game/LiveHud'
 import { DAILY_PER_SUBJECT } from './game/economy'
 import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
@@ -344,6 +345,7 @@ export default function App() {
       <WardrobePanel />
       <DailyLearnPanel />
       <SheetPanel />
+      <LiveHud />
       <FriendsPanel />
       <FriendInfoPanel />
       <Quiz />
