@@ -19,6 +19,12 @@ export function getMove(): { x: number; y: number } {
   return { x: keyboardVec.x, y: keyboardVec.y }
 }
 
+// 점프 요청 — Space 키나 화면 점프 버튼이 켜고, Player가 읽고 끈다.
+export const jumpInput = { requested: false }
+export function requestJump() {
+  jumpInput.requested = true
+}
+
 const pressed = new Set<string>()
 
 function refresh() {
@@ -35,6 +41,12 @@ function refresh() {
 /** window에 키보드 리스너를 붙이고, 정리 함수를 돌려준다. */
 export function initKeyboard(): () => void {
   const onDown = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null
+    const typing = !!t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)
+    if (e.code === 'Space' && !typing) {
+      if (!e.repeat) requestJump()
+      if (t?.tagName !== 'BUTTON') e.preventDefault() // 스크롤 방지
+    }
     pressed.add(e.code)
     refresh()
   }

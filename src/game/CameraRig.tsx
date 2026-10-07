@@ -48,9 +48,9 @@ export function CameraRig() {
       tmp.offset.copy(EDIT_OFFSET).multiplyScalar(zoomOut)
       tmp.lookTarget.set(0, 0.5, 0)
     } else {
-      tmp.focus.copy(playerPos)
+      tmp.focus.set(playerPos.x, 0, playerPos.z) // 점프해도 카메라는 출렁이지 않게
       tmp.offset.copy(BROWSE_OFFSET).multiplyScalar(1 + (zoomOut - 1) * 0.5)
-      tmp.lookTarget.set(playerPos.x, playerPos.y + 1.1, playerPos.z)
+      tmp.lookTarget.set(playerPos.x, 1.1 + playerPos.y * 0.35, playerPos.z)
     }
 
     tmp.offset.multiplyScalar(cameraZoom.value).applyAxisAngle(UP, st.yaw)

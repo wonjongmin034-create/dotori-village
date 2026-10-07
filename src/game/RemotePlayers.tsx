@@ -29,6 +29,7 @@ export function RemotePlayers() {
 
 function RemoteFigure({ name }: { name: string }) {
   const root = useRef<THREE.Group>(null)
+  const shadow = useRef<THREE.Mesh>(null)
   const yaw = useRef<THREE.Group>(null)
   const refs: CharacterRefs = {
     bob: useRef<THREE.Group>(null),
@@ -41,7 +42,7 @@ function RemoteFigure({ name }: { name: string }) {
     eyeL: useRef<THREE.Group>(null),
     eyeR: useRef<THREE.Group>(null),
   }
-  const st = useRef({ x: 0, z: 0, facing: 0, phase: 0, init: false, blink: 0, nextBlink: 2 })
+  const st = useRef({ x: 0, z: 0, y: 0, facing: 0, phase: 0, init: false, blink: 0, nextBlink: 2 })
   const peer = peers.get(name)
   const emote = useLive((s) => s.emotes[name])
 
@@ -73,6 +74,9 @@ function RemoteFigure({ name }: { name: string }) {
     const oz = s.z
     s.x += (tx - s.x) * k
     s.z += (tz - s.z) * k
+    // 점프 높이: 받은 높이에서 속도·중력으로 조금 더 간 곳을 따라간다
+    const ty = Math.max(0, p.y + p.vy * age - 12 * age * age)
+    s.y += (ty - s.y) * (1 - Math.exp(-18 * dt))
     // 너무 멀어졌으면(순간이동) 바로 붙는다
     if (Math.hypot(tx - s.x, tz - s.z) > 6) {
       s.x = tx
@@ -87,7 +91,12 @@ function RemoteFigure({ name }: { name: string }) {
     }
     s.phase += dt * (moving ? 7 + Math.min(1, speed / 6) * 5 : 2)
 
-    g.position.set(s.x, 0, s.z)
+    g.position.set(s.x, s.y, s.z)
+    if (shadow.current) {
+      shadow.current.position.y = 0.02 - s.y
+      const sk = 1 - Math.min(0.5, s.y * 0.4)
+      shadow.current.scale.set(sk, sk, sk)
+    }
     if (yaw.current) yaw.current.rotation.y = s.facing
 
     const swing = moving ? Math.sin(s.phase) * 0.85 : Math.sin(t * 1.6) * 0.06
@@ -100,6 +109,12 @@ function RemoteFigure({ name }: { name: string }) {
     if (refs.armR.current) refs.armR.current.rotation.x = -swing
     if (refs.legL.current) refs.legL.current.rotation.x = moving ? -Math.sin(s.phase) * 0.7 : 0
     if (refs.legR.current) refs.legR.current.rotation.x = moving ? Math.sin(s.phase) * 0.7 : 0
+    if (s.y > 0.05) {
+      if (refs.armL.current) refs.armL.current.rotation.x = -2.5
+      if (refs.armR.current) refs.armR.current.rotation.x = -2.5
+      if (refs.legL.current) refs.legL.current.rotation.x = -0.55
+      if (refs.legR.current) refs.legR.current.rotation.x = 0.25
+    }
 
     s.nextBlink -= dt
     if (s.nextBlink <= 0 && s.blink === 0) {
@@ -115,7 +130,7 @@ function RemoteFigure({ name }: { name: string }) {
 
   return (
     <group ref={root} visible={false}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <circleGeometry args={[0.5, 20]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.14} depthWrite={false} />
       </mesh>

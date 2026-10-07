@@ -17,6 +17,8 @@ export type Peer = {
   z: number
   vx: number
   vz: number
+  y: number // 점프 높이
+  vy: number
   facing: number
   at: number // 마지막 위치를 받은 시각 (performance.now). 0 = 아직 못 받음
 }
@@ -41,7 +43,7 @@ let roomKey = ''
 let ready = false
 let timer: ReturnType<typeof setInterval> | null = null
 let quietUntil = 0 // 방에 막 들어왔을 때 "OO가 와 있어요" 알림 억제
-let last = { x: 1e9, z: 1e9, moving: false, t: 0 }
+let last = { x: 1e9, z: 1e9, moving: false, air: false, t: 0 }
 const emoteTimers = new Map<string, ReturnType<typeof setTimeout>>()
 let lastNames: string[] = []
 let kicked = false
@@ -91,10 +93,12 @@ function send() {
       z: r2(playerPos.z),
       vx: r2(playerMotion.vx),
       vz: r2(playerMotion.vz),
+      y: r2(playerPos.y),
+      vy: r2(playerMotion.vy),
       f: r2(playerMotion.facing),
     },
   })
-  last = { x: playerPos.x, z: playerPos.z, moving, t: performance.now() }
+  last = { x: playerPos.x, z: playerPos.z, moving, air: playerPos.y > 0.01, t: performance.now() }
 }
 
 // 150ms마다: 움직이고 있거나 멈춘 순간이거나 3초 넘게 조용했으면 위치를 보낸다.
@@ -102,7 +106,8 @@ function tick() {
   if (!ready) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   const moved = Math.hypot(playerPos.x - last.x, playerPos.z - last.z) > 0.04
-  if (moving || moved || moving !== last.moving || performance.now() - last.t > 3000) send()
+  const air = playerPos.y > 0.01
+  if (moving || moved || air || air !== last.air || moving !== last.moving || performance.now() - last.t > 3000) send()
 }
 
 function leave() {
@@ -124,7 +129,7 @@ function join(owner: string, key: string, me: string) {
   roomKey = key
   quietUntil = performance.now() + 1800
   kicked = false
-  last = { x: 1e9, z: 1e9, moving: false, t: 0 }
+  last = { x: 1e9, z: 1e9, moving: false, air: false, t: 0 }
   const ch = supabase.channel(key, {
     config: { broadcast: { self: false }, presence: { key: me } },
   })
@@ -152,7 +157,7 @@ function join(owner: string, key: string, me: string) {
       const avatar = normalizeAvatar(state[k]?.[0]?.avatar)
       const p = peers.get(k)
       if (p) p.avatar = avatar
-      else peers.set(k, { name: k, avatar, x: 0, z: 0, vx: 0, vz: 0, facing: 0, at: 0 })
+      else peers.set(k, { name: k, avatar, x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, facing: 0, at: 0 })
     }
     for (const k of [...peers.keys()]) if (!names.includes(k)) peers.delete(k)
     lastNames = names
@@ -173,17 +178,19 @@ function join(owner: string, key: string, me: string) {
       useVillage.getState().flash(`${who}님이 돌아갔어요`)
     })
     .on('broadcast', { event: 'pos' }, ({ payload }) => {
-      const m = payload as { n: string; x: number; z: number; vx: number; vz: number; f: number }
+      const m = payload as { n: string; x: number; z: number; vx: number; vz: number; y?: number; vy?: number; f: number }
       if (!m || typeof m.n !== 'string' || m.n === me) return
       let p = peers.get(m.n)
       if (!p) {
-        p = { name: m.n, avatar: normalizeAvatar(null), x: 0, z: 0, vx: 0, vz: 0, facing: 0, at: 0 }
+        p = { name: m.n, avatar: normalizeAvatar(null), x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, facing: 0, at: 0 }
         peers.set(m.n, p)
       }
       p.x = m.x
       p.z = m.z
       p.vx = m.vx
       p.vz = m.vz
+      p.y = m.y ?? 0
+      p.vy = m.vy ?? 0
       p.facing = m.f
       p.at = performance.now()
     })

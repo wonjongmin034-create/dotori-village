@@ -19,6 +19,7 @@ import { SheetPanel } from './game/SheetPanel'
 import { FriendsPanel } from './game/FriendsPanel'
 import { FriendInfoPanel } from './game/FriendInfoPanel'
 import { endVisit } from './game/friends'
+import { requestJump } from './game/input'
 import { LiveHud } from './game/LiveHud'
 import { NoticeModal } from './game/NoticeModal'
 import { DAILY_PER_SUBJECT } from './game/economy'
@@ -255,12 +256,26 @@ export default function App() {
         )}
 
         {!editing && (
+          <button
+            type="button"
+            className="jump-btn"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              requestJump()
+            }}
+            aria-label="점프"
+          >
+            ⤒<span>점프</span>
+          </button>
+        )}
+
+        {!editing && (
           <div className="hint">
             {visiting
               ? '친구 집을 탭하면 오두막 레벨을 볼 수 있어요 · 구경만 할 수 있어요'
               : coarse
                 ? '밭·우리·게시판을 탭 · 끌어서 카메라 · 두 손가락 확대'
-                : 'WASD 이동 · 밭/우리/게시판 클릭 · 드래그 카메라 · 휠 확대'}
+                : 'WASD 이동 · Space 점프 · 밭/우리/게시판 클릭 · 드래그 카메라 · 휠 확대'}
           </div>
         )}
 

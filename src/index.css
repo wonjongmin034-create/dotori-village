@@ -2427,3 +2427,31 @@ canvas {
   background: #3e9b4f;
   cursor: pointer;
 }
+
+/* ── 점프 버튼 ── */
+.jump-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 128px;
+  width: 62px;
+  height: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(62, 155, 79, 0.92);
+  box-shadow: 0 4px 14px rgba(47, 122, 64, 0.4);
+  touch-action: none;
+  user-select: none;
+}
+.jump-btn span {
+  font-size: 11px;
+}
+.jump-btn:active {
+  transform: scale(0.92);
+}
