@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { useVillage, type PlacedItem } from './store'
+import { useVillage, landHalf, type PlacedItem } from './store'
+import { resolveFarmOverlaps } from './layout'
 import { normalizeAvatar } from './avatar'
 import { playerPos, spawnAt } from './player-state'
 import { LAND_OLD } from './economy'
@@ -66,7 +67,9 @@ export async function visitFriend(name: string): Promise<boolean> {
       .eq('name', name)
       .maybeSingle()
     if (error || !data) return false
-    const items = validItems(data.items)
+    const raw = validItems(data.items)
+    // 친구 마을에 겹친 밭·우리가 있으면 보기만 정리해서 보여 준다 (친구 데이터는 바꾸지 않음)
+    const items = resolveFarmOverlaps(raw, landHalf(raw)).items
     const house = items.find((i) => i.type === 'house')
     spawnAt()
     useVillage.getState().setVisiting({ name, items, avatar: normalizeAvatar(house?.avatar) })

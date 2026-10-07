@@ -20,6 +20,7 @@ import {
 } from './economy'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
+import { findFreeSpot, resolveFarmOverlaps } from './layout'
 import { dateKey, type ClassLunch } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
@@ -185,6 +186,11 @@ function ensureWardrobe(items: PlacedItem[]): PlacedItem[] {
 export const landHalf = (items: PlacedItem[]) =>
   items.find((i) => i.type === 'house')?.land ?? LAND_OLD
 
+// 이미 겹쳐 있는 밭·우리를 가까운 빈자리로 옮긴다 (움직인 개수도 돌려줌)
+function ensureLayout(items: PlacedItem[]): PlacedItem[] {
+  return resolveFarmOverlaps(items, landHalf(items)).items
+}
+
 const avatarOf = (items: PlacedItem[]) =>
   normalizeAvatar(items.find((i) => i.type === 'house')?.avatar)
 const wardrobeOf = (items: PlacedItem[]) => {
@@ -332,7 +338,9 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initialItems = ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))))
+const initialItems = ensureLayout(
+  ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items))))),
+)
 const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
 if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
@@ -408,9 +416,11 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureDaily(
-        ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
-        get().classQuestions,
+      const merged = ensureLayout(
+        ensureDaily(
+          ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
+          get().classQuestions,
+        ),
       )
       saveLocal(coins, merged, get().homework)
       set({
@@ -475,7 +485,15 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`도토리가 부족해요 (${entry.cost}개 필요)`)
         return
       }
-      const [cx, cz] = clampToLand(Math.round(x), Math.round(z), landHalf(items))
+      const half = landHalf(items)
+      const [tx, tz] = clampToLand(Math.round(x), Math.round(z), half)
+      // 누른 자리에 다른 물건이 있으면 가장 가까운 빈자리에 놓는다
+      const spot = findFreeSpot({ type: placing }, tx, tz, half, items)
+      if (!spot) {
+        get().flash('여기엔 놓을 자리가 없어요. 다른 곳을 눌러 보세요')
+        return
+      }
+      const [cx, cz] = spot
       const item: PlacedItem = { key: newKey(), type: placing, x: cx, z: cz, rot: 0 }
       commit([...items, item], coins - entry.cost)
       set({ selected: item.key })
@@ -484,7 +502,16 @@ export const useVillage = create<VillageState>((set, get) => {
     moveSelectedTo: (x, z) => {
       const { selected, items } = get()
       if (!selected) return
-      const [cx, cz] = clampToLand(Math.round(x), Math.round(z), landHalf(items))
+      const half = landHalf(items)
+      const me = items.find((it) => it.key === selected)
+      if (!me) return
+      const [tx, tz] = clampToLand(Math.round(x), Math.round(z), half)
+      const spot = findFreeSpot(me, tx, tz, half, items, selected)
+      if (!spot) {
+        get().flash('여기엔 옮길 자리가 없어요. 다른 곳을 눌러 보세요')
+        return
+      }
+      const [cx, cz] = spot
       commit(items.map((it) => (it.key === selected ? { ...it, x: cx, z: cz } : it)))
     },
 
@@ -536,11 +563,14 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`${next.cost} 도토리가 필요해요`)
         return
       }
-      commit(
-        items.map((i) => (i.type === 'house' ? { ...i, level: cur + 1 } : i)),
-        coins - next.cost,
+      const grown = items.map((i) => (i.type === 'house' ? { ...i, level: cur + 1 } : i))
+      const fixed = resolveFarmOverlaps(grown, landHalf(grown))
+      commit(fixed.items, coins - next.cost)
+      get().flash(
+        fixed.moved
+          ? `집이 ${next.label}(으)로 커졌어요! 🏡 (겹친 밭·우리 ${fixed.moved}개를 옮겼어요)`
+          : `집이 ${next.label}(으)로 커졌어요! 🏡`,
       )
-      get().flash(`집이 ${next.label}(으)로 커졌어요! 🏡`)
     },
 
     expandLand: () => {
