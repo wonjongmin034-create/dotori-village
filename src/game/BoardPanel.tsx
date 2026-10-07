@@ -62,7 +62,7 @@ export function BoardPanel() {
   }
 
   const todayMenu = lunchFor(dateKey(), lunch.menu)
-  const todayOff = noSchoolReason(dateKey(), lunch.menu)
+  const todayOff = noSchoolReason(dateKey(), lunch.menu, lunch.off)
   const days = upcomingLunchDays(lunch.menu)
 
   return (

@@ -33,7 +33,11 @@ export const NO_SCHOOL: Record<string, string> = {
 
 // 선생님이 대시보드에서 올린 급식표 (반마다 따로, classes.lunch 에 저장)
 export type LunchFile = { path: string; title: string; month: string; pages: number }
-export type ClassLunch = { file?: LunchFile; menu?: Record<string, string[]> }
+export type ClassLunch = {
+  file?: LunchFile
+  menu?: Record<string, string[]>
+  off?: Record<string, string> // 급식 없는 날 → 이유 (공휴일·개교기념일 등)
+}
 
 const hasCustom = (custom?: Record<string, string[]>) => !!custom && Object.keys(custom).length > 0
 
@@ -42,7 +46,12 @@ export function lunchFor(dateKey: string, custom?: Record<string, string[]>): st
   return (hasCustom(custom) ? custom![dateKey] : LUNCH[dateKey]) ?? null
 }
 
-export function noSchoolReason(dateKey: string, custom?: Record<string, string[]>): string | null {
+export function noSchoolReason(
+  dateKey: string,
+  custom?: Record<string, string[]>,
+  off?: Record<string, string>,
+): string | null {
+  if (off?.[dateKey]) return off[dateKey]
   return hasCustom(custom) ? null : (NO_SCHOOL[dateKey] ?? null)
 }
 
@@ -69,6 +78,13 @@ export function sanitizeLunch(raw: unknown): ClassLunch {
       }
     }
     if (Object.keys(menu).length) out.menu = menu
+  }
+  if (o.off && typeof o.off === 'object') {
+    const off: Record<string, string> = {}
+    for (const [k, v] of Object.entries(o.off as Record<string, unknown>)) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(k) && typeof v === 'string' && v.trim()) off[k] = v.trim()
+    }
+    if (Object.keys(off).length) out.off = off
   }
   return out
 }
@@ -97,8 +113,9 @@ export function parseLunchText(
   text: string,
   year: number,
   month: number,
-): { menu: Record<string, string[]>; days: number; errors: number } {
+): { menu: Record<string, string[]>; off: Record<string, string>; days: number; errors: number } {
   const menu: Record<string, string[]> = {}
+  const off: Record<string, string> = {}
   let cur: string | null = null
   let errors = 0
   const key = (y: number, m: number, d: number) =>
@@ -141,11 +158,19 @@ export function parseLunchText(
       continue
     }
     cur = k
+    // "※한글날" → 급식 없는 날
+    const hol = rest.replace(/^\(?[월화수목금토일]\)?(요일)?\s*/, '').trim().match(/^※\s*(.+)$/)
+    if (hol) {
+      off[k] = hol[1].trim()
+      delete menu[k]
+      cur = null
+      continue
+    }
     const items = splitItems(rest)
     menu[k] = items.length ? items : (menu[k] ?? [])
   }
   for (const k of Object.keys(menu)) if (!menu[k].length) delete menu[k]
-  return { menu, days: Object.keys(menu).length, errors }
+  return { menu, off, days: Object.keys(menu).length + Object.keys(off).length, errors }
 }
 
 // YYYY-MM-DD (로컬 기준)

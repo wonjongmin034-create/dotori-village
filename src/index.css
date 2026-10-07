@@ -2455,3 +2455,17 @@ canvas {
 .jump-btn:active {
   transform: scale(0.92);
 }
+
+.lunch-readbtn {
+  padding: 11px 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: #8a63d2;
+  cursor: pointer;
+}
+.lunch-readbtn:disabled {
+  opacity: 0.5;
+}

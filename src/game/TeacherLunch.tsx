@@ -4,6 +4,8 @@ import { readPdfPages } from './pdf'
 import { teacherFetchLunch, teacherSetLunch } from './cloud'
 import { MAX_PDF_BYTES, pdfUrl, removePdf, uploadPdf } from './sheets'
 import { parseLunchText, type ClassLunch } from './lunch'
+import { openPdf } from './pdf'
+import { extractLunch, lunchToText } from './lunchPdf'
 
 const thisMonth = () => {
   const d = new Date()
@@ -116,11 +118,39 @@ export function TeacherLunch({
     }
   }
 
+  // 올려 둔 급식표 PDF에서 날짜별 메뉴를 읽어 와 ②번 칸에 채운다 (선생님이 확인·수정 후 등록)
+  const readFromPdf = async () => {
+    if (!cur.file || busy) return
+    setBusy(true)
+    say('급식표를 읽는 중…')
+    try {
+      const doc = await openPdf(pdfUrl(cur.file.path))
+      const r = await extractLunch(doc, Number(month.split('-')[0]))
+      if (!r) {
+        say('이 PDF에서는 날짜별 메뉴를 읽지 못했어요. 아래 칸에 직접 붙여넣어 주세요.', true)
+      } else {
+        setText(lunchToText(r))
+        const n = Object.keys(r.menu).length
+        const o = Object.keys(r.off).length
+        say(
+          `${n}일치 메뉴${o ? `, 쉬는 날 ${o}일` : ''}을 읽어 왔어요. 아래 칸에서 맞는지 확인하고 "급식 메뉴 등록"을 눌러 주세요.`,
+        )
+      }
+    } catch {
+      say('PDF를 읽지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.', true)
+    }
+    setBusy(false)
+  }
+
   const registerText = async () => {
     const [y, m] = month.split('-').map(Number)
     const r = parseLunchText(text, y, m)
     if (r.days === 0) return say('날짜가 있는 줄을 찾지 못했어요. 아래 예시처럼 써 주세요.', true)
-    const ok = await save({ ...cur, menu: { ...(cur.menu ?? {}), ...r.menu } })
+    const ok = await save({
+      ...cur,
+      menu: { ...(cur.menu ?? {}), ...r.menu },
+      off: { ...(cur.off ?? {}), ...r.off },
+    })
     if (!ok) return
     setText('')
     say(`${r.days}일치 메뉴를 등록했어요${r.errors ? ` · 읽지 못한 줄 ${r.errors}개` : ''}`)
@@ -129,8 +159,9 @@ export function TeacherLunch({
 
   const clearMenu = async () => {
     if (!window.confirm('등록한 날짜별 급식 메뉴를 모두 지울까요?')) return
-    const { menu: _drop, ...rest } = cur
-    void _drop
+    const { menu: _m, off: _o, ...rest } = cur
+    void _m
+    void _o
     if (await save(rest)) flash('날짜별 급식 메뉴를 지웠어요')
   }
 
@@ -146,7 +177,7 @@ export function TeacherLunch({
     )
   }
 
-  const menuDays = Object.keys(cur.menu ?? {}).sort()
+  const menuDays = [...new Set([...Object.keys(cur.menu ?? {}), ...Object.keys(cur.off ?? {})])].sort()
 
   return (
     <section className="dash-card">
@@ -209,7 +240,12 @@ export function TeacherLunch({
 
       {/* 2) 날짜별 메뉴 글 */}
       <div className="lunch-block">
-        <b>② 날짜별 메뉴 붙여넣기 (선택)</b>
+        <b>② 날짜별 메뉴 (선택) — 있으면 학생 화면에 "오늘 급식"이 자동으로 나와요</b>
+        {cur.file && (
+          <button type="button" className="lunch-readbtn" disabled={busy} onClick={() => void readFromPdf()}>
+            ✨ 올린 PDF에서 메뉴 자동으로 읽어오기
+          </button>
+        )}
         <textarea
           rows={6}
           className="qm-bulk"
@@ -238,7 +274,8 @@ export function TeacherLunch({
             <ul>
               {menuDays.map((k) => (
                 <li key={k}>
-                  <b>{dayLabel(k)}</b> {cur.menu![k].join(' · ')}
+                  <b>{dayLabel(k)}</b>{' '}
+                  {cur.off?.[k] ? `쉬는 날 · ${cur.off[k]}` : cur.menu![k].join(' · ')}
                 </li>
               ))}
             </ul>
