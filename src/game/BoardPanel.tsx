@@ -158,10 +158,20 @@ export function BoardPanel() {
                 </ul>
               ) : todayOff ? (
                 <p className="hw-empty">오늘은 {todayOff}예요. 급식이 없어요.</p>
+              ) : lunch.file ? (
+                <p className="hw-empty">
+                  오늘 급식 메뉴는 글로 올라와 있지 않아요. 아래 급식표를 눌러서 확인해 보세요 👇
+                </p>
               ) : (
                 <p className="hw-empty">오늘 급식 정보가 없어요.</p>
               )}
             </div>
+
+            {lunch.file && (
+              <button type="button" className="lunch-filebtn" onClick={() => setViewFile(true)}>
+                📄 {lunch.file.title} 크게 보기
+              </button>
+            )}
 
             {days.filter((d) => !d.today).length > 0 && (
               <>
@@ -177,12 +187,6 @@ export function BoardPanel() {
                     ))}
                 </ul>
               </>
-            )}
-
-            {lunch.file && (
-              <button type="button" className="lunch-filebtn" onClick={() => setViewFile(true)}>
-                📄 {lunch.file.title} 크게 보기
-              </button>
             )}
 
             {!lunch.file && days.length === 0 && !todayMenu && (
