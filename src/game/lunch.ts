@@ -103,7 +103,7 @@ function splitItems(text: string): string[] {
     .map((x) =>
       x
         .replace(/\(\s*[\d.,\s]+\)/g, '') // (1.5.6)
-        .replace(/(?<=[가-힣A-Za-z)&])[\d.]+$/, '') // 미역국1.5.6.
+        .replace(/([가-힣A-Za-z)&])[\d.]+$/, '$1') // 미역국1.5.6.
         .trim(),
     )
     .filter(Boolean)

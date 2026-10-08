@@ -6,6 +6,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   // GitHub Pages 프로젝트 사이트 경로: https://<user>.github.io/dotori-village/
   base: '/dotori-village/',
+  // 학교의 오래된 아이패드·크롬북에서도 열리도록 문법을 낮춘다 (three.js의 static 블록 등은 Safari 16.4 미만에서 통째로 오류)
+  build: { target: ['es2020', 'safari14', 'chrome87', 'firefox78'] },
   plugins: [
     react(),
     VitePWA({
