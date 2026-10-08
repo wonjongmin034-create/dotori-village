@@ -22,7 +22,7 @@ import { endVisit } from './game/friends'
 import { requestJump } from './game/input'
 import { LiveHud } from './game/LiveHud'
 import { NoticeModal } from './game/NoticeModal'
-import { DAILY_PER_SUBJECT } from './game/economy'
+import { DAILY_PER_SUBJECT, farmLimit } from './game/economy'
 import { dailySet } from './game/questions'
 import { cameraDrag, initKeyboard, nudgeZoom } from './game/input'
 import { CATALOG, type Category } from './game/catalog'
@@ -60,6 +60,7 @@ export default function App() {
   const session = useVillage((s) => s.session)
   const placing = useVillage((s) => s.placing)
   const selected = useVillage((s) => s.selected)
+  const items = useVillage((s) => s.items)
   const selectedType = useVillage((s) => s.items.find((i) => i.key === s.selected)?.type)
   const itemCount = useVillage((s) => s.items.length)
   const msg = useVillage((s) => s.msg)
@@ -342,7 +343,10 @@ export default function App() {
 
             <div className="catalog">
               {shown.map((entry) => {
-                const broke = entry.cost > coins
+                const limit = farmLimit(entry.type, items.find((i) => i.type === 'house')?.level)
+                const have = limit === null ? 0 : items.filter((i) => i.type === entry.type).length
+                const full = limit !== null && have >= limit
+                const broke = entry.cost > coins || full
                 return (
                   <button
                     key={entry.type}
@@ -355,7 +359,9 @@ export default function App() {
                   >
                     <span className="ico">{entry.emoji}</span>
                     <span className="lbl">{entry.label}</span>
-                    <span className="price">{entry.cost === 0 ? '무료' : `🌰${entry.cost}`}</span>
+                    <span className="price">
+                      {limit !== null ? `${have}/${limit}개` : entry.cost === 0 ? '무료' : `🌰${entry.cost}`}
+                    </span>
                   </button>
                 )
               })}

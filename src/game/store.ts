@@ -17,6 +17,7 @@ import {
   LAND_START,
   LAND_OLD,
   landExpand,
+  farmLimit,
 } from './economy'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
@@ -483,6 +484,13 @@ export const useVillage = create<VillageState>((set, get) => {
       if (!entry) return
       if (entry.cost > coins) {
         get().flash(`도토리가 부족해요 (${entry.cost}개 필요)`)
+        return
+      }
+      const limit = farmLimit(placing, items.find((i) => i.type === 'house')?.level)
+      if (limit !== null && items.filter((i) => i.type === placing).length >= limit) {
+        get().flash(
+          `${entry.label}은(는) 지금 ${limit}개까지만 둘 수 있어요. 우리 집을 키우면 더 늘어나요!`,
+        )
         return
       }
       const half = landHalf(items)

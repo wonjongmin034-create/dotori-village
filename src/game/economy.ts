@@ -130,6 +130,16 @@ export const HOUSE_LEVELS: HouseLevel[] = [
   { level: 5, label: '큰 저택', cost: 750, desc: '마을에서 제일 멋진 집' },
 ]
 export const MAX_HOUSE_LEVEL = HOUSE_LEVELS.length
+
+// 밭·우리는 무료라서 무한정 늘리면 도토리가 끝없이 불어난다 → 집 단계에 따라 개수 제한.
+// 밭 3~7개, 우리 2~6개 (집 1~5단계). 이미 더 많이 가진 학생은 그대로 두고 새로 놓기만 막는다.
+export const FARM_LIMIT_TYPES = ['plot', 'coop'] as const
+export function farmLimit(type: string, level: number | undefined): number | null {
+  const lv = Math.max(1, Math.min(MAX_HOUSE_LEVEL, level ?? 1))
+  if (type === 'plot') return 2 + lv
+  if (type === 'coop') return 1 + lv
+  return null
+}
 export const houseLevel = (n: number | undefined) =>
   HOUSE_LEVELS.find((l) => l.level === (n ?? 1)) ?? HOUSE_LEVELS[0]
 
