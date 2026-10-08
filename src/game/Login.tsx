@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { InstallGuide } from './InstallGuide'
 import { login, teacherLogin, loadLocalSession, loadLocalTeacher } from './cloud'
 
 export function Login({
@@ -150,6 +151,7 @@ export function Login({
             </p>
           </form>
         )}
+        <InstallGuide />
       </div>
     </div>
   )

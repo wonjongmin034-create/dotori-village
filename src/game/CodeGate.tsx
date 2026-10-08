@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { submitCode } from './appcode'
+import { InstallGuide } from './InstallGuide'
 
 // 앱 맨 처음 화면 — 선생님이 알려 준 입장 코드를 넣어야 로그인 화면으로 넘어간다.
 export function CodeGate({ onOpen }: { onOpen: () => void }) {
@@ -41,6 +42,7 @@ export function CodeGate({ onOpen }: { onOpen: () => void }) {
           </button>
           <p className="login-hint">선생님이 알려 준 코드가 있어야 열 수 있어요. 한 번 열면 이 기기에서는 다시 안 물어봐요.</p>
         </form>
+        <InstallGuide />
       </div>
     </div>
   )
