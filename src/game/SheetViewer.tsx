@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from 'pdfjs-dist'
-import { openPdf } from './pdf'
+import { openPdf, PdfError } from './pdf'
 import type { Stroke, Strokes } from './sheets'
 
 // PDF 학습지를 보여주고 그 위에 펜으로 쓰게 하는 화면. 학생(쓰기)과 선생님(보기 전용)이 함께 쓴다.
@@ -84,7 +84,8 @@ export function SheetViewer({
   footer?: ReactNode
 }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<PdfError | Error | null>(null)
+  const [attempt, setAttempt] = useState(0) // 다시 시도 누를 때마다 +1
   const [pageNum, setPageNum] = useState(1)
   const [pageObj, setPageObj] = useState<PDFPageProxy | null>(null)
   const [boxW, setBoxW] = useState(0)
@@ -115,13 +116,14 @@ export function SheetViewer({
   // ── PDF 열기 ──
   useEffect(() => {
     let dead = false
+    setError(null)
     openPdf(url)
       .then((d) => !dead && setPdf(d))
-      .catch(() => !dead && setError(true))
+      .catch((e) => !dead && setError(e instanceof Error ? e : new Error(String(e))))
     return () => {
       dead = true
     }
-  }, [url])
+  }, [url, attempt])
 
   useEffect(() => {
     if (!pdf) return
@@ -546,7 +548,25 @@ export function SheetViewer({
 
       <div className="sheet-scroll" ref={scrollRef}>
         {error ? (
-          <p className="sheet-msg">PDF를 열 수 없어요. 인터넷을 확인하고 다시 열어 주세요.</p>
+          <div className="sheet-msg">
+            <p>PDF를 열 수 없어요.</p>
+            <p>
+              {error instanceof PdfError && error.stage === 'lib'
+                ? '앱이 새로 바뀐 것 같아요. 새로고침(F5)을 한 번 눌러 주세요.'
+                : error instanceof PdfError && (error.stage === 'parse' || /HTTP 4/.test(error.message))
+                  ? '학습지 파일을 열 수 없어요. 선생님께 알려 주세요.'
+                  : '인터넷(와이파이)을 확인하고 다시 시도해 주세요.'}
+            </p>
+            <p className="sheet-msg-sub">
+              원인: {error instanceof PdfError ? error.stage : 'etc'} · {error.message.slice(0, 80)}
+            </p>
+            <button type="button" className="sheet-retry" onClick={() => setAttempt((n) => n + 1)}>
+              다시 시도
+            </button>{' '}
+            <button type="button" className="sheet-retry" onClick={() => location.reload()}>
+              새로고침
+            </button>
+          </div>
         ) : !pageObj ? (
           <p className="sheet-msg">학습지를 불러오는 중…</p>
         ) : null}
