@@ -237,7 +237,7 @@ export default function App() {
             )
           })()}
 
-            {worksheets.length > 0 &&
+            {(worksheets.length > 0 || !session) &&
               (() => {
                 const todo = worksheets.filter((w) => mySubs[w.id]?.status !== 'submitted').length
                 return (
@@ -246,7 +246,7 @@ export default function App() {
                     className={`sheet-btn${todo ? ' todo' : ' done'}`}
                     onClick={openSheets}
                   >
-                    📄 학습지 {todo ? `${todo}개 남음` : '✓'}
+                    📄 학습지 {!session ? '' : todo ? `${todo}개 남음` : '✓'}
                   </button>
                 )
               })()}

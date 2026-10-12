@@ -165,7 +165,13 @@ export function SheetPanel() {
         </button>
         <h3>📄 학습지</h3>
         <p className="farm-note">선생님이 보낸 학습지예요. 열어서 펜(또는 손가락)으로 풀고 제출해요.</p>
-        {worksheets.length === 0 && <p className="hw-empty">아직 받은 학습지가 없어요.</p>}
+        {worksheets.length === 0 && (
+          <p className="hw-empty">
+            {session
+              ? '아직 받은 학습지가 없어요.'
+              : '"로그인 없이 둘러보기"로 들어오면 학습지가 보이지 않아요. 반 코드·이름·비밀번호로 로그인해 주세요.'}
+          </p>
+        )}
         <div className="sheet-list">
           {worksheets.map((w) => {
             const st = mySubs[w.id]?.status
