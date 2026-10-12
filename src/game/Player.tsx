@@ -7,6 +7,8 @@ import { playerPos, playerMotion } from './player-state'
 import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 import { useLive } from './live'
+import { viewAvatar } from './avatar'
+import { rideOf, applyRidePose } from './rides'
 
 const SPEED = 6 // m/s
 const UP = new THREE.Vector3(0, 1, 0)
@@ -36,7 +38,9 @@ export function Player() {
     eyeR: useRef<THREE.Group>(null),
   }
 
-  const avatar = useVillage((s) => s.avatar)
+  const baseAvatar = useVillage((s) => s.avatar)
+  const rideOn = useVillage((s) => s.rideOn)
+  const avatar = useMemo(() => viewAvatar(baseAvatar, rideOn), [baseAvatar, rideOn])
   const myEmote = useLive((s) => s.emotes.__me)
 
   const s = useRef({ facing: Math.PI, phase: 0, blink: 0, nextBlink: 2.5, vy: 0, land: 0 })
@@ -50,6 +54,9 @@ export function Player() {
     const st = s.current
     const t = state.clock.elapsedTime
     const editing = useVillage.getState().mode === 'edit'
+    const vs = useVillage.getState()
+    const ride = rideOf(vs.rideOn ? vs.avatar.ride : null)
+    const speed = SPEED * (ride?.speed ?? 1)
 
     state.camera.getWorldDirection(tmp.forward)
     tmp.forward.setY(0).normalize()
@@ -64,9 +71,9 @@ export function Player() {
       tmp.dir.set(0, 0, 0).addScaledVector(tmp.right, m.x).addScaledVector(tmp.forward, m.y)
       if (tmp.dir.lengthSq() > 1e-6) tmp.dir.normalize()
 
-      playerPos.addScaledVector(tmp.dir, SPEED * mag * dt)
-      playerMotion.vx = tmp.dir.x * SPEED * mag
-      playerMotion.vz = tmp.dir.z * SPEED * mag
+      playerPos.addScaledVector(tmp.dir, speed * mag * dt)
+      playerMotion.vx = tmp.dir.x * speed * mag
+      playerMotion.vz = tmp.dir.z * speed * mag
       const b = landHalf(viewItems(useVillage.getState())) - 0.4
       playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
       playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
@@ -83,7 +90,7 @@ export function Player() {
     // ── 점프 ──
     if (jumpInput.requested) {
       jumpInput.requested = false
-      if (!editing && playerPos.y <= 0.001 && st.vy === 0) st.vy = JUMP_SPEED
+      if (!editing && playerPos.y <= 0.001 && st.vy === 0) st.vy = JUMP_SPEED * (ride?.jump ?? 1)
     }
     if (playerPos.y > 0 || st.vy !== 0) {
       st.vy -= GRAVITY * dt
@@ -143,6 +150,9 @@ export function Player() {
       if (refs.legL.current) refs.legL.current.rotation.x = -0.55
       if (refs.legR.current) refs.legR.current.rotation.x = 0.25
     }
+
+    // 탈 것을 탔으면 자세를 바꾼다 (타고 있지 않으면 벌어진 팔다리만 원래대로)
+    applyRidePose(refs, ride, moving, st.phase)
 
     // 눈 깜빡임
     st.nextBlink -= dt

@@ -61,6 +61,9 @@ export default function App() {
   const placing = useVillage((s) => s.placing)
   const selected = useVillage((s) => s.selected)
   const items = useVillage((s) => s.items)
+  const avatar = useVillage((s) => s.avatar)
+  const rideOn = useVillage((s) => s.rideOn)
+  const toggleRide = useVillage((s) => s.toggleRide)
   const selectedType = useVillage((s) => s.items.find((i) => i.key === s.selected)?.type)
   const itemCount = useVillage((s) => s.items.length)
   const msg = useVillage((s) => s.msg)
@@ -254,6 +257,20 @@ export default function App() {
               </button>
             )}
           </div>
+        )}
+
+        {!editing && !visiting && avatar.ride && (
+          <button
+            type="button"
+            className="ride-btn"
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              toggleRide()
+            }}
+          >
+            {rideOn ? '🚶' : '🛞'}
+            <span>{rideOn ? '내리기' : '타기'}</span>
+          </button>
         )}
 
         {!editing && (

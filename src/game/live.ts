@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useVillage } from './store'
-import { normalizeAvatar, type Avatar } from './avatar'
+import { normalizeAvatar, viewAvatar, type Avatar } from './avatar'
 import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
 
@@ -202,7 +202,7 @@ function join(owner: string, key: string, me: string) {
       if (status !== 'SUBSCRIBED' || channel !== ch) return
       ready = true
       joinedAt = Date.now()
-      void ch.track({ avatar: useVillage.getState().avatar, t: joinedAt })
+      void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt })
       timer = setInterval(tick, 150)
       setTimeout(send, 400)
     })
@@ -229,8 +229,11 @@ export function sendEmote(e: string) {
   }
 }
 
+// 친구들에게 보여 주는 내 모습 (탈 것에서 내렸으면 탈 것 없이)
+const liveAvatar = (s: { avatar: Avatar; rideOn: boolean }) => viewAvatar(s.avatar, s.rideOn)
+
 useVillage.subscribe((s, prev) => {
   if (s.session !== prev.session || s.visiting !== prev.visiting) syncRoom()
-  else if (s.avatar !== prev.avatar && ready && channel)
-    void channel.track({ avatar: s.avatar, t: joinedAt })
+  else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn) && ready && channel)
+    void channel.track({ avatar: liveAvatar(s), t: joinedAt })
 })

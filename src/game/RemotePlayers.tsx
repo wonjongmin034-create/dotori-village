@@ -4,6 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { Character, type CharacterRefs } from './Character'
 import { normalizeAvatar } from './avatar'
+import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
 
 const MAX_SHOWN = 8 // 크롬북 성능을 위해 한 번에 그리는 친구 수
@@ -115,6 +116,8 @@ function RemoteFigure({ name }: { name: string }) {
       if (refs.legL.current) refs.legL.current.rotation.x = -0.55
       if (refs.legR.current) refs.legR.current.rotation.x = 0.25
     }
+
+    applyRidePose(refs, rideOf(p.avatar.ride), moving, s.phase)
 
     s.nextBlink -= dt
     if (s.nextBlink <= 0 && s.blink === 0) {

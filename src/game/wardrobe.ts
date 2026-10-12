@@ -12,6 +12,7 @@ export type Slot =
   | 'hat'
   | 'acc'
   | 'costume'
+  | 'ride'
 
 export type WardrobeItem = {
   id: string // 모양은 스타일 id, 색은 hex
@@ -165,6 +166,16 @@ export const WARDROBE: WardrobeItem[] = [
     ['dino', '공룡', 30],
     ['space', '우주복', 34],
   ]),
+
+  // ── 탈 것 (조금 비싸다 — 오래 모아야 살 수 있어요) ──
+  ...styles('ride', [
+    ['none', '걷기', 0],
+    ['kick', '킥보드', 90],
+    ['bike', '자전거', 180],
+    ['horse', '말', 330],
+    ['cloud', '구름', 480],
+    ['board', '호버보드', 650],
+  ]),
 ]
 
 export const SLOT_LABEL: Record<Slot, string> = {
@@ -179,6 +190,7 @@ export const SLOT_LABEL: Record<Slot, string> = {
   hat: '모자',
   acc: '액세서리',
   costume: '코스튬',
+  ride: '탈 것',
 }
 
 export const SLOTS: Slot[] = [
@@ -193,6 +205,7 @@ export const SLOTS: Slot[] = [
   'hat',
   'acc',
   'costume',
+  'ride',
 ]
 
 // 색을 고르는 슬롯 (스와치 그리드로 표시)

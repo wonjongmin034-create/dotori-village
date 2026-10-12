@@ -2,6 +2,8 @@ import type { RefObject } from 'react'
 import * as THREE from 'three'
 import { toonGradient } from './toon'
 import type { Avatar } from './avatar'
+import { rideOf } from './rides'
+import { RideModel } from './RideModel'
 
 export type CharacterRefs = {
   bob: RefObject<THREE.Group | null>
@@ -1103,6 +1105,18 @@ function CostumeHead({ id }: { id: string }) {
 
 // 통통한 치비 캐릭터. refs를 통해 Player가 애니메이션한다.
 export function Character({ avatar, refs }: { avatar: Avatar; refs: CharacterRefs }) {
+  const ride = rideOf(avatar.ride)
+  return (
+    <>
+      {ride && <RideModel id={ride.id} />}
+      <group position={[0, ride ? ride.seat : 0, ride && ride.pose === 'horse' ? -0.05 : 0]}>
+        <CharacterBody avatar={avatar} refs={refs} />
+      </group>
+    </>
+  )
+}
+
+function CharacterBody({ avatar, refs }: { avatar: Avatar; refs: CharacterRefs }) {
   return (
     <group ref={refs.bob}>
       {/* 다리 */}

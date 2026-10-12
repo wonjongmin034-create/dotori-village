@@ -2574,3 +2574,39 @@ canvas {
   color: #2f7a3e;
   font-weight: 800;
 }
+
+
+/* ── 탈 것 타기/내리기 버튼 ── */
+.ride-btn {
+  position: absolute;
+  right: 14px;
+  bottom: 200px;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(91, 141, 214, 0.94);
+  box-shadow: 0 4px 14px rgba(60, 100, 170, 0.4);
+  touch-action: none;
+  user-select: none;
+}
+.ride-btn span {
+  font-size: 10.5px;
+}
+.ride-btn:active {
+  transform: scale(0.92);
+}
+.wd-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #8a8f86;
+}

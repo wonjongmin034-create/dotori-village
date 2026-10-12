@@ -13,6 +13,7 @@ import {
   type Slot,
 } from './wardrobe'
 import type { Avatar } from './avatar'
+import { RIDES, rideOf, applyRidePose } from './rides'
 
 function PreviewCharacter({ avatar }: { avatar: Avatar }) {
   const spin = useRef<THREE.Group>(null)
@@ -34,6 +35,7 @@ function PreviewCharacter({ avatar }: { avatar: Avatar }) {
     if (spin.current) spin.current.rotation.y = el * 0.5
     if (refs.bob.current) refs.bob.current.position.y = Math.sin(el * 2) * 0.02
     if (refs.body.current) refs.body.current.scale.y = 1 + Math.sin(el * 2) * 0.03
+    applyRidePose(refs, rideOf(avatar.ride), false, 0)
     blink.current.t -= dt
     if (blink.current.t <= 0 && blink.current.on === 0) {
       blink.current.on = 0.14
@@ -46,7 +48,7 @@ function PreviewCharacter({ avatar }: { avatar: Avatar }) {
   })
 
   return (
-    <group ref={spin} position={[0, -0.75, 0]}>
+    <group ref={spin} position={[0, avatar.ride ? -0.85 : -0.75, 0]} scale={avatar.ride ? 0.8 : 1}>
       <Character avatar={avatar} refs={refs} />
     </group>
   )
@@ -116,7 +118,15 @@ export function WardrobePanel() {
                 {isColor ? (
                   <span className="wd-color" style={{ background: it.swatch }} />
                 ) : (
-                  <span className="wd-name">{it.label}</span>
+                  <span className="wd-name">
+                    {it.label}
+                    {slot === 'ride' && RIDES[it.id] && (
+                      <small className="wd-sub">
+                        ⚡×{RIDES[it.id].speed}
+                        {RIDES[it.id].jump > 1.15 ? ' · 높이뛰기' : ''}
+                      </small>
+                    )}
+                  </span>
                 )}
                 <span className="wd-tag">
                   {equipped ? '착용중' : has ? (it.cost === 0 ? '' : '보유') : `🌰${it.cost}`}

@@ -265,6 +265,7 @@ interface VillageState {
   arcadeLocked: boolean
   mission: Mission | null
   avatar: Avatar
+  rideOn: boolean // 탈 것을 타고 있는지 (장착한 탈 것이 있을 때만 의미 있음)
   wardrobe: string[]
   daily: DailyLearn | null
   classQuestions: Question[] // 선생님이 이 반에 추가한 문제
@@ -287,6 +288,7 @@ interface VillageState {
 
   setHomework: (text: string) => void
   setAvatar: (a: Avatar) => void
+  toggleRide: () => void
   chooseWardrobe: (slot: Slot, id: string) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
   hydrateHomework: (text: string) => void
@@ -369,6 +371,7 @@ export const useVillage = create<VillageState>((set, get) => {
     arcadeLocked: false,
     mission: null,
     avatar: avatarOf(initial.items),
+    rideOn: true,
     wardrobe: wardrobeOf(initial.items),
     daily: dailyOf(initial.items),
     classQuestions: [],
@@ -400,6 +403,8 @@ export const useVillage = create<VillageState>((set, get) => {
       set({ items: next, avatar: normalizeAvatar(a) })
     },
 
+    toggleRide: () => set({ rideOn: !get().rideOn }),
+
     chooseWardrobe: (slot, id) => {
       const item = findItem(slot, id)
       if (!item) return
@@ -412,14 +417,20 @@ export const useVillage = create<VillageState>((set, get) => {
         return
       }
       const nextOwned = has ? owned : [...owned, key]
-      const nullable = slot === 'hat' || slot === 'acc' || slot === 'costume'
+      const nullable = slot === 'hat' || slot === 'acc' || slot === 'costume' || slot === 'ride'
       const nextAvatar = { ...get().avatar, [slot]: nullable && id === 'none' ? null : id }
       const nextItems = items.map((i) =>
         i.type === 'house' ? { ...i, avatar: nextAvatar, wardrobe: nextOwned } : i,
       )
       const nextCoins = has ? coins : coins - item.cost
       save(nextCoins, nextItems, get().homework)
-      set({ items: nextItems, coins: nextCoins, avatar: normalizeAvatar(nextAvatar), wardrobe: nextOwned })
+      set({
+        items: nextItems,
+        coins: nextCoins,
+        avatar: normalizeAvatar(nextAvatar),
+        wardrobe: nextOwned,
+        ...(slot === 'ride' && id !== 'none' ? { rideOn: true } : {}),
+      })
       if (!has) get().flash(`${item.label} 구매! -${item.cost} 도토리`)
     },
 

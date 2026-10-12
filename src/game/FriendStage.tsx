@@ -7,6 +7,7 @@ import { houseLevel } from './economy'
 import { houseEmoji } from './friends'
 import { useVillage } from './store'
 import { useLive } from './live'
+import { rideOf, applyRidePose } from './rides'
 
 // 친구 마을에 놀러 갔을 때: 친구 캐릭터가 집 앞에 서 있고, 집 위에 오두막 레벨 표시가 뜬다.
 export function FriendStage() {
@@ -40,6 +41,7 @@ export function FriendStage() {
     }
     if (blink.current.on > 0) blink.current.on = Math.max(0, blink.current.on - dt)
     const y = blink.current.on > 0 ? 0.08 : 1
+    applyRidePose(refs, rideOf(visiting?.avatar.ride), false, 0)
     for (const e of [refs.eyeL.current, refs.eyeR.current]) if (e) e.scale.y = THREE.MathUtils.damp(e.scale.y, y, 30, dt)
   })
 

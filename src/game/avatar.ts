@@ -12,6 +12,7 @@ export type Avatar = {
   hat: string | null // 모자 id (null = 없음)
   acc: string | null // 액세서리 id (null = 없음)
   costume: string | null // 전신 코스튬 id (있으면 상의·하의 모양 무시)
+  ride: string | null // 탈 것 id (null = 걸어 다님)
 }
 
 export const DEFAULT_AVATAR: Avatar = {
@@ -27,7 +28,11 @@ export const DEFAULT_AVATAR: Avatar = {
   hat: null,
   acc: null,
   costume: null,
+  ride: null,
 }
+
+// 탈 것에서 내려 있으면 탈 것 없는 모습으로 (화면·실시간 공유에 쓰는 모습)
+export const viewAvatar = (a: Avatar, rideOn: boolean): Avatar => (a.ride && !rideOn ? { ...a, ride: null } : a)
 
 export function normalizeAvatar(a: Partial<Avatar> | undefined | null): Avatar {
   return { ...DEFAULT_AVATAR, ...(a && typeof a === 'object' ? a : {}) }
