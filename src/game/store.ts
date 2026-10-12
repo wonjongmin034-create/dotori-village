@@ -10,8 +10,8 @@ import {
   HOUSE_LEVELS,
   ENHANCE_DAILY_LIMIT,
   DAILY_PER_SUBJECT,
-  DAILY_PER_CORRECT,
-  dailyBonus,
+  dailyPoints,
+  dailyPay,
   enhanceStep,
   enhanceSell,
   LAND_START,
@@ -57,7 +57,10 @@ export type DailyLearn = {
   day: string // YYYY-MM-DD
   picks: Record<string, number> // 문제 id → 고른 보기 (첫 제출)
   idx: number // 지금까지 답한 문제 수 (= 다음에 풀 문제 번호)
-  score: number // 맞힌 개수
+  score: number // 맞힌 개수 (두 번째에 맞힌 것 포함)
+  first?: number // 그중 처음에 맞힌 개수 (없으면 옛 기록 = 전부 처음에 맞힘)
+  retry?: Record<string, number> // 문제 id → 힌트를 보고 다시 고른 보기
+  v?: number // 2 = 점수 합산 후 한꺼번에 지급 (옛 기록은 맞힐 때마다 지급했음)
   claimed: boolean // 보상 받았는지
   earned: number // 받은 도토리
 }
@@ -204,6 +207,9 @@ const freshDaily = (day: string): DailyLearn => ({
   picks: {},
   idx: 0,
   score: 0,
+  first: 0,
+  retry: {},
+  v: 2,
   claimed: false,
   earned: 0,
 })
@@ -319,6 +325,7 @@ interface VillageState {
   setVisiting: (v: Visiting | null) => void
   setNotice: (text: string | null) => void
   answerDaily: (pick: number) => void
+  retryDaily: (pick: number) => void
   claimDaily: () => void
 
   askQuiz: (onPass: () => void) => void
@@ -624,6 +631,7 @@ export const useVillage = create<VillageState>((set, get) => {
         quiz: null,
       }),
 
+    // 첫 시도: 맞히면 다음 문제로, 틀리면 같은 문제에서 힌트를 보고 한 번 더 고른다 (retryDaily)
     answerDaily: (pick) => {
       const { items } = get()
       const d = dailyOf(items)
@@ -636,13 +644,36 @@ export const useVillage = create<VillageState>((set, get) => {
       const nextDaily: DailyLearn = {
         ...d,
         picks: { ...d.picks, [q.id]: pick },
-        idx: d.idx + 1,
+        idx: d.idx + (correct ? 1 : 0),
         score: d.score + (correct ? 1 : 0),
+        first: (d.first ?? d.score) + (correct ? 1 : 0),
       }
-      const nextCoins = get().coins + (correct ? DAILY_PER_CORRECT : 0)
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, daily: nextDaily } : i))
-      save(nextCoins, nextItems, get().homework)
-      set({ items: nextItems, daily: nextDaily, coins: nextCoins })
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, daily: nextDaily })
+    },
+
+    // 두 번째 시도 (힌트를 본 뒤) — 맞히면 ½점
+    retryDaily: (pick) => {
+      const { items } = get()
+      const d = dailyOf(items)
+      if (!d || d.claimed) return
+      const set_ = dailySet(d.day, DAILY_PER_SUBJECT, get().classQuestions)
+      if (d.idx >= set_.length) return
+      const q = set_[d.idx]
+      const first = d.picks[q.id]
+      if (first == null || first === q.answer || pick === first) return
+      if (d.retry?.[q.id] != null) return
+      const nextDaily: DailyLearn = {
+        ...d,
+        retry: { ...d.retry, [q.id]: pick },
+        idx: d.idx + 1,
+        score: d.score + (pick === q.answer ? 1 : 0),
+        first: d.first ?? d.score,
+      }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, daily: nextDaily } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, daily: nextDaily })
     },
 
     claimDaily: () => {
@@ -651,15 +682,21 @@ export const useVillage = create<VillageState>((set, get) => {
       if (!d || d.claimed) return
       const set_ = dailySet(d.day, DAILY_PER_SUBJECT, get().classQuestions)
       if (d.idx < set_.length) return
-      const rate = set_.length ? d.score / set_.length : 0
-      const add = dailyBonus(rate)?.add ?? 0
-      const total = d.score * DAILY_PER_CORRECT + add
+      const pay = dailyPay(dailyPoints(d.score, d.first), set_.length)?.coins ?? 0
+      // 옛 방식(맞힐 때마다 1개씩 지급)으로 이미 받은 만큼은 빼고 준다
+      const already = d.v === 2 ? 0 : d.score
+      const add = Math.max(0, pay - already)
+      const total = Math.max(pay, already)
       const nextDaily: DailyLearn = { ...d, claimed: true, earned: total }
-      const nextCoins = get().coins + add // 맞힌 문제 도토리는 풀 때 이미 지급됨
+      const nextCoins = get().coins + add
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, daily: nextDaily } : i))
       save(nextCoins, nextItems, get().homework)
       set({ items: nextItems, daily: nextDaily, coins: nextCoins })
-      get().flash(`오늘의 학습 끝! ${d.score}/${set_.length} · +${total} 도토리`)
+      get().flash(
+        total > 0
+          ? `오늘의 학습 끝! ${d.score}/${set_.length} · +${total} 도토리`
+          : `오늘의 학습 끝! ${d.score}/${set_.length} · 내일 다시 도전해요`,
+      )
     },
 
     askQuiz: (onPass) => set({ quiz: { onPass } }),

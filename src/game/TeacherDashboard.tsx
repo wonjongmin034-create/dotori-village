@@ -63,7 +63,7 @@ function DailyLearnCard({
     <section className="dash-card">
       <h3>📚 오늘의 학습</h3>
       <p className="dash-note">
-        하루 20문제(국어·수학·사회·과학·영어). 같은 반은 같은 문제를 풀어요. 학생별로 틀린 문제를 볼 수 있어요.
+        하루 20문제(국어·수학·사회·과학·영어). 같은 반은 같은 문제를 풀어요. 처음에 틀리면 힌트를 보고 한 번 더 풀 수 있고(맞히면 ½점), 20점 중 10점 미만이면 도토리가 없어요. 학생별로 처음에 틀린 문제를 볼 수 있어요.
       </p>
 
       {hardest.length > 0 && (
@@ -152,6 +152,7 @@ function QuestionMakerCard({
   const [choices, setChoices] = useState(['', '', '', ''])
   const [answer, setAnswer] = useState(0)
   const [explain, setExplain] = useState('')
+  const [hint, setHint] = useState('')
   const [bulk, setBulk] = useState('')
 
   const save = async (next: Question[]) => {
@@ -174,13 +175,22 @@ function QuestionMakerCard({
     }
     const ok = await save([
       ...questions,
-      { id: newQuestionId(), subject, q: q.trim(), choices: cs, answer, explain: explain.trim() },
+      {
+        id: newQuestionId(),
+        subject,
+        q: q.trim(),
+        choices: cs,
+        answer,
+        explain: explain.trim(),
+        ...(hint.trim() ? { hint: hint.trim() } : {}),
+      },
     ])
     if (!ok) return
     setQ('')
     setChoices(['', '', '', ''])
     setAnswer(0)
     setExplain('')
+    setHint('')
     setNote('문제를 추가했어요')
   }
 
@@ -256,6 +266,11 @@ function QuestionMakerCard({
             </label>
           ))}
           <input
+            placeholder="힌트 (선택) — 틀린 학생이 두 번째로 풀 때 보여요"
+            value={hint}
+            onChange={(e) => setHint(e.target.value)}
+          />
+          <input
             placeholder="해설 (선택)"
             value={explain}
             onChange={(e) => setExplain(e.target.value)}
@@ -277,7 +292,7 @@ function QuestionMakerCard({
           />
           <p className="qm-help">
             <code>[과목]</code> 으로 시작 · <code>-</code> 보기 · <code>*</code> 정답 ·{' '}
-            <code>해설:</code> 선택 · 빈 줄로 문제 구분
+            <code>해설:</code> <code>힌트:</code> 선택 · 빈 줄로 문제 구분
           </p>
           <button type="button" className="primary wide" disabled={busy} onClick={addBulk}>
             붙여넣은 문제 추가

@@ -22,16 +22,26 @@ export const QUIZ_REWARD = 2 // 돌봄(물주기 등) 앞 문제 하나 맞히�
 
 /* ---------- 오늘의 학습 (하루 할당 문제) ---------- */
 export const DAILY_PER_SUBJECT = 4 // 과목(국어·수학·사회·과학·영어)당 문제 수 → 하루 20문제
-export const DAILY_PER_CORRECT = 1 // 한 문제 맞힐 때마다 주는 도토리
-// 다 풀면 정답률에 따라 추가 보상 (위에서부터 맞는 첫 칸)
-export const DAILY_BONUS: { rate: number; add: number; label: string }[] = [
-  { rate: 1.0, add: 15, label: '만점 🏆' },
-  { rate: 0.9, add: 9, label: '훌륭해요' },
-  { rate: 0.75, add: 5, label: '잘했어요' },
-  { rate: 0.6, add: 2, label: '통과' },
+// 처음에 맞히면 1점, 틀려서 힌트를 보고 두 번째에 맞히면 ½점. 점수가 절반(20문제 중 10점) 미만이면 도토리는 없다.
+export const DAILY_RETRY_CREDIT = 0.5
+// 점수 비율(맞힌 점수 ÷ 문제 수)에 따라 한꺼번에 지급 — 위에서부터 맞는 첫 칸
+export const DAILY_PAY: { rate: number; coins: number; label: string }[] = [
+  { rate: 1.0, coins: 35, label: '만점 🏆' },
+  { rate: 0.9, coins: 27, label: '훌륭해요' },
+  { rate: 0.8, coins: 20, label: '아주 잘했어요' },
+  { rate: 0.7, coins: 14, label: '잘했어요' },
+  { rate: 0.6, coins: 9, label: '좋아요' },
+  { rate: 0.5, coins: 5, label: '통과' },
 ]
-export function dailyBonus(rate: number): { rate: number; add: number; label: string } | null {
-  return DAILY_BONUS.find((t) => rate >= t.rate - 1e-9) ?? null
+export const DAILY_MIN_RATE = DAILY_PAY[DAILY_PAY.length - 1].rate
+// 맞힌 개수(score) 중 처음에 맞힌 개수(first)로 점수를 계산 (first 없는 옛 기록은 전부 처음에 맞힌 것으로 본다)
+export const dailyPoints = (score: number, first?: number) => {
+  const f = first ?? score
+  return f + (score - f) * DAILY_RETRY_CREDIT
+}
+export function dailyPay(points: number, total: number): { rate: number; coins: number; label: string } | null {
+  const rate = total ? points / total : 0
+  return DAILY_PAY.find((t) => rate >= t.rate - 1e-9) ?? null
 }
 export const CARE_COOLDOWN_MS = hours(10) // 물/먹이 다시 줄 수 있을 때까지 (약 10시간 → 하루 1~2번)
 export const FERTILIZER_COST = 3 // 비료 값

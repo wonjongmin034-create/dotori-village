@@ -2538,3 +2538,39 @@ canvas {
   font-weight: 800;
   cursor: pointer;
 }
+
+
+/* --- 오늘의 학습: 힌트·지급표 --- */
+.learn-hintbox {
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #fff4d6;
+  border: 1px solid #f0d58a;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6a5420;
+}
+.learn-hintbox p {
+  margin: 4px 0 0;
+}
+.learn-paytable {
+  width: 100%;
+  margin: 10px 0 4px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: #5a6b5f;
+}
+.learn-paytable td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #ece8d8;
+}
+.learn-paytable td:last-child {
+  text-align: right;
+  font-weight: 700;
+}
+.learn-paytable tr.on {
+  background: #e3f4dc;
+  color: #2f7a3e;
+  font-weight: 800;
+}

@@ -7,6 +7,7 @@ export type Question = {
   choices: string[]
   answer: number // 정답 인덱스
   explain: string
+  hint?: string // 틀렸을 때 두 번째 기회에서 보여 주는 힌트 (정답을 직접 알려 주지 않는다)
 }
 
 export const SUBJECTS: Subject[] = ['국어', '수학', '사회', '과학', '영어']
@@ -496,6 +497,63 @@ export const QUESTIONS: Question[] = [
   },
 ]
 
+// 기본 문제의 힌트 (문제 id → 힌트). 선생님이 만든 문제는 문제 자체의 hint 를 쓴다.
+const HINTS: Record<string, string> = {
+  ko1: '"손"은 일하는 손이에요. 재물을 쓰는 손이 크면 어떨까요?',
+  ko2: '"결코"는 뒤에 "~지 않다" 같은 말이 따라와요.',
+  ko3: '할머니는 높여야 해요. 주어·밥·먹다 세 가지를 다 높였는지 보세요.',
+  ko4: '앞 문장과 뒤 문장이 서로 반대되는 내용이에요. 반대일 때 쓰는 말이 뭘까요?',
+  ko5: '풋고추, 풋열매의 "풋-"을 떠올려 보세요. 아직 어떤 상태일까요?',
+  ko6: '내 생각이 맞다고 믿게 해 주는 "까닭"을 뭐라고 할까요?',
+  ko7: '상대 주장에 "그건 틀렸어요"라고 맞서 말하는 거예요. "반-"이 힌트!',
+  ko8: '주장하는 글은 문제를 꺼내고, 주장을 펼치고, 마무리하는 순서예요. 한자어로 된 이름이에요.',
+  ko9: '"한 우물"을 끝까지 판다는 말이에요. 여러 곳을 조금씩 파면 물이 나올까요?',
+  ko10: '"옹기"는 항아리예요. 크고 작은 항아리가 모여 있는 모습을 떠올려 보세요.',
+  ma1: '계산 순서: 괄호 안 → 곱셈 → 뺄셈. 괄호 안 3+4부터 해 보세요.',
+  ma2: '두 수를 모두 나눌 수 있는 수 중 가장 큰 수예요. 24와 36을 둘 다 나누는 수를 찾아 보세요.',
+  ma3: '4의 배수(4, 8, 12…)와 6의 배수(6, 12…)에서 처음으로 겹치는 수를 찾아 보세요.',
+  ma4: '분모 3과 4의 최소공배수로 분모를 맞춰 보세요.',
+  ma5: '분모를 6으로 맞추면 1/3은 몇 분의 6일까요?',
+  ma6: '평행사변형의 넓이는 밑변 × 높이예요.',
+  ma7: '삼각형은 같은 크기의 사각형을 반으로 자른 모양이에요. 마지막에 2로 나눠요.',
+  ma8: '8을 분모 4로 먼저 나눈 뒤 3을 곱해도 돼요.',
+  ma9: '소수점을 무시하고 12 × 5를 한 뒤, 소수점 아래가 모두 몇 자리인지 세어 보세요.',
+  ma10: '주사위(정육면체)의 면은 몇 개일까요? 직육면체도 같아요.',
+  so1: '세계지도에서 우리나라를 찾아 보세요. 적도보다 위쪽, 아시아의 동쪽이에요.',
+  so2: '동해에 있는 섬이에요. "우리 땅" 노래에 나오는 그 섬!',
+  so3: '"입법"을 하는 기관이에요. 국회의원이 일하는 곳이에요.',
+  so4: '"사법" 기관이에요. 판사가 재판을 하는 곳이에요.',
+  so5: '나라에서 가장 높은 법의 이름이에요. 제헌절(7월 17일)과 관련 있어요.',
+  so6: '입법·행정·사법에 해당하지 않는 것은? 신문이나 방송과 관련된 말이에요.',
+  so7: '우리 역사의 첫 나라 고조선을 세웠다는 이야기에 나오는 분이에요. 곰과 호랑이 이야기를 떠올려 보세요.',
+  so8: '고려 다음 나라인 조선을 세운 분이에요. 태조라고도 불러요.',
+  so9: '우리나라 큰 산맥(태백산맥)은 어느 쪽에 있을까요? 강은 높은 곳에서 낮은 곳으로 흘러요.',
+  so10: '"저출산"은 아이가 적게, "고령화"는 나이 드신 분이 많아지는 것이에요.',
+  sc1: '뜨거운 컵을 잡으면 손이 따뜻해져요. 열은 뜨거운 쪽에서 어디로 갈까요?',
+  sc2: '이름이 비슷한 "가스 행성". 태양계 행성 중 가장 큰 행성이에요.',
+  sc3: '지구가 태양 둘레를 한 바퀴 도는 데 얼마나 걸리는지 생각해 보세요.',
+  sc4: '녹는 물질은 용질, 녹이는 물질은 용매예요. 소금은 녹는 쪽일까요, 녹이는 쪽일까요?',
+  sc5: '빵에 핀 곰팡이, 숲에서 자라는 버섯은 식물도 동물도 아니에요. 한자어로 "~류"예요.',
+  sc6: '이름에 "원시"가 들어가요. 현미경으로 봐야 보이는 작은 생물이에요.',
+  sc7: '달리기 시합을 떠올려 보세요. 같은 거리를 먼저 도착한 사람은 시간이 어땠을까요?',
+  sc8: '식초나 레몬즙에 푸른 리트머스 종이를 담그면 어떻게 될까요? 신맛이 나는 용액이에요.',
+  sc9: '비누나 세제처럼 미끌미끌한 용액이에요. 나머지는 신맛이 나요.',
+  sc10: '차가운 컵 겉면에 물방울이 맺히는 일이에요. 기체가 액체로 바뀌는 현상이에요.',
+  en1: 'How old ~? 는 나이를 묻는 말이에요. 나이를 말하는 대답을 골라요.',
+  en2: 'Can you ~? 에는 같은 단어 can을 써서 대답해요. "응"은 Yes예요.',
+  en3: 'yesterday는 어제예요. 어제 한 일이니 동사를 과거형(-ed)으로 써요.',
+  en4: 'How much ~? 는 "얼마예요?"라는 뜻이에요. 돈과 관련 있어요.',
+  en5: 'Where ~? 는 "어디에 있니?"를 묻는 말이에요. 장소를 말하는 대답을 골라요.',
+  en6: 'get up은 침대에서 몸을 일으키는 거예요. seven은 숫자 7이에요.',
+  en7: '요일 이름은 첫 글자를 대문자로 써요. 철자 W-e-d-n-e-s-d-a-y를 천천히 읽어 보세요.',
+  en8: `Don't ~ 는 "~하지 마"라는 금지의 말이에요. run은 달리다예요.`,
+  en9: 'taller는 tall(키가 큰)에 -er이 붙었어요. than은 "~보다"예요.',
+  en10: 'May I ~? 는 정중하게 "~해도 될까요?"라고 부탁하거나 허락을 구할 때 써요.',
+}
+export function hintOf(q: Question): string | null {
+  return q.hint || HINTS[q.id] || null
+}
+
 const BY_ID: Record<string, Question> = Object.fromEntries(QUESTIONS.map((q) => [q.id, q]))
 export function questionById(id: string): Question | undefined {
   return BY_ID[id]
@@ -576,6 +634,7 @@ export function sanitizeQuestions(raw: unknown): Question[] {
       choices,
       answer,
       explain: typeof o.explain === 'string' ? o.explain.trim() : '',
+      ...(typeof o.hint === 'string' && o.hint.trim() ? { hint: o.hint.trim() } : {}),
     })
   }
   return out
@@ -591,6 +650,7 @@ export function newQuestionId(): string {
 //   * 7          ← * 가 정답
 //   - 8
 //   해설: 3 더하기 4는 7
+//   힌트: 3에서 4만큼 더 세어 보세요   (선택)
 //   (빈 줄로 문제 구분)
 export function parseQuestions(text: string): { questions: Question[]; errors: number } {
   const blocks = text
@@ -612,7 +672,13 @@ export function parseQuestions(text: string): { questions: Question[]; errors: n
     const choices: string[] = []
     let answer = -1
     let explain = ''
+    let hint = ''
     for (const line of lines.slice(1)) {
+      const hi = line.match(/^힌트\s*[:：]\s*(.*)$/)
+      if (hi) {
+        hint = hi[1].trim()
+        continue
+      }
       const ex = line.match(/^(해설|설명)\s*[:：]\s*(.*)$/)
       if (ex) {
         explain = ex[2].trim()
@@ -631,7 +697,7 @@ export function parseQuestions(text: string): { questions: Question[]; errors: n
       errors++
       continue
     }
-    questions.push({ id: newQuestionId(), subject, q, choices, answer, explain })
+    questions.push({ id: newQuestionId(), subject, q, choices, answer, explain, ...(hint ? { hint } : {}) })
   }
   return { questions, errors }
 }
