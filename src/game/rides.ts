@@ -13,11 +13,11 @@ export type RideDef = {
 }
 
 export const RIDES: Record<string, RideDef> = {
-  kick: { id: 'kick', label: '킥보드', speed: 1.3, jump: 1, seat: 0.16, pose: 'kick', blurb: '가볍게 쓩!' },
-  bike: { id: 'bike', label: '자전거', speed: 1.55, jump: 1, seat: 0.34, pose: 'bike', blurb: '페달을 밟아요' },
-  horse: { id: 'horse', label: '말', speed: 1.8, jump: 1.1, seat: 0.64, pose: 'horse', blurb: '다그닥 다그닥' },
-  cloud: { id: 'cloud', label: '구름', speed: 1.6, jump: 1.7, seat: 0.4, pose: 'cloud', blurb: '높이높이 뛰어요' },
-  board: { id: 'board', label: '호버보드', speed: 2, jump: 1.2, seat: 0.3, pose: 'board', blurb: '제일 빨라요!' },
+  kick: { id: 'kick', label: '킥보드', speed: 1.15, jump: 1, seat: 0.16, pose: 'kick', blurb: '가볍게 쓩!' },
+  bike: { id: 'bike', label: '자전거', speed: 1.3, jump: 1, seat: 0.34, pose: 'bike', blurb: '페달을 밟아요' },
+  horse: { id: 'horse', label: '말', speed: 1.45, jump: 1.1, seat: 0.64, pose: 'horse', blurb: '다그닥 다그닥' },
+  cloud: { id: 'cloud', label: '구름', speed: 1.3, jump: 1.7, seat: 0.4, pose: 'cloud', blurb: '높이높이 뛰어요' },
+  board: { id: 'board', label: '호버보드', speed: 1.6, jump: 1.2, seat: 0.3, pose: 'board', blurb: '제일 빨라요!' },
 }
 
 export const rideOf = (id: string | null | undefined): RideDef | null => (id ? (RIDES[id] ?? null) : null)

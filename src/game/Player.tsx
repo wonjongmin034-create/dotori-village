@@ -10,7 +10,7 @@ import { useLive } from './live'
 import { viewAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 
-const SPEED = 6 // m/s
+const SPEED = 5 // m/s
 const UP = new THREE.Vector3(0, 1, 0)
 const GRAVITY = 24
 const JUMP_SPEED = 7.4 // 높이 약 1.1m, 공중에 약 0.6초
