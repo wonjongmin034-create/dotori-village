@@ -16,7 +16,7 @@ import {
 import type { Avatar } from './avatar'
 import { RIDES, rideOf, applyRidePose } from './rides'
 
-function PreviewCharacter({ avatar }: { avatar: Avatar }) {
+export function PreviewCharacter({ avatar }: { avatar: Avatar }) {
   const spin = useRef<THREE.Group>(null)
   const refs: CharacterRefs = {
     bob: useRef<THREE.Group>(null),

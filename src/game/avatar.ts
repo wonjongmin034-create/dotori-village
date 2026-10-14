@@ -13,6 +13,8 @@ export type Avatar = {
   acc: string | null // 액세서리 id (null = 없음)
   costume: string | null // 전신 코스튬 id (있으면 상의·하의 모양 무시)
   ride: string | null // 탈 것 id (null = 걸어 다님)
+  weapon: string | null // 들고 있는 무기 종류 (null = 안 듦)
+  wt: number // 들고 있는 무기의 단계 1~6
 }
 
 export const DEFAULT_AVATAR: Avatar = {
@@ -29,6 +31,8 @@ export const DEFAULT_AVATAR: Avatar = {
   acc: null,
   costume: null,
   ride: null,
+  weapon: 'sword', // 처음엔 모두 나무 목검을 들고 시작
+  wt: 1,
 }
 
 // 탈 것에서 내려 있으면 탈 것 없는 모습으로 (화면·실시간 공유에 쓰는 모습)

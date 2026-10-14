@@ -75,7 +75,21 @@ function withHole(outer: THREE.Shape, make: () => THREE.Shape, k: number) {
   return outer
 }
 
-export type ShapeKind = 'star' | 'heart' | 'wing' | 'starring' | 'heartring'
+// 도끼날: 손잡이 쪽은 좁고 바깥쪽 날은 둥글게 퍼진다 (+x 방향)
+function axeShape() {
+  const s = new THREE.Shape()
+  s.moveTo(0, 0.14)
+  s.lineTo(0.12, 0.2)
+  s.quadraticCurveTo(0.3, 0.36, 0.42, 0.34)
+  s.quadraticCurveTo(0.5, 0.1, 0.46, 0)
+  s.quadraticCurveTo(0.5, -0.1, 0.42, -0.34)
+  s.quadraticCurveTo(0.3, -0.36, 0.12, -0.2)
+  s.lineTo(0, -0.14)
+  s.closePath()
+  return s
+}
+
+export type ShapeKind = 'star' | 'heart' | 'wing' | 'starring' | 'heartring' | 'axehead'
 
 const geoCache = new Map<string, THREE.BufferGeometry>()
 function geo(kind: ShapeKind, depth: number): THREE.BufferGeometry {
@@ -86,6 +100,7 @@ function geo(kind: ShapeKind, depth: number): THREE.BufferGeometry {
     if (kind === 'star') shape = starShape()
     else if (kind === 'heart') shape = heartShape()
     else if (kind === 'wing') shape = wingShape()
+    else if (kind === 'axehead') shape = axeShape()
     else if (kind === 'starring') shape = withHole(starShape(), starShape, 0.55)
     else shape = withHole(heartShape(), heartShape, 0.6)
     g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 10 })

@@ -22,6 +22,7 @@ import { endVisit } from './game/friends'
 import { requestJump } from './game/input'
 import { enterPlaza, leavePlaza } from './game/plaza'
 import { OmokHud } from './game/OmokHud'
+import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
 import { refreshTitles } from './game/omokStats'
 import { MAX_IN_ROOM, useLive } from './game/live'
 import { LiveHud } from './game/LiveHud'
@@ -274,6 +275,7 @@ export default function App() {
                 )
               })()}
 
+            <ArmoryButton />
             {session && (
               <button type="button" className="friends-btn" onClick={openFriends}>
                 👫 친구 마을
@@ -426,6 +428,7 @@ export default function App() {
       <BoardPanel />
       <ArcadePanel />
       <WardrobePanel />
+      <ArmoryPanel />
       <DailyLearnPanel />
       <SheetPanel />
       <LiveHud />

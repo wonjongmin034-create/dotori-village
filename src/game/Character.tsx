@@ -4,6 +4,8 @@ import { toonGradient } from './toon'
 import type { Avatar } from './avatar'
 import { rideOf } from './rides'
 import { RideModel } from './RideModel'
+import { Weapon } from './WeaponModel'
+import { HOLD_TILT, isFamily } from './weapons'
 import { HatMore, HairMore, NEW_HATS, NEW_HAIR } from './WearHats'
 import {
   TopMore, HipMore, PantsLeg, ShoeMore,
@@ -679,6 +681,16 @@ function Arm({ avatar }: { avatar: Avatar }) {
   )
 }
 
+// 오른손에 든 무기: 손 위치에서 앞쪽 위로 비스듬히 뻗는다
+function HeldWeapon({ avatar }: { avatar: Avatar }) {
+  const long = !!avatar.costume || LONG_SLEEVE.has(avatar.top) || NEW_LONG_TOPS.has(avatar.top)
+  return (
+    <group position={[0, long ? -0.4 : -0.3, 0.02]} rotation={[avatar.weapon && isFamily(avatar.weapon) ? HOLD_TILT[avatar.weapon] : 1.05, 0, 0]}>
+      <Weapon family={avatar.weapon} tier={avatar.wt} />
+    </group>
+  )
+}
+
 function Leg({ avatar }: { avatar: Avatar }) {
   const cos = avatar.costume
   if (cos) {
@@ -1174,6 +1186,7 @@ function CharacterBody({ avatar, refs }: { avatar: Avatar; refs: CharacterRefs }
       </group>
       <group ref={refs.armR} position={[-0.34, 0.66, 0]}>
         <Arm avatar={avatar} />
+        {avatar.weapon && <HeldWeapon avatar={avatar} />}
       </group>
 
       {/* 머리 */}

@@ -26,6 +26,7 @@ import { dateKey, type ClassLunch } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
 import { findItem, ownsItem, type Slot } from './wardrobe'
+import { MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
 
 export type { Avatar }
 
@@ -78,6 +79,7 @@ export type PlacedItem = {
   land?: number // (집에만) 마을 땅 반쪽 크기
   avatar?: Avatar // (집에만) 내 캐릭터 외형
   wardrobe?: string[] // (집에만) 산 옷 id들 ("slot:id")
+  weapons?: Record<string, number> // (집에만) 가진 무기와 단계 { sword: 3, bow: 1 }
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
@@ -197,6 +199,15 @@ function ensureLayout(items: PlacedItem[]): PlacedItem[] {
 
 const avatarOf = (items: PlacedItem[]) =>
   normalizeAvatar(items.find((i) => i.type === 'house')?.avatar)
+// 가진 무기 (없으면 처음 주는 나무 목검 하나)
+const weaponsOf = (items: PlacedItem[]): Record<string, number> => {
+  const w = items.find((i) => i.type === 'house')?.weapons
+  const out: Record<string, number> = {}
+  if (w && typeof w === 'object')
+    for (const [k, v] of Object.entries(w)) if (isFamily(k) && typeof v === 'number') out[k] = Math.max(1, Math.min(MAX_TIER, Math.round(v)))
+  if (!out.sword && Object.keys(out).length === 0) out.sword = 1
+  return out
+}
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
   return Array.isArray(w) ? w : []
@@ -283,12 +294,20 @@ interface VillageState {
   selected: string | null
   activeFarm: string | null // browse 모드에서 열어둔 밭/우리/게시판 key
   learnOpen: boolean // 오늘의 학습 패널 열림
+  weapons: Record<string, number> // 가진 무기 { 종류: 단계 }
+  armoryOpen: boolean // 무기 창 열림
+  evolveFx: { family: string; tier: number; at: number } | null // 방금 진화한 무기 (반짝이는 화면용)
   quiz: QuizRequest | null
   msg: string | null
   enhanceFx: EnhanceFx | null
 
   setHomework: (text: string) => void
   setAvatar: (a: Avatar) => void
+  openArmory: () => void
+  closeArmory: () => void
+  equipWeapon: (family: WeaponFamily | null) => void
+  buyWeapon: (family: WeaponFamily) => void
+  evolveWeapon: (family: WeaponFamily) => void
   toggleRide: () => void
   chooseWardrobe: (slot: Slot, id: string) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
@@ -390,6 +409,9 @@ export const useVillage = create<VillageState>((set, get) => {
     selected: null,
     activeFarm: null,
     learnOpen: false,
+    weapons: weaponsOf(initial.items),
+    armoryOpen: false,
+    evolveFx: null,
     quiz: null,
     msg: null,
     enhanceFx: null,
@@ -407,6 +429,63 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     toggleRide: () => set({ rideOn: !get().rideOn }),
+
+    openArmory: () => set({ armoryOpen: true }),
+    closeArmory: () => set({ armoryOpen: false, evolveFx: null }),
+
+    // 들고 다닐 무기를 고른다 (null = 내려놓기)
+    equipWeapon: (family) => {
+      const { items, weapons } = get()
+      const tier = family ? (weapons[family] ?? 0) : 0
+      if (family && !tier) return
+      const next = { ...get().avatar, weapon: family, wt: family ? tier : 1 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, avatar: next, weapons } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, avatar: normalizeAvatar(next) })
+    },
+
+    // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
+    buyWeapon: (family) => {
+      const { weapons, coins, items } = get()
+      if (weapons[family]) return
+      if (coins < NEW_WEAPON_COST) {
+        get().flash(`도토리가 ${NEW_WEAPON_COST - coins}개 모자라요`)
+        return
+      }
+      const nextW = { ...weapons, [family]: 1 }
+      const avatar = { ...get().avatar, weapon: family, wt: 1 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, weapons: nextW, avatar } : i))
+      const nextCoins = coins - NEW_WEAPON_COST
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, coins: nextCoins, weapons: nextW, avatar: normalizeAvatar(avatar) })
+      get().flash(`${tierName(family, 1)}을(를) 얻었어요! -${NEW_WEAPON_COST} 도토리`)
+    },
+
+    // 한 단계 진화 (도토리를 쓴다. 실패는 없다)
+    evolveWeapon: (family) => {
+      const { weapons, coins, items } = get()
+      const tier = weapons[family]
+      const cost = tier ? evolveCost(tier) : null
+      if (!tier || cost == null) return
+      if (coins < cost) {
+        get().flash(`도토리가 ${cost - coins}개 모자라요`)
+        return
+      }
+      const nextTier = tier + 1
+      const nextW = { ...weapons, [family]: nextTier }
+      const equipped = get().avatar.weapon === family
+      const avatar = equipped ? { ...get().avatar, wt: nextTier } : get().avatar
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, weapons: nextW, avatar } : i))
+      const nextCoins = coins - cost
+      save(nextCoins, nextItems, get().homework)
+      set({
+        items: nextItems,
+        coins: nextCoins,
+        weapons: nextW,
+        avatar: normalizeAvatar(avatar),
+        evolveFx: { family, tier: nextTier, at: Date.now() },
+      })
+    },
 
     chooseWardrobe: (slot, id) => {
       const item = findItem(slot, id)
@@ -450,6 +529,7 @@ export const useVillage = create<VillageState>((set, get) => {
         items: merged,
         avatar: avatarOf(merged),
         wardrobe: wardrobeOf(merged),
+        weapons: weaponsOf(merged),
         daily: dailyOf(merged),
       })
     },

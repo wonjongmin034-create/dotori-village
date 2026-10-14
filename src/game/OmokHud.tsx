@@ -32,6 +32,7 @@ import {
   type RewardResult,
 } from './omokStats'
 import { untilAward } from './omokWeek'
+import { ArmoryButton } from './ArmoryPanel'
 
 const S = 32 // 칸 간격 (svg 단위)
 const SIZE = N * S
@@ -410,6 +411,7 @@ export function OmokHud() {
         <button type="button" className="omok-dash-btn" onClick={() => setDash(true)}>
           🏆 오목 순위
         </button>
+        <ArmoryButton />
       </div>
       {near && !me && (
         <button type="button" className="omok-sit-btn" onClick={() => sitDown(near.tb, near.s)}>
