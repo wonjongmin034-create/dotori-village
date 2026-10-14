@@ -9,6 +9,7 @@ import {
   SLOT_LABEL,
   COLOR_SLOTS,
   itemsForSlot,
+  findItem,
   ownsItem,
   type Slot,
 } from './wardrobe'
@@ -63,8 +64,18 @@ export function WardrobePanel() {
   const choose = useVillage((s) => s.chooseWardrobe)
 
   const [slot, setSlot] = useState<Slot>('hair')
+  // 아직 안 산 옷은 먼저 입어 보고, 마음에 들면 산다
+  const [trial, setTrial] = useState<{ slot: Slot; id: string } | null>(null)
 
   if (!open) return null
+
+  const trialItem = trial ? findItem(trial.slot, trial.id) : undefined
+  const nullable = (sl: Slot) => sl === 'hat' || sl === 'acc' || sl === 'costume' || sl === 'ride'
+  const shown: Avatar =
+    trial && trialItem
+      ? { ...avatar, [trial.slot]: nullable(trial.slot) && trial.id === 'none' ? null : trial.id }
+      : avatar
+  const canBuy = !!trialItem && coins >= trialItem.cost
 
   const isColor = COLOR_SLOTS.includes(slot)
   const current = (avatar[slot] as string | null) ?? 'none'
@@ -80,15 +91,37 @@ export function WardrobePanel() {
         <div className="wd-preview">
           <Canvas
             dpr={[1, 1.5]}
-            camera={{ position: [0, 0.5, 3.4], fov: 40 }}
+            camera={{ position: [0, 0.6, 4.2], fov: 40 }}
             gl={{ preserveDrawingBuffer: false }}
           >
             <ambientLight intensity={0.8} />
             <directionalLight position={[3, 5, 4]} intensity={1.1} color="#fff2da" />
             <directionalLight position={[-3, 2, -2]} intensity={0.3} color="#bcd9ff" />
-            <PreviewCharacter avatar={avatar} />
+            <PreviewCharacter avatar={shown} />
           </Canvas>
         </div>
+
+        {trial && trialItem && (
+          <div className="wd-trial">
+            <span>
+              <b>{trialItem.label}</b> 입어 보는 중 · 🌰 {trialItem.cost}
+            </span>
+            <button
+              type="button"
+              className="wd-buy"
+              disabled={!canBuy}
+              onClick={() => {
+                choose(trial.slot, trial.id)
+                setTrial(null)
+              }}
+            >
+              {canBuy ? '사기' : `도토리 ${trialItem.cost - coins}개 부족`}
+            </button>
+            <button type="button" className="wd-cancel" onClick={() => setTrial(null)}>
+              취소
+            </button>
+          </div>
+        )}
 
         <div className="wd-tabs">
           {SLOTS.map((sl) => (
@@ -108,12 +141,18 @@ export function WardrobePanel() {
             const has = ownsItem(it, owned)
             const equipped = current === it.id
             const cannotAfford = !has && coins < it.cost
+            const trying = trial?.slot === slot && trial.id === it.id
             return (
               <button
                 key={it.id}
                 type="button"
-                className={`wd-opt ${equipped ? 'equipped' : ''} ${cannotAfford ? 'poor' : ''}`}
-                onClick={() => choose(slot, it.id)}
+                className={`wd-opt ${equipped ? 'equipped' : ''} ${cannotAfford ? 'poor' : ''} ${trying ? 'trying' : ''}`}
+                onClick={() => {
+                  if (has) {
+                    choose(slot, it.id)
+                    setTrial(null)
+                  } else setTrial({ slot, id: it.id })
+                }}
               >
                 {isColor ? (
                   <span className="wd-color" style={{ background: it.swatch }} />
@@ -129,7 +168,7 @@ export function WardrobePanel() {
                   </span>
                 )}
                 <span className="wd-tag">
-                  {equipped ? '착용중' : has ? (it.cost === 0 ? '' : '보유') : `🌰${it.cost}`}
+                  {equipped ? '착용중' : trying ? '입어보는 중' : has ? (it.cost === 0 ? '' : '보유') : `🌰${it.cost}`}
                 </span>
               </button>
             )
@@ -137,7 +176,7 @@ export function WardrobePanel() {
         </div>
 
         <p className="wd-hint">
-          기본 옷은 무료예요. 특별한 건 도토리로 사면 계속 쓸 수 있어요. (전체 {WARDROBE.length}종)
+          기본 옷은 무료예요. 특별한 건 눌러서 먼저 입어 보고, 마음에 들면 도토리로 사요. 한 번 사면 계속 쓸 수 있어요. (전체 {WARDROBE.length}종)
         </p>
       </div>
     </div>

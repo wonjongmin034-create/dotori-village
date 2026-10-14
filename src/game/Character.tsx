@@ -4,6 +4,15 @@ import { toonGradient } from './toon'
 import type { Avatar } from './avatar'
 import { rideOf } from './rides'
 import { RideModel } from './RideModel'
+import { HatMore, HairMore, NEW_HATS, NEW_HAIR } from './WearHats'
+import {
+  TopMore, HipMore, PantsLeg, ShoeMore,
+  NEW_TOPS, NEW_LONG_TOPS, WHITE_SLEEVE_TOPS, WHITE_BASE_TOPS, NEW_SKIRTS, NEW_SHOES,
+} from './WearBody'
+import {
+  COSTUME_MORE, NEW_COSTUMES, NEW_FACE_ACC,
+  FaceMore, BackMore, CostumeHeadMore, CostumeBodyMore, OldCostumeHeadExtra, OldCostumeBodyExtra,
+} from './WearFun'
 
 export type CharacterRefs = {
   bob: RefObject<THREE.Group | null>
@@ -24,7 +33,7 @@ function Toon({ color }: { color: string }) {
 const WHITE = '#f4f4f4'
 const LONG_SLEEVE = new Set(['longsleeve', 'knit', 'hoodie', 'jacket', 'dress', 'sailor', 'soccer'])
 
-type Pal = { body: string; belly: string; paw: string }
+type Pal = { body: string; belly: string; paw: string; limb?: string; hand?: string }
 const COSTUME: Record<string, Pal> = {
   dino: { body: '#6cbf5b', belly: '#c8e6a8', paw: '#4f9c43' },
   cat: { body: '#8a8f96', belly: '#e9e9ec', paw: '#6f747b' },
@@ -35,6 +44,7 @@ const COSTUME: Record<string, Pal> = {
   frog: { body: '#5fb84f', belly: '#dff0c2', paw: '#4a9c3d' },
   shark: { body: '#7f96a8', belly: '#e6ecf0', paw: '#68808f' },
 }
+Object.assign(COSTUME, COSTUME_MORE) // 새 코스튬 색
 
 // ─────────────────────────── 머리 ───────────────────────────
 
@@ -55,6 +65,7 @@ function ShortBase({ color }: { color: string }) {
 
 function Hair({ style, color }: { style: string; color: string }) {
   if (style === 'none') return null
+  if (NEW_HAIR.has(style)) return <HairMore style={style} color={color} />
   if (style === 'pigtails') {
     return (
       <group>
@@ -134,6 +145,7 @@ function Hair({ style, color }: { style: string; color: string }) {
 }
 
 function Hat({ id }: { id: string }) {
+  if (NEW_HATS.has(id)) return <HatMore id={id} />
   if (id === 'acorn') {
     return (
       <group position={[0, 0.44, 0]}>
@@ -400,6 +412,7 @@ function Hat({ id }: { id: string }) {
       </group>
     )
   }
+  if (NEW_HATS.has(id)) return <HatMore id={id} />
   return null
 }
 
@@ -461,7 +474,7 @@ function Torso({ avatar }: { avatar: Avatar }) {
 
   const top = avatar.top
   const c = avatar.shirt
-  const base = top === 'overalls' ? WHITE : c
+  const base = WHITE_BASE_TOPS.has(top) ? WHITE : c
   return (
     <>
       <mesh>
@@ -594,6 +607,8 @@ function Torso({ avatar }: { avatar: Avatar }) {
             <Toon color={WHITE} />
           </mesh>
         ))}
+
+      {NEW_TOPS.has(top) && <TopMore top={top} avatar={avatar} />}
     </>
   )
 }
@@ -625,6 +640,7 @@ function HipPiece({ avatar }: { avatar: Avatar }) {
       </mesh>
     )
   }
+  if (NEW_SKIRTS.has(avatar.bottom)) return <HipMore bottom={avatar.bottom} color={avatar.pants} />
   return null
 }
 
@@ -633,15 +649,15 @@ function HipPiece({ avatar }: { avatar: Avatar }) {
 function Arm({ avatar }: { avatar: Avatar }) {
   const cos = avatar.costume
   const p = cos ? (COSTUME[cos] ?? COSTUME.bear) : null
-  const long = !!cos || LONG_SLEEVE.has(avatar.top)
+  const long = !!cos || LONG_SLEEVE.has(avatar.top) || NEW_LONG_TOPS.has(avatar.top)
   const sleeve = p
-    ? p.body
-    : avatar.top === 'overalls'
+    ? (p.limb ?? p.body)
+    : WHITE_SLEEVE_TOPS.has(avatar.top)
       ? WHITE
       : avatar.top === 'tank'
         ? avatar.skin
         : avatar.shirt
-  const hand = p ? p.paw : avatar.skin
+  const hand = p ? (p.hand ?? p.paw) : avatar.skin
   return (
     <>
       <mesh position={[0, -0.16, 0]}>
@@ -670,7 +686,7 @@ function Leg({ avatar }: { avatar: Avatar }) {
       <>
         <mesh position={[0, -0.11, 0]}>
           <capsuleGeometry args={[0.1, 0.12, 4, 8]} />
-          <Toon color={p.body} />
+          <Toon color={p.limb ?? p.body} />
         </mesh>
         <mesh position={[0, -0.25, 0.05]} scale={[1, 0.8, 1.35]}>
           <sphereGeometry args={[0.12, 12, 10]} />
@@ -681,8 +697,8 @@ function Leg({ avatar }: { avatar: Avatar }) {
   }
 
   const bare =
-    avatar.top === 'dress' || avatar.bottom === 'skirt' || avatar.bottom === 'longskirt'
-  const hidden = avatar.bottom === 'longskirt'
+    avatar.top === 'dress' || avatar.bottom === 'skirt' || avatar.bottom === 'longskirt' || NEW_SKIRTS.has(avatar.bottom)
+  const hidden = avatar.bottom === 'longskirt' || avatar.bottom === 'hanbokskirt'
   const pc = avatar.pants
 
   return (
@@ -692,6 +708,9 @@ function Leg({ avatar }: { avatar: Avatar }) {
           <capsuleGeometry args={[0.085, 0.12, 4, 8]} />
           <Toon color={avatar.skin} />
         </mesh>
+      )}
+      {!bare && (avatar.bottom === 'cargo' || avatar.bottom === 'jogger') && (
+        <PantsLeg bottom={avatar.bottom} color={pc} />
       )}
       {!bare && avatar.bottom === 'pants' && (
         <mesh position={[0, -0.11, 0]}>
@@ -725,6 +744,7 @@ function Leg({ avatar }: { avatar: Avatar }) {
 function Shoe({ avatar }: { avatar: Avatar }) {
   const c = avatar.shoes
   const s = avatar.shoeStyle
+  if (NEW_SHOES.has(s)) return <ShoeMore style={s} color={c} />
   if (s === 'boots') {
     return (
       <group>
@@ -821,6 +841,7 @@ function FaceAcc({ id }: { id: string }) {
       </group>
     )
   }
+  if (NEW_FACE_ACC.has(id)) return <FaceMore id={id} />
   return null
 }
 
@@ -830,6 +851,9 @@ function BackStuff({ avatar }: { avatar: Avatar }) {
   const cos = avatar.costume
   return (
     <>
+      <BackMore acc={acc} />
+      {cos && NEW_COSTUMES.has(cos) && <CostumeBodyMore id={cos} />}
+      {cos && !NEW_COSTUMES.has(cos) && <OldCostumeBodyExtra id={cos} />}
       {acc === 'backpack' && (
         <group>
           <mesh position={[0, -0.05, -0.24]}>
@@ -848,19 +872,6 @@ function BackStuff({ avatar }: { avatar: Avatar }) {
           ))}
         </group>
       )}
-      {acc === 'wings' &&
-        [-1, 1].map((s) => (
-          <group key={s} position={[s * 0.16, 0.04, -0.16]} rotation={[0.2, s * 0.5, s * 0.3]}>
-            <mesh position={[s * 0.1, 0.08, 0]} scale={[0.55, 1, 0.2]}>
-              <sphereGeometry args={[0.24, 12, 10]} />
-              <meshToonMaterial gradientMap={toonGradient} color="#eaf4ff" transparent opacity={0.75} />
-            </mesh>
-            <mesh position={[s * 0.08, -0.12, 0]} scale={[0.45, 0.8, 0.2]}>
-              <sphereGeometry args={[0.18, 12, 10]} />
-              <meshToonMaterial gradientMap={toonGradient} color="#eaf4ff" transparent opacity={0.75} />
-            </mesh>
-          </group>
-        ))}
       {acc === 'cape' && (
         <group>
           <mesh position={[0, -0.16, -0.18]} rotation={[0.16, 0, 0]}>
@@ -875,14 +886,26 @@ function BackStuff({ avatar }: { avatar: Avatar }) {
       )}
       {acc === 'scarf' && (
         <group>
-          <mesh position={[0, 0.24, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.2, 0.06, 8, 20]} />
+          <mesh position={[0, 0.16, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.265, 0.075, 10, 24]} />
             <Toon color="#d1584f" />
           </mesh>
-          <mesh position={[0.1, 0.02, 0.16]} rotation={[0, 0, 0.15]}>
-            <boxGeometry args={[0.1, 0.3, 0.06]} />
+          {[0.0, 0.07].map((dz, i) => (
+            <mesh key={i} position={[0, 0.16, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.265 + dz * 0.0, 0.012, 6, 24]} />
+              <Toon color={i ? '#f4f4f4' : '#a63e38'} />
+            </mesh>
+          ))}
+          <mesh position={[0.12, -0.08, 0.26]} rotation={[0, 0, 0.12]}>
+            <boxGeometry args={[0.11, 0.34, 0.05]} />
             <Toon color="#d1584f" />
           </mesh>
+          {[-0.14, -0.04].map((y, i) => (
+            <mesh key={i} position={[0.12 + 0.005 * i, y, 0.29]} rotation={[0, 0, 0.12]}>
+              <boxGeometry args={[0.11, 0.025, 0.012]} />
+              <Toon color="#f4f4f4" />
+            </mesh>
+          ))}
         </group>
       )}
       {acc === 'tail' && (
@@ -958,6 +981,16 @@ function Hood({ color }: { color: string }) {
 }
 
 function CostumeHead({ id }: { id: string }) {
+  if (NEW_COSTUMES.has(id)) return <CostumeHeadMore id={id} />
+  return (
+    <>
+      <CostumeHeadBase id={id} />
+      <OldCostumeHeadExtra id={id} />
+    </>
+  )
+}
+
+function CostumeHeadBase({ id }: { id: string }) {
   const p = COSTUME[id] ?? COSTUME.bear
   if (id === 'cat') {
     return (
