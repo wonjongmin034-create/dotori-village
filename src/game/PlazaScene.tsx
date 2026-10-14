@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { toonGradient } from './toon'
 import { Toon } from './wearKit'
-import { BEDS, BENCHES, FOUNTAIN, HIDEOUTS, LAMPS, PLAZA_RADIUS, STAGE, TREES } from './plaza'
+import { BEDS, BENCHES, FEATURES, FOUNTAIN, GATE_Z, GAZEBO_POSTS, HIDEOUTS, LAMPS, PAVING_R, PLAZA_RADIUS, STAGE, TREES } from './plaza'
 
 // 도토리 광장의 모습 — 가운데 분수, 둘레의 돌바닥·벤치·가로등·꽃밭, 가장자리의 나무, 북쪽 무대,
 // 숨을 수 있는 수풀·텐트·통(숨바꼭질용). 그림자·조명은 Scene이 맡는다.
@@ -58,8 +58,8 @@ function Paving() {
     const rng = mulberry32(11)
     const list: { x: number; z: number; r: number; c: string }[] = []
     const cols = ['#ded7c5', '#d3ccb7', '#e8e2d2', '#c9c2ad']
-    for (let r = 3.2; r <= 8.4; r += 0.56) {
-      const n = Math.round((Math.PI * 2 * r) / 0.56)
+    for (let r = 3.9; r <= PAVING_R - 0.4; r += 0.58) {
+      const n = Math.round((Math.PI * 2 * r) / 0.58)
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + r * 0.7
         list.push({ x: Math.sin(a) * r, z: Math.cos(a) * r, r: a, c: cols[(rng() * cols.length) | 0] })
@@ -70,11 +70,11 @@ function Paving() {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
-        <circleGeometry args={[8.7, 48]} />
+        <circleGeometry args={[PAVING_R - 0.1, 64]} />
         <Toon color="#d6cfbb" />
       </mesh>
-      <Instances limit={700} range={tiles.length}>
-        <cylinderGeometry args={[0.26, 0.26, 0.05, 6]} />
+      <Instances limit={1400} range={tiles.length}>
+        <cylinderGeometry args={[0.27, 0.27, 0.05, 6]} />
         <meshToonMaterial gradientMap={toonGradient} />
         {tiles.map((t, i) => (
           <Instance key={i} position={[t.x, 0.03, t.z]} rotation={[0, t.r, 0]} color={t.c} />
@@ -83,8 +83,8 @@ function Paving() {
       {/* 네 방향으로 뻗는 길 */}
       {[0, 1, 2, 3].map((i) => {
         const a = (i * Math.PI) / 2
-        const len = 6.6
-        const mid = 8.4 + len / 2
+        const len = PLAZA_RADIUS + 1.1 - PAVING_R
+        const mid = PAVING_R - 0.2 + len / 2
         return (
           <group key={i} position={[Math.sin(a) * mid, 0.02, Math.cos(a) * mid]} rotation={[0, a, 0]}>
             <mesh>
@@ -123,7 +123,7 @@ function Fountain() {
     if (water.current) water.current.color.setHSL(0.54, 0.62, 0.62 + Math.sin(t * 1.6) * 0.04)
   })
   return (
-    <group position={[FOUNTAIN.x, 0, FOUNTAIN.z]}>
+    <group position={[FOUNTAIN.x, 0, FOUNTAIN.z]} scale={FOUNTAIN.scale}>
       {/* 아랫물받이 */}
       <mesh position={[0, 0.3, 0]}>
         <cylinderGeometry args={[2.45, 2.55, 0.6, 28]} />
@@ -437,7 +437,7 @@ function Stage() {
 /* ---------- 입구 ---------- */
 function Gate() {
   return (
-    <group position={[0, 0, 14.6]}>
+    <group position={[0, 0, GATE_Z + 0.9]}>
       {[-1, 1].map((s) => (
         <group key={s} position={[s * 2.4, 0, 0]}>
           <mesh position={[0, 1.4, 0]}>
@@ -461,21 +461,278 @@ function Gate() {
   )
 }
 
+
+/* ---------- 네 모퉁이: 연못·정자·놀이터·소풍 ---------- */
+function Pond({ r }: { r: number }) {
+  const w = useRef<THREE.MeshBasicMaterial>(null)
+  const ducks = useRef<(THREE.Group | null)[]>([])
+  useFrame((st) => {
+    const t = st.clock.elapsedTime
+    if (w.current) w.current.color.setHSL(0.53, 0.55, 0.55 + Math.sin(t * 0.9) * 0.04)
+    ducks.current.forEach((d, i) => {
+      if (!d) return
+      const a = t * (0.25 + i * 0.07) + i * 2.4
+      d.position.set(Math.sin(a) * r * 0.5, 0.06 + Math.sin(t * 3 + i) * 0.015, Math.cos(a * 1.2) * r * 0.45)
+      d.rotation.y = a + Math.PI / 2
+    })
+  })
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
+        <circleGeometry args={[r, 32]} />
+        <meshBasicMaterial ref={w} color="#5fc4d8" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[r, r + 0.4, 32]} />
+        <Toon color="#cfc7b2" />
+      </mesh>
+      {Array.from({ length: 14 }, (_, i) => {
+        const a = (i / 14) * Math.PI * 2
+        return (
+          <mesh key={i} position={[Math.sin(a) * (r + 0.25), 0.12, Math.cos(a) * (r + 0.25)]} scale={[1, 0.7, 1]}>
+            <sphereGeometry args={[0.22 + (i % 3) * 0.05, 8, 6]} />
+            <Toon color={['#b9b19a', '#d6cfbb', '#a69f8a'][i % 3]} />
+          </mesh>
+        )
+      })}
+      {[
+        [-1.0, 0.6, 0.45],
+        [0.8, -0.8, 0.5],
+        [1.4, 1.0, 0.38],
+        [-0.4, -1.4, 0.4],
+      ].map(([x, z, s], i) => (
+        <group key={i} position={[x, 0.05, z]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[s, 12]} />
+            <Toon color="#58b24a" />
+          </mesh>
+          {i % 2 === 0 && (
+            <mesh position={[0.05, 0.06, 0]}>
+              <sphereGeometry args={[0.1, 8, 6]} />
+              <Toon color="#ff8fb1" />
+            </mesh>
+          )}
+        </group>
+      ))}
+      {[0, 1].map((i) => (
+        <group key={i} ref={(g) => void (ducks.current[i] = g)}>
+          <mesh position={[0, 0.12, 0]} scale={[1.2, 0.8, 1]}>
+            <sphereGeometry args={[0.2, 10, 8]} />
+            <Toon color="#ffe055" />
+          </mesh>
+          <mesh position={[0.15, 0.28, 0]}>
+            <sphereGeometry args={[0.12, 10, 8]} />
+            <Toon color="#ffe055" />
+          </mesh>
+          <mesh position={[0.28, 0.27, 0]} rotation={[0, 0, -Math.PI / 2]}>
+            <coneGeometry args={[0.04, 0.1, 6]} />
+            <Toon color="#f08a2c" />
+          </mesh>
+        </group>
+      ))}
+      {[-1, 1].map((s) => (
+        <group key={s} position={[s * (r + 0.7), 0, s * 0.5]}>
+          {[0, 1, 2].map((k) => (
+            <mesh key={k} position={[k * 0.12 - 0.1, 0.5 + k * 0.08, k * 0.1]} rotation={[0, 0, (k - 1) * 0.12]}>
+              <cylinderGeometry args={[0.02, 0.03, 1.0 + k * 0.15, 5]} />
+              <Toon color="#7fae4a" />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  )
+}
+
+function Gazebo({ r }: { r: number }) {
+  return (
+    <group>
+      <mesh position={[0, 0.14, 0]} rotation={[0, Math.PI / 6, 0]}>
+        <cylinderGeometry args={[r, r + 0.08, 0.28, 6]} />
+        <Toon color="#c99a62" />
+      </mesh>
+      {GAZEBO_POSTS.map((p, i) => {
+        const g = FEATURES.find((f) => f.kind === 'gazebo')!
+        return (
+          <mesh key={i} position={[p.x - g.x, 1.55, p.z - g.z]}>
+            <cylinderGeometry args={[0.1, 0.12, 2.6, 8]} />
+            <Toon color="#f1e8d4" />
+          </mesh>
+        )
+      })}
+      <mesh position={[0, 3.0, 0]} rotation={[0, Math.PI / 6, 0]}>
+        <cylinderGeometry args={[r + 0.35, r + 0.35, 0.16, 6]} />
+        <Toon color="#8a5a34" />
+      </mesh>
+      <mesh position={[0, 3.75, 0]} rotation={[0, Math.PI / 6, 0]}>
+        <coneGeometry args={[r + 0.55, 1.5, 6]} />
+        <Toon color="#d9534a" />
+      </mesh>
+      <mesh position={[0, 4.65, 0]}>
+        <sphereGeometry args={[0.16, 8, 8]} />
+        <Toon color="#f2c94e" />
+      </mesh>
+      {[0, 1, 2].map((i) => {
+        const a = (i / 3) * Math.PI * 2 + 0.5
+        return (
+          <mesh key={i} position={[Math.sin(a) * 1.0, 0.5, Math.cos(a) * 1.0]} rotation={[0, a, 0]}>
+            <boxGeometry args={[0.9, 0.08, 0.34]} />
+            <Toon color="#a8743f" />
+          </mesh>
+        )
+      })}
+    </group>
+  )
+}
+
+function Playground() {
+  const s1 = useRef<THREE.Group>(null)
+  const s2 = useRef<THREE.Group>(null)
+  const see = useRef<THREE.Group>(null)
+  useFrame((st) => {
+    const t = st.clock.elapsedTime
+    if (s1.current) s1.current.rotation.x = Math.sin(t * 1.8) * 0.45
+    if (s2.current) s2.current.rotation.x = Math.sin(t * 1.8 + 1.4) * 0.4
+    if (see.current) see.current.rotation.z = Math.sin(t * 1.2) * 0.2
+  })
+  return (
+    <group>
+      {/* 모래밭 */}
+      <mesh position={[0, 0.06, 0]}>
+        <boxGeometry args={[5.2, 0.12, 4.8]} />
+        <Toon color="#ead9a6" />
+      </mesh>
+      {/* 그네 */}
+      <group position={[0, 0, -1.2]}>
+        {[-1, 1].map((sx) => (
+          <group key={sx}>
+            {[-1, 1].map((sz) => (
+              <mesh key={sz} position={[sx * 1.55, 1.1, sz * 0.5]} rotation={[sz * -0.22, 0, 0]}>
+                <cylinderGeometry args={[0.07, 0.08, 2.4, 6]} />
+                <Toon color="#e8624f" />
+              </mesh>
+            ))}
+          </group>
+        ))}
+        <mesh position={[0, 2.18, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.08, 0.08, 3.3, 8]} />
+          <Toon color="#c7473a" />
+        </mesh>
+        {[
+          [-0.7, s1],
+          [0.7, s2],
+        ].map(([x, ref], i) => (
+          <group key={i} position={[x as number, 2.15, 0]} ref={ref as React.RefObject<THREE.Group>}>
+            {[-1, 1].map((c) => (
+              <mesh key={c} position={[c * 0.22, -0.8, 0]}>
+                <cylinderGeometry args={[0.012, 0.012, 1.6, 4]} />
+                <Toon color="#6b6f78" />
+              </mesh>
+            ))}
+            <mesh position={[0, -1.62, 0]}>
+              <boxGeometry args={[0.6, 0.07, 0.3]} />
+              <Toon color="#4a90e2" />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      {/* 시소 */}
+      <group position={[0.2, 0.0, 1.5]}>
+        <mesh position={[0, 0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.2, 0.2, 0.3, 3]} />
+          <Toon color="#6b6f78" />
+        </mesh>
+        <group ref={see} position={[0, 0.42, 0]}>
+          <mesh>
+            <boxGeometry args={[2.8, 0.1, 0.34]} />
+            <Toon color="#f2c94e" />
+          </mesh>
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * 1.2, 0.15, 0]}>
+              <boxGeometry args={[0.1, 0.2, 0.3]} />
+              <Toon color="#e8624f" />
+            </mesh>
+          ))}
+        </group>
+      </group>
+    </group>
+  )
+}
+
+function Picnic() {
+  const cols = ['#e8624f', '#fff6e8']
+  return (
+    <group>
+      {Array.from({ length: 4 }, (_, i) =>
+        Array.from({ length: 4 }, (_, j) => (
+          <mesh key={`${i}${j}`} position={[(i - 1.5) * 0.62, 0.025, (j - 1.5) * 0.62]}>
+            <boxGeometry args={[0.62, 0.03, 0.62]} />
+            <Toon color={cols[(i + j) % 2]} />
+          </mesh>
+        )),
+      )}
+      <mesh position={[0, 0.2, 0]}>
+        <boxGeometry args={[0.7, 0.3, 0.5]} />
+        <Toon color="#c99a62" />
+      </mesh>
+      <mesh position={[0, 0.4, 0]} rotation={[0, 0, 0]} scale={[1, 0.8, 1]}>
+        <torusGeometry args={[0.22, 0.03, 6, 14, Math.PI]} />
+        <Toon color="#8a5a34" />
+      </mesh>
+      {[[0.6, 0.55], [-0.5, 0.7], [0.75, -0.4]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.12, z]}>
+          <sphereGeometry args={[0.11, 8, 8]} />
+          <Toon color={['#e0405a', '#ffb347', '#9be07a'][i]} />
+        </mesh>
+      ))}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * 1.55, 0.14, s * 0.2]} scale={[1, 0.55, 1]}>
+          <sphereGeometry args={[0.3, 10, 8]} />
+          <Toon color={s > 0 ? '#b39df0' : '#ff8fb1'} />
+        </mesh>
+      ))}
+      <mesh position={[-1.9, 1.0, -1.3]}>
+        <cylinderGeometry args={[0.04, 0.04, 2.0, 6]} />
+        <Toon color="#8a5a34" />
+      </mesh>
+      <mesh position={[-1.9, 2.05, -1.3]}>
+        <coneGeometry args={[1.5, 0.55, 10]} />
+        <Toon color="#4a90e2" />
+      </mesh>
+    </group>
+  )
+}
+
+function Features() {
+  return (
+    <group>
+      {FEATURES.map((f) => (
+        <group key={f.id} position={[f.x, 0, f.z]}>
+          {f.kind === 'pond' && <Pond r={f.r} />}
+          {f.kind === 'gazebo' && <Gazebo r={f.r} />}
+          {f.kind === 'playground' && <Playground />}
+          {f.kind === 'picnic' && <Picnic />}
+        </group>
+      ))}
+    </group>
+  )
+}
+
 /* ---------- 풀·꽃 장식 ---------- */
 function Detail() {
   const { tufts, flowers } = useMemo(() => {
     const rng = mulberry32(21)
     const ok = (x: number, z: number) => {
       const d = Math.hypot(x, z)
-      if (d < 9.2 || d > PLAZA_RADIUS + 0.6) return false
+      if (d < PAVING_R + 0.5 || d > PLAZA_RADIUS + 0.6) return false
       // 네 길 위는 비운다
-      if ((Math.abs(x) < 1.8 && Math.abs(z) > 8) || (Math.abs(z) < 1.8 && Math.abs(x) > 8)) return false
+      if ((Math.abs(x) < 1.8 && Math.abs(z) > PAVING_R - 2) || (Math.abs(z) < 1.8 && Math.abs(x) > PAVING_R - 2)) return false
       return true
     }
     const pick = () => {
       for (let k = 0; k < 20; k++) {
         const a = rng() * Math.PI * 2
-        const d = 9.2 + rng() * 7
+        const d = PAVING_R + 0.5 + rng() * (PLAZA_RADIUS - PAVING_R)
         const x = Math.sin(a) * d
         const z = Math.cos(a) * d
         if (ok(x, z)) return [x, z] as [number, number]
@@ -484,11 +741,11 @@ function Detail() {
     }
     const cols = ['#69bd58', '#7bcb67', '#5aa84f', '#86d179']
     return {
-      tufts: Array.from({ length: 150 }, () => {
+      tufts: Array.from({ length: 420 }, () => {
         const [x, z] = pick()
         return { x, z, r: rng() * 3, s: 0.6 + rng() * 0.7, c: cols[(rng() * cols.length) | 0] }
       }),
-      flowers: Array.from({ length: 40 }, () => {
+      flowers: Array.from({ length: 120 }, () => {
         const [x, z] = pick()
         return { x, z, c: FLOWER_COLS[(rng() * FLOWER_COLS.length) | 0] }
       }),
@@ -496,14 +753,14 @@ function Detail() {
   }, [])
   return (
     <group>
-      <Instances limit={200} range={tufts.length}>
+      <Instances limit={500} range={tufts.length}>
         <coneGeometry args={[0.085, 0.32, 4]} />
         <meshToonMaterial gradientMap={toonGradient} />
         {tufts.map((t, i) => (
           <Instance key={i} position={[t.x, 0.13, t.z]} rotation={[0, t.r, 0]} scale={[t.s, t.s, t.s]} color={t.c} />
         ))}
       </Instances>
-      <Instances limit={60} range={flowers.length}>
+      <Instances limit={160} range={flowers.length}>
         <sphereGeometry args={[0.09, 6, 5]} />
         <meshToonMaterial gradientMap={toonGradient} />
         {flowers.map((f, i) => (
@@ -525,6 +782,7 @@ export function Plaza() {
       <Beds />
       <Trees />
       <Hideouts />
+      <Features />
       <Stage />
       <Gate />
       <Detail />

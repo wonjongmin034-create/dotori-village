@@ -41,7 +41,7 @@ export function CameraRig() {
 
     // 땅이 크면 카메라도 조금 더 물러난다
     const cs = useVillage.getState()
-    const half = cs.plaza != null ? 13 : landHalf(viewItems(cs))
+    const half = cs.plaza != null ? 14 : landHalf(viewItems(cs))
     const zoomOut = 1 + Math.max(0, half - LAND_START) * 0.06
 
     if (editing) {
