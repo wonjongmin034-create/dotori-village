@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { useVillage } from './store'
 import { playerPos } from './player-state'
 import { COLLIDERS, GATE_Z, PLAZA_RADIUS } from './plazaLayout'
+import { standUp } from './omokState'
 
 // 도토리 광장 — 같은 반 친구들이 모이는 공동 장소.
 // 방 하나에 MAX_IN_ROOM(10)명까지. 꽉 차면 다음 번호의 광장으로 자동으로 옮겨 간다.
@@ -51,6 +52,7 @@ export function enterPlaza(room = 1) {
 }
 
 export function leavePlaza() {
+  standUp() // 오목 자리에 앉아 있었다면 일어난다 (대국 중이면 기권)
   playerPos.set(0, 0, 3)
   useVillage.setState({ plaza: null })
 }

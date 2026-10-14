@@ -4,6 +4,7 @@ import { resolveFarmOverlaps } from './layout'
 import { normalizeAvatar } from './avatar'
 import { playerPos, spawnAt } from './player-state'
 import { LAND_OLD } from './economy'
+import { cleanTitleHat } from './omokStats'
 
 export type Friend = {
   name: string
@@ -72,7 +73,7 @@ export async function visitFriend(name: string): Promise<boolean> {
     const items = resolveFarmOverlaps(raw, landHalf(raw)).items
     const house = items.find((i) => i.type === 'house')
     spawnAt()
-    useVillage.getState().setVisiting({ name, items, avatar: normalizeAvatar(house?.avatar) })
+    useVillage.getState().setVisiting({ name, items, avatar: cleanTitleHat(name, normalizeAvatar(house?.avatar)) })
     useVillage.getState().flash(`${name}의 마을에 놀러 왔어요! 🏝️`)
     return true
   } catch {

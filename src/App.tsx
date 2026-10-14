@@ -21,6 +21,8 @@ import { FriendInfoPanel } from './game/FriendInfoPanel'
 import { endVisit } from './game/friends'
 import { requestJump } from './game/input'
 import { enterPlaza, leavePlaza } from './game/plaza'
+import { OmokHud } from './game/OmokHud'
+import { refreshTitles } from './game/omokStats'
 import { MAX_IN_ROOM, useLive } from './game/live'
 import { LiveHud } from './game/LiveHud'
 import { NoticeModal } from './game/NoticeModal'
@@ -86,6 +88,15 @@ export default function App() {
   const clearAll = useVillage((s) => s.clearAll)
 
   useEffect(() => initKeyboard(), [])
+
+  // 로그인한 동안: 지난주 오목왕 명단을 받아 내 오목왕 모자를 맞춘다 (새로 받거나 기간이 끝나 사라지는 것)
+  const sessionName = session?.name
+  useEffect(() => {
+    if (!sessionName) return
+    void refreshTitles()
+    const t = setInterval(() => void refreshTitles(), 10 * 60_000)
+    return () => clearInterval(t)
+  }, [sessionName])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -210,6 +221,8 @@ export default function App() {
         </div>
 
         <div className="coinbar">🌰 {coins}</div>
+
+        {plaza != null && <OmokHud />}
 
         {plaza != null ? (
           <button type="button" className="mode-btn visit-back" onClick={leavePlaza}>

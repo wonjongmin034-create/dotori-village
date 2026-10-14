@@ -143,7 +143,9 @@ export function WardrobePanel() {
         </div>
 
         <div className={isColor ? 'wd-swatches' : 'wd-grid'}>
-          {itemsForSlot(slot).map((it) => {
+          {itemsForSlot(slot)
+            .filter((it) => !it.special)
+            .map((it) => {
             const has = ownsItem(it, owned)
             const equipped = current === it.id
             const cannotAfford = !has && coins < it.cost

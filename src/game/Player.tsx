@@ -8,6 +8,7 @@ import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 import { useLive } from './live'
 import { constrainToPlaza } from './plaza'
+import { useOmok, seatPos, seatFacing } from './omokState'
 import { viewAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 
@@ -63,7 +64,16 @@ export function Player() {
     tmp.forward.setY(0).normalize()
     tmp.right.crossVectors(tmp.forward, UP).normalize()
 
-    const m = editing ? { x: 0, y: 0 } : getMove()
+    // 오목 자리에 앉아 있으면 그 자리에 고정
+    const sit = useOmok.getState().me
+    if (sit) {
+      const [sx, sz] = seatPos(sit.tb, sit.s)
+      playerPos.set(sx, 0, sz)
+      st.facing = seatFacing(sit.s)
+      st.vy = 0
+      jumpInput.requested = false
+    }
+    const m = editing || sit ? { x: 0, y: 0 } : getMove()
     let mag = Math.hypot(m.x, m.y)
     const moving = mag > 0.02
 
@@ -155,6 +165,13 @@ export function Player() {
       if (refs.legR.current) refs.legR.current.rotation.x = 0.25
     }
 
+    if (sit) {
+      // 의자에 앉은 자세: 다리를 앞으로, 팔은 테이블 위로
+      if (refs.legL.current) refs.legL.current.rotation.x = -1.25
+      if (refs.legR.current) refs.legR.current.rotation.x = -1.25
+      if (refs.armL.current) refs.armL.current.rotation.x = -0.8
+      if (refs.armR.current) refs.armR.current.rotation.x = -0.8
+    }
     // 탈 것을 탔으면 자세를 바꾼다 (타고 있지 않으면 벌어진 팔다리만 원래대로)
     applyRidePose(refs, ride, moving, st.phase)
 

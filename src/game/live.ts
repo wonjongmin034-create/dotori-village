@@ -6,6 +6,8 @@ import { normalizeAvatar, viewAvatar, type Avatar } from './avatar'
 import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
 import { nextPlazaRoom } from './plaza'
+import { bindOmokIO, omokOnEvent, omokResend, omokOnPresence, omokPresence, omokReset, type OmokPayload, type SeatMeta, type GameState } from './omokState'
+import { cleanTitleHat, useOmokStats } from './omokStats'
 
 // 같이 걷기 — 같은 마을(섬)에 있는 친구들을 실시간으로 보여 준다. (Supabase Realtime)
 // 방 = 섬 주인의 마을. 내 마을에 있으면 내 마을 방, 친구 마을에 놀러 가면 그 친구 방.
@@ -50,7 +52,7 @@ let lastNames: string[] = []
 let kicked = false
 let joinedAt = 0 // 이 방에 들어온 시각 (입장 순서 판단용)
 
-type Meta = { avatar?: Avatar; t?: number }
+type Meta = { avatar?: Avatar; t?: number; seat?: SeatMeta; game?: GameState }
 
 // 들어갈 수 있는 사람들: 섬 주인이 제일 먼저, 그다음 먼저 온 순서. 모두가 같은 데이터로 계산하므로 결과가 같다.
 function allowedOf(state: Record<string, Meta[]>, owner: string): string[] {
@@ -83,7 +85,7 @@ function setEmote(key: string, e: string) {
 
 function send() {
   const s = useVillage.getState()
-  if (!ready || !channel || !s.session) return
+  if (!ready || !channel || channel.state !== 'joined' || !s.session) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   void channel.send({
     type: 'broadcast',
@@ -112,7 +114,14 @@ function tick() {
   if (moving || moved || air || air !== last.air || moving !== last.moving || performance.now() - last.t > 3000) send()
 }
 
+// 내 presence(누구인지·옷차림·오목 자리)를 방에 알린다
+function pushPresence() {
+  if (!channel || !ready) return
+  void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence() })
+}
+
 function leave() {
+  omokReset()
   if (timer) clearInterval(timer)
   timer = null
   if (channel) void supabase.removeChannel(channel)
@@ -131,6 +140,7 @@ function join(owner: string, key: string, me: string) {
   roomKey = key
   quietUntil = performance.now() + 1800
   kicked = false
+  joinedAt = 0
   last = { x: 1e9, z: 1e9, moving: false, air: false, t: 0 }
   const ch = supabase.channel(key, {
     config: { broadcast: { self: false }, presence: { key: me } },
@@ -159,7 +169,7 @@ function join(owner: string, key: string, me: string) {
     }
     const names = allowed.filter((k) => k !== me)
     for (const k of names) {
-      const avatar = normalizeAvatar(state[k]?.[0]?.avatar)
+      const avatar = cleanTitleHat(k, normalizeAvatar(state[k]?.[0]?.avatar))
       const p = peers.get(k)
       if (p) p.avatar = avatar
       else peers.set(k, { name: k, avatar, x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, facing: 0, at: 0 })
@@ -167,12 +177,14 @@ function join(owner: string, key: string, me: string) {
     for (const k of [...peers.keys()]) if (!names.includes(k)) peers.delete(k)
     lastNames = names
     useLive.setState({ names, room: owner })
+    if (key.startsWith('plaza:')) omokOnPresence(state, allowed)
   })
     .on('presence', { event: 'join' }, ({ key: who }) => {
       if (who === me) return
       const st = ch.presenceState() as Record<string, Meta[]>
       if (who in st && !allowedOf(st, owner).includes(who)) return // 자리가 없어 곧 돌아갈 사람
       send() // 새로 온 친구가 내 위치를 알 수 있게
+      if (key.startsWith('plaza:')) setTimeout(omokResend, 600) // 오목 판도 알려 준다
       if (performance.now() < quietUntil) return
       useVillage
         .getState()
@@ -205,6 +217,9 @@ function join(owner: string, key: string, me: string) {
       p.facing = m.f
       p.at = performance.now()
     })
+    .on('broadcast', { event: 'omok' }, ({ payload }) => {
+      if (key.startsWith('plaza:')) omokOnEvent(payload as OmokPayload)
+    })
     .on('broadcast', { event: 'emote' }, ({ payload }) => {
       const m = payload as { n: string; e: string }
       if (m && m.n !== me && EMOTES.includes(m.e)) setEmote(m.n, m.e)
@@ -212,8 +227,18 @@ function join(owner: string, key: string, me: string) {
     .subscribe((status) => {
       if (status !== 'SUBSCRIBED' || channel !== ch) return
       ready = true
-      joinedAt = Date.now()
+      if (!joinedAt) joinedAt = Date.now()
+      if (timer) clearInterval(timer)
       void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt })
+      if (key.startsWith('plaza:')) {
+        bindOmokIO(
+          {
+            send: (p) => void ch.send({ type: 'broadcast', event: 'omok', payload: p }),
+            track: pushPresence,
+          },
+          me,
+        )
+      }
       timer = setInterval(tick, 250)
       setTimeout(send, 400)
     })
@@ -243,8 +268,15 @@ export function sendEmote(e: string) {
 // 친구들에게 보여 주는 내 모습 (탈 것에서 내렸으면 탈 것 없이)
 const liveAvatar = (s: { avatar: Avatar; rideOn: boolean }) => viewAvatar(s.avatar, s.rideOn)
 
+// 지난주 오목왕 명단이 갱신되면, 방에 있는 친구들의 오목왕 모자를 다시 확인한다
+useOmokStats.subscribe((s, prev) => {
+  if (s.titles === prev.titles || !channel) return
+  const state = channel.presenceState() as Record<string, Meta[]>
+  for (const [k, p] of peers) p.avatar = cleanTitleHat(k, normalizeAvatar(state[k]?.[0]?.avatar))
+})
+
 useVillage.subscribe((s, prev) => {
   if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza) syncRoom()
   else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn) && ready && channel)
-    void channel.track({ avatar: liveAvatar(s), t: joinedAt })
+    pushPresence()
 })

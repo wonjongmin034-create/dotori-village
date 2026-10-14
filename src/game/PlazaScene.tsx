@@ -3,8 +3,10 @@ import { Html, Instance, Instances } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { toonGradient } from './toon'
+import { useOmok, seatPos } from './omokState'
+import { useOmokStats } from './omokStats'
 import { Toon } from './wearKit'
-import { BEDS, BENCHES, FEATURES, FOUNTAIN, GATE_Z, GAZEBO_POSTS, HIDEOUTS, LAMPS, PAVING_R, PLAZA_RADIUS, STAGE, TREES } from './plaza'
+import { BEDS, BENCHES, BOARD_SIGN, FEATURES, OMOK_TABLES, FOUNTAIN, GATE_Z, GAZEBO_POSTS, HIDEOUTS, LAMPS, PAVING_R, PLAZA_RADIUS, STAGE, TREES } from './plaza'
 
 // 도토리 광장의 모습 — 가운데 분수, 둘레의 돌바닥·벤치·가로등·꽃밭, 가장자리의 나무, 북쪽 무대,
 // 숨을 수 있는 수풀·텐트·통(숨바꼭질용). 그림자·조명은 Scene이 맡는다.
@@ -718,6 +720,178 @@ function Features() {
   )
 }
 
+
+/* ---------- 오목 테이블·순위판 ---------- */
+let boardTex: THREE.CanvasTexture | null = null
+function omokBoardTexture() {
+  if (boardTex) return boardTex
+  const S = 512
+  const c = document.createElement('canvas')
+  c.width = c.height = S
+  const g = c.getContext('2d')!
+  g.fillStyle = '#e6c27d'
+  g.fillRect(0, 0, S, S)
+  const pad = 34
+  const step = (S - pad * 2) / 14
+  g.strokeStyle = '#5a3d1a'
+  g.lineWidth = 2
+  for (let i = 0; i < 15; i++) {
+    g.beginPath()
+    g.moveTo(pad, pad + i * step)
+    g.lineTo(S - pad, pad + i * step)
+    g.moveTo(pad + i * step, pad)
+    g.lineTo(pad + i * step, S - pad)
+    g.stroke()
+  }
+  g.fillStyle = '#5a3d1a'
+  for (const [x, y] of [[3, 3], [11, 3], [7, 7], [3, 11], [11, 11]]) {
+    g.beginPath()
+    g.arc(pad + x * step, pad + y * step, 5, 0, Math.PI * 2)
+    g.fill()
+  }
+  boardTex = new THREE.CanvasTexture(c)
+  boardTex.anisotropy = 4
+  return boardTex
+}
+
+const BS = 1.5 // 판 한 변 (월드 길이)
+const cellXZ = (cell: number): [number, number] => {
+  const x = cell % 15
+  const y = Math.floor(cell / 15)
+  const step = (BS * (1 - (34 * 2) / 512)) / 14
+  const o = -BS / 2 + (34 / 512) * BS
+  return [o + x * step, o + y * step]
+}
+
+function OmokTable({ tb }: { tb: number }) {
+  const game = useOmok((s) => s.games[tb])
+  const seats = useOmok((s) => s.seats[tb])
+  const tex = useMemo(() => omokBoardTexture(), [])
+  const black = game ? game.moves.filter((_, i) => i % 2 === 0) : []
+  const white = game ? game.moves.filter((_, i) => i % 2 === 1) : []
+  const last = game && game.moves.length ? game.moves[game.moves.length - 1] : -1
+  const mover = game && !game.over ? (game.moves.length % 2 === 0 ? game.black : game.white) : null
+  return (
+    <group>
+      {/* 테이블 */}
+      <mesh position={[0, 0.72, 0]}>
+        <boxGeometry args={[1.9, 0.1, 1.9]} />
+        <Toon color="#b98552" />
+      </mesh>
+      {[[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]].map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.36, z]}>
+          <cylinderGeometry args={[0.07, 0.09, 0.72, 8]} />
+          <Toon color="#8a5a34" />
+        </mesh>
+      ))}
+      {/* 판 */}
+      <mesh position={[0, 0.78, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[BS, BS]} />
+        <meshBasicMaterial map={tex} />
+      </mesh>
+      {/* 돌 */}
+      <Instances limit={120} range={black.length}>
+        <cylinderGeometry args={[0.05, 0.05, 0.035, 12]} />
+        <meshToonMaterial gradientMap={toonGradient} color="#1f2025" />
+        {black.map((c, i) => {
+          const [x, z] = cellXZ(c)
+          return <Instance key={i} position={[x, 0.8, z]} />
+        })}
+      </Instances>
+      <Instances limit={120} range={white.length}>
+        <cylinderGeometry args={[0.05, 0.05, 0.035, 12]} />
+        <meshToonMaterial gradientMap={toonGradient} color="#fbfbfb" />
+        {white.map((c, i) => {
+          const [x, z] = cellXZ(c)
+          return <Instance key={i} position={[x, 0.8, z]} />
+        })}
+      </Instances>
+      {last >= 0 && (
+        <mesh position={[cellXZ(last)[0], 0.82, cellXZ(last)[1]]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.02, 0.032, 12]} />
+          <meshBasicMaterial color="#e0405a" />
+        </mesh>
+      )}
+      {/* 의자 + 앉은 사람 이름표 */}
+      {[0, 1].map((s) => {
+        const [sx, sz] = seatPos(tb, s as 0 | 1)
+        const t = OMOK_TABLES[tb]
+        const name = seats?.[s] ?? null
+        const stone = game && name ? (game.black === name ? '⚫' : '⚪') : ''
+        return (
+          <group key={s} position={[sx - t.x, 0, sz - t.z]}>
+            <mesh position={[0, 0.2, 0]}>
+              <cylinderGeometry args={[0.3, 0.26, 0.4, 14]} />
+              <Toon color={name ? '#6a5fd0' : '#a8743f'} />
+            </mesh>
+            {name ? (
+              <Html position={[0, 2.35, 0]} center zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
+                <div className={`omok-tag${mover === name ? ' turn' : ''}`}>
+                  {stone} {name}
+                </div>
+              </Html>
+            ) : (
+              <Html position={[0, 0.95, 0]} center zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
+                <div className="omok-seat">🪑</div>
+              </Html>
+            )}
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+function OmokTables() {
+  return (
+    <group>
+      {OMOK_TABLES.map((t) => (
+        <group key={t.id} position={[t.x, 0, t.z]}>
+          <OmokTable tb={t.id} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
+function RankSign() {
+  const rows = useOmokStats((s) => s.standings)
+  const top = rows.filter((r) => r.points > 0).slice(0, 3)
+  const medals = ['🥇', '🥈', '🥉']
+  return (
+    <group position={[BOARD_SIGN.x, 0, BOARD_SIGN.z]} rotation={[0, 0.5, 0]}>
+      {[-0.55, 0.55].map((x) => (
+        <mesh key={x} position={[x, 0.9, 0]}>
+          <cylinderGeometry args={[0.07, 0.08, 1.8, 8]} />
+          <Toon color="#8a5a34" />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.6, 0]}>
+        <boxGeometry args={[1.6, 0.95, 0.08]} />
+        <Toon color="#a8743f" />
+      </mesh>
+      <mesh position={[0, 1.6, 0.045]}>
+        <boxGeometry args={[1.45, 0.8, 0.02]} />
+        <Toon color="#f6e7c4" />
+      </mesh>
+      <Html position={[0, 1.6, 0.07]} center transform distanceFactor={4.2} zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
+        <div className="rank-sign">
+          <b>🏆 이번 주 오목 순위</b>
+          {top.length === 0 ? (
+            <span>아직 없어요</span>
+          ) : (
+            top.map((r, i) => (
+              <span key={r.student}>
+                {medals[i]} {r.student} · {r.points}점
+              </span>
+            ))
+          )}
+        </div>
+      </Html>
+    </group>
+  )
+}
+
 /* ---------- 풀·꽃 장식 ---------- */
 function Detail() {
   const { tufts, flowers } = useMemo(() => {
@@ -783,6 +957,8 @@ export function Plaza() {
       <Trees />
       <Hideouts />
       <Features />
+      <OmokTables />
+      <RankSign />
       <Stage />
       <Gate />
       <Detail />

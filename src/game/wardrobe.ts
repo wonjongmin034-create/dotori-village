@@ -20,6 +20,7 @@ export type WardrobeItem = {
   label: string
   cost: number
   swatch?: string // 색 미리보기용 (color 슬롯)
+  special?: boolean // 상품이 아니라 상으로만 받는 것 (목록에는 안 보인다)
 }
 
 const colors = (
@@ -210,6 +211,12 @@ export const WARDROBE: WardrobeItem[] = [
     ['knight', '기사 투구', 150],
     ['unicorn', '유니콘 뿔', 200],
   ]),
+  // ── 오목왕 모자 (매주 금요일 승점 1~3등만. 옷장에 안 보이고 상으로 자동으로 씌워진다) ──
+  ...styles('hat', [
+    ['omok1', '오목왕 🥇', 0],
+    ['omok2', '오목왕 🥈', 0],
+    ['omok3', '오목왕 🥉', 0],
+  ]).map((w) => ({ ...w, special: true })),
 
   // ── 액세서리 ──
   ...styles('acc', [

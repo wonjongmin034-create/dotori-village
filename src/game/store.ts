@@ -302,6 +302,7 @@ interface VillageState {
     lunch?: ClassLunch
   }) => void
   grantCoins: (amount: number, reason: string) => void
+  addCoins: (amount: number, reason: string) => void
   setMode: (m: Mode) => void
   togglePlacing: (type: string) => void
   select: (key: string | null) => void
@@ -478,6 +479,14 @@ export const useVillage = create<VillageState>((set, get) => {
           ? `선생님이 도토리를 줬어요! +${amount}${reason ? ` (${reason})` : ''}`
           : `도토리 ${amount}${reason ? ` (${reason})` : ''}`,
       )
+    },
+
+    // 오목 같은 게임에서 받은 도토리 (선생님이 준 것과 구분되는 안내)
+    addCoins: (amount, reason) => {
+      const next = get().coins + amount
+      save(next, get().items, get().homework)
+      set({ coins: next })
+      get().flash(`${reason ? reason + ' · ' : ''}도토리 +${amount} 🌰`)
     },
 
     setMode: (mode) =>

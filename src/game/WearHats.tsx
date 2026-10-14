@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Toon, Glow, WHITE, Dome, HairBase, Shaped } from './wearKit'
+import { OmokCrown } from './OmokCrown'
 
 // 새 모자·머리 모양. 머리(head) 그룹의 자식으로 그린다 (머리 반지름 0.5, 정수리 y≈0.47).
 
@@ -9,7 +10,7 @@ export const NEW_HATS = new Set([
   'cowboy', 'santa', 'ninja', 'bucket', 'beret', 'tophat', 'knight', 'viking', 'mushroom', 'sprout',
   'unicorn', 'police', 'catears', 'flowercrown', 'strawberry', 'graduation',
   // 예전 모자를 새로 그린 것
-  'pirate', 'wizard', 'crown', 'headphones', 'horns', 'halo', 'straw', 'party', 'chef', 'beanie', 'cap', 'bunny',
+  'omok1', 'omok2', 'omok3', 'pirate', 'wizard', 'crown', 'headphones', 'horns', 'halo', 'straw', 'party', 'chef', 'beanie', 'cap', 'bunny',
 ])
 export const NEW_HAIR = new Set(['ponytail', 'twinbuns', 'afro', 'mohawk', 'bob', 'curly', 'braid'])
 
@@ -383,6 +384,12 @@ export function HatMore({ id }: { id: string }) {
           ))}
         </group>
       )
+    case 'omok1':
+      return <OmokCrown tier={1} />
+    case 'omok2':
+      return <OmokCrown tier={2} />
+    case 'omok3':
+      return <OmokCrown tier={3} />
     case 'cowboy':
       return (
         <group position={[0, 0.4, 0]}>

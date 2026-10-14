@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { Character, type CharacterRefs } from './Character'
 import { SimpleFigure } from './SimpleFigure'
 import { playerPos } from './player-state'
+import { useOmok } from './omokState'
 import { normalizeAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
@@ -142,6 +143,16 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
     }
 
     applyRidePose(refs, rideOf(p.avatar.ride), moving, s.phase)
+    {
+      const seats = useOmok.getState().seats
+      const sitting = Object.values(seats).some((r) => r[0] === name || r[1] === name)
+      if (sitting) {
+        if (refs.legL.current) refs.legL.current.rotation.x = -1.25
+        if (refs.legR.current) refs.legR.current.rotation.x = -1.25
+        if (refs.armL.current) refs.armL.current.rotation.x = -0.8
+        if (refs.armR.current) refs.armR.current.rotation.x = -0.8
+      }
+    }
 
     s.nextBlink -= dt
     if (s.nextBlink <= 0 && s.blink === 0) {

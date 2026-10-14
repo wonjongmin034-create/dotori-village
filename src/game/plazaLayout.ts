@@ -12,9 +12,17 @@ const ring = (n: number, r: number, off = 0): Ring[] =>
   })
 
 export const FOUNTAIN = { x: 0, z: 0, r: 3.1, scale: 1.25 }
-export const BENCHES = ring(12, 8.4, Math.PI / 12) // 분수를 바라보는 의자
+// 오목 테이블 4개: 분수 둘레 네 대각선에 놓는다. 테이블 가운데(x,z), 양옆에 앉는 자리 2개가 있다.
+export const OMOK_TABLES = ring(4, 6.9, Math.PI / 4).map((p, i) => ({ id: i, x: p.x, z: p.z }))
+// 분수를 바라보는 의자 (오목 테이블이 있는 대각선 자리는 비운다)
+export const BENCHES = ring(12, 8.4, Math.PI / 12).filter((b) => {
+  const deg = ((b.a * 180) / Math.PI + 360) % 360
+  const k = (((deg - 45) % 90) + 90) % 90
+  return k > 6 && k < 84
+})
 export const LAMPS = ring(12, 9.8, 0)
 export const BEDS = ring(8, 13.8, Math.PI / 8).map((p) => ({ ...p, r: 1.5 })) // 꽃밭
+export const BOARD_SIGN = { x: -2.9, z: 12.3 } // 오목 순위판
 export const STAGE = { x: 0, z: -20.4, w: 10.4, d: 4.4 } // 북쪽 무대
 
 // 나무: 가장자리 둥글게 (무대 앞·입구 앞은 비운다)
@@ -60,6 +68,8 @@ export const COLLIDERS: [number, number, number][] = [
   ...LAMPS.map((l): [number, number, number] => [l.x, l.z, 0.22]),
   ...TREES.map((t): [number, number, number] => [t.x, t.z, 0.55]),
   ...HIDEOUTS.map((h): [number, number, number] => [h.x, h.z, h.r]),
+  ...OMOK_TABLES.map((t): [number, number, number] => [t.x, t.z, 1.05]),
+  [BOARD_SIGN.x, BOARD_SIGN.z, 0.55],
   // 연못은 막고, 정자는 기둥만 막는다 (놀이터·소풍 자리는 걸어서 지나갈 수 있다)
   ...FEATURES.filter((f) => f.kind === 'pond').map((f): [number, number, number] => [f.x, f.z, f.r * 0.9]),
   ...GAZEBO_POSTS.map((p): [number, number, number] => [p.x, p.z, 0.2]),
