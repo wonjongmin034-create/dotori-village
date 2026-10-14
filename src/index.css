@@ -2671,3 +2671,31 @@ canvas {
   border-color: #e0a52e;
   background: #fff8e3;
 }
+
+.wd-trial-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.wd-trial-msg small {
+  font-size: 11px;
+  color: #8a7330;
+}
+.wd-trial-msg b {
+  font-size: 14px;
+  color: #5a4616;
+}
+.wd-trial-msg em {
+  font-style: normal;
+  color: #c0701a;
+}
+.wd-trial-poor {
+  color: #c0392b !important;
+  font-weight: 700;
+}
+.wd-trial-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}

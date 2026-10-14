@@ -103,23 +103,29 @@ export function WardrobePanel() {
 
         {trial && trialItem && (
           <div className="wd-trial">
-            <span>
-              <b>{trialItem.label}</b> 입어 보는 중 · 🌰 {trialItem.cost}
-            </span>
-            <button
-              type="button"
-              className="wd-buy"
-              disabled={!canBuy}
-              onClick={() => {
-                choose(trial.slot, trial.id)
-                setTrial(null)
-              }}
-            >
-              {canBuy ? '사기' : `도토리 ${trialItem.cost - coins}개 부족`}
-            </button>
-            <button type="button" className="wd-cancel" onClick={() => setTrial(null)}>
-              취소
-            </button>
+            <div className="wd-trial-msg">
+              <small>지금 입어 보는 중이에요 👀</small>
+              <b>
+                &lsquo;{trialItem.label}&rsquo; 구매하시겠습니까? <em>🌰 {trialItem.cost}</em>
+              </b>
+              {!canBuy && <small className="wd-trial-poor">도토리가 {trialItem.cost - coins}개 모자라요</small>}
+            </div>
+            <div className="wd-trial-btns">
+              <button
+                type="button"
+                className="wd-buy"
+                disabled={!canBuy}
+                onClick={() => {
+                  choose(trial.slot, trial.id)
+                  setTrial(null)
+                }}
+              >
+                구매
+              </button>
+              <button type="button" className="wd-cancel" onClick={() => setTrial(null)}>
+                안 살래요
+              </button>
+            </div>
           </div>
         )}
 
