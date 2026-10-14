@@ -6,6 +6,7 @@ import { Character, type CharacterRefs } from './Character'
 import { SimpleFigure } from './SimpleFigure'
 import { playerPos } from './player-state'
 import { useOmok } from './omokState'
+import { useGfx } from './gfx'
 import { normalizeAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
@@ -36,7 +37,8 @@ export function RemotePlayers() {
           return { n, d: p && p.at ? Math.hypot(p.x - playerPos.x, p.z - playerPos.z) : 99 }
         })
         .sort((a, b) => a.d - b.d)
-      const next = new Set(ranked.filter((r, i) => i < DETAILED && r.d < DETAIL_DIST).map((r) => r.n))
+      const keep = useGfx.getState().lite ? 2 : DETAILED // 느릴 때는 자세히 그리는 친구를 줄인다
+      const next = new Set(ranked.filter((r, i) => i < keep && r.d < DETAIL_DIST).map((r) => r.n))
       setDetail((prev) => (prev.size === next.size && [...next].every((n) => prev.has(n)) ? prev : next))
     }
     pick()
@@ -86,7 +88,7 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
     const t = state.clock.elapsedTime
 
     // 마지막으로 받은 위치에서 속도만큼 조금 더 간 곳을 목표로 (최대 0.35초)
-    const age = Math.min(0.6, (performance.now() - p.at) / 1000)
+    const age = Math.min(1.1, (performance.now() - p.at) / 1000)
     const tx = p.x + p.vx * age
     const tz = p.z + p.vz * age
     if (!s.init) {

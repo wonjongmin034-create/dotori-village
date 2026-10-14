@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Toon, Glow, Shaped } from './wearKit'
+import { useGfx } from './gfx'
 
 // 오목왕 모자 — 금요일마다 승점 1~3등만 받는 상. 1등 금관, 2등 은관, 3등 동관.
 // 바둑돌 장식 + 앞쪽에 "5목" 판 장식 + 월계수 잎. 1등은 반짝이가 머리 위를 돈다.
@@ -14,6 +15,7 @@ const METAL: Record<number, { base: string; dark: string; glow: string }> = {
 export function OmokCrown({ tier }: { tier: 1 | 2 | 3 }) {
   const m = METAL[tier]
   const orbit = useRef<THREE.Group>(null)
+  const lite = useGfx((s) => s.lite)
   useFrame((s) => {
     if (orbit.current) orbit.current.rotation.y = s.clock.elapsedTime * 1.4
   })
@@ -94,7 +96,7 @@ export function OmokCrown({ tier }: { tier: 1 | 2 | 3 }) {
       )}
 
       {/* 1등: 머리 위를 도는 반짝이 */}
-      {tier === 1 && (
+      {tier === 1 && !lite && (
         <group ref={orbit} position={[0, 0.34, 0]}>
           {[0, 1, 2].map((i) => {
             const a = (i / 3) * Math.PI * 2

@@ -199,7 +199,23 @@ export default function App() {
       onPointerCancel={onPointerUp}
       onWheel={onWheel}
     >
-      <Canvas dpr={[1, 1.5]} camera={{ fov: 60, position: [0, 8, 14], near: 0.1, far: 240 }}>
+      <Canvas
+        dpr={[1, 1.5]}
+        camera={{ fov: 60, position: [0, 8, 14], near: 0.1, far: 240 }}
+        onCreated={({ gl }) => {
+          // 그래픽 장치 연결이 끊겼을 때(화면이 까맣게/깨져 보임): 잠깐 기다려도 안 돌아오면 새로고침
+          const el = gl.domElement
+          let t: ReturnType<typeof setTimeout> | null = null
+          el.addEventListener('webglcontextlost', () => {
+            if (t) clearTimeout(t)
+            t = setTimeout(() => location.reload(), 4000)
+          })
+          el.addEventListener('webglcontextrestored', () => {
+            if (t) clearTimeout(t)
+            t = null
+          })
+        }}
+      >
         <Scene />
       </Canvas>
 

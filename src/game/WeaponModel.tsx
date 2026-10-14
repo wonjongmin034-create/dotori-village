@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Toon, Glow, Shaped } from './wearKit'
 import { isFamily, type WeaponFamily } from './weapons'
+import { useGfx } from './gfx'
 
 // 무기 3D 모델. 손잡이 한가운데가 원점이고, 무기는 +y 방향(위)으로 뻗는다.
 // 단계(tier 1~6)가 올라갈수록 재료(나무→철→은→금·불꽃→룬→전설)와 장식, 빛이 화려해진다.
@@ -34,9 +35,11 @@ const Ball = ({ p, r, c, emissive, ei }: { p: [number, number, number]; r: numbe
 // 위쪽에서 빙글빙글 도는 반짝이 (5·6단계)
 function Orbit({ y, r, n, c, speed = 1.6, size = 0.07 }: { y: number; r: number; n: number; c: string; speed?: number; size?: number }) {
   const g = useRef<THREE.Group>(null)
+  const lite = useGfx((s) => s.lite)
   useFrame((s) => {
     if (g.current) g.current.rotation.y = s.clock.elapsedTime * speed
   })
+  if (lite) return null
   return (
     <group ref={g} position={[0, y, 0]}>
       {Array.from({ length: n }, (_, i) => {
@@ -50,9 +53,11 @@ function Orbit({ y, r, n, c, speed = 1.6, size = 0.07 }: { y: number; r: number;
 // 깜빡이는 불꽃 (4단계 이상)
 function Flame({ p, s = 1, c = '#ff7a3d', rot = 0 }: { p: [number, number, number]; s?: number; c?: string; rot?: number }) {
   const m = useRef<THREE.Mesh>(null)
+  const lite = useGfx((st) => st.lite)
   useFrame((st) => {
     if (m.current) m.current.scale.y = s * (0.85 + Math.sin(st.clock.elapsedTime * 14 + p[1] * 9) * 0.25)
   })
+  if (lite) return null
   return (
     <mesh ref={m} position={p} rotation={[0, 0, rot]}>
       <coneGeometry args={[0.04 * s, 0.16 * s, 6]} />
@@ -62,6 +67,8 @@ function Flame({ p, s = 1, c = '#ff7a3d', rot = 0 }: { p: [number, number, numbe
 }
 
 function Halo({ y, len, w, c }: { y: number; len: number; w: number; c: string }) {
+  const lite = useGfx((s) => s.lite)
+  if (lite) return null
   return (
     <mesh position={[0, y, 0]}>
       <boxGeometry args={[w, len, w * 0.6]} />

@@ -104,15 +104,45 @@ function send() {
   last = { x: playerPos.x, z: playerPos.z, moving, air: playerPos.y > 0.01, t: performance.now() }
 }
 
-// 250ms마다: 움직이고 있거나 멈춘 순간이거나 3초 넘게 조용했으면 위치를 보낸다.
-// 같은 방에 아무도 없으면 보낼 필요가 없다 (서버 메시지를 아끼려고).
+// 0.25초마다 확인하되, 서버 메시지를 아끼려고 "꼭 필요할 때만" 위치를 보낸다.
+//  - 같은 방에 아무도 없으면 안 보낸다.
+//  - 받는 쪽이 속도로 위치를 이어 그리니까, 같은 방향으로 계속 걸을 때는 약 0.9초에 한 번이면 충분하다.
+//  - 방향을 바꾸거나 멈추거나 점프할 때는 바로 보낸다.
+let lastV = { vx: 0, vz: 0 }
 function tick() {
   if (!ready || lastNames.length === 0) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
-  const moved = Math.hypot(playerPos.x - last.x, playerPos.z - last.z) > 0.04
   const air = playerPos.y > 0.01
-  if (moving || moved || air || air !== last.air || moving !== last.moving || performance.now() - last.t > 3000) send()
+  const now = performance.now()
+  const turned = Math.hypot(playerMotion.vx - lastV.vx, playerMotion.vz - lastV.vz) > 1.2
+  const stateChanged = air !== last.air || moving !== last.moving
+  const due = now - last.t > (air ? 300 : moving ? 900 : 3000)
+  if (stateChanged || turned || due) {
+    lastV = { vx: playerMotion.vx, vz: playerMotion.vz }
+    send()
+  }
 }
+
+// ── 연결이 끊겼을 때 스스로 복구 ──
+// 서버가 연결을 닫거나(요청이 너무 많을 때 등) 인터넷이 잠깐 끊기면 방에 다시 들어간다.
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let retries = 0
+function recover(why: string) {
+  if (!roomKey || retryTimer) return
+  console.warn('[live] 연결 복구 시도:', why)
+  const delay = Math.min(30_000, 1500 * 2 ** Math.min(retries, 5)) + Math.random() * 600
+  retries++
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    leave()
+    syncRoom()
+  }, delay)
+}
+// 10초마다 연결이 살아 있는지 본다
+setInterval(() => {
+  if (!roomKey || !channel) return
+  if (channel.state !== 'joined' && channel.state !== 'joining') recover('channel ' + channel.state)
+}, 10_000)
 
 // 내 presence(누구인지·옷차림·오목 자리)를 방에 알린다
 function pushPresence() {
@@ -120,14 +150,22 @@ function pushPresence() {
   void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence() })
 }
 
+let removal: Promise<unknown> = Promise.resolve()
+let removedAt = 0
 function leave() {
   omokReset()
   if (timer) clearInterval(timer)
   timer = null
-  if (channel) void supabase.removeChannel(channel)
+  // 먼저 비운 다음에 닫는다: 닫는 순간 "CLOSED"가 동기로 오는데, 그때 내가 스스로 나간 것을 "끊겼다"로 착각하면 안 된다
+  const old = channel
   channel = null
   roomKey = ''
   ready = false
+  if (old) {
+    // 닫는 데 오래 걸려도 3초 넘게는 기다리지 않는다
+    removal = Promise.race([supabase.removeChannel(old).catch(() => undefined), new Promise((r) => setTimeout(r, 3000))])
+    removedAt = performance.now()
+  }
   lastNames = []
   peers.clear()
   for (const t of emoteTimers.values()) clearTimeout(t)
@@ -142,6 +180,16 @@ function join(owner: string, key: string, me: string) {
   kicked = false
   joinedAt = 0
   last = { x: 1e9, z: 1e9, moving: false, air: false, t: 0 }
+  // 같은 이름의 옛 연결이 아직 닫히는 중이면, 그 "닫힘"이 새 연결까지 닫아 버린다 (라이브러리가 이름으로 지움)
+  // → 옛 연결이 완전히 닫힌 뒤에 새로 연다
+  void removal
+    .then(() => new Promise<void>((r) => setTimeout(r, Math.max(0, removedAt + 600 - performance.now()))))
+    .then(() => {
+      if (roomKey === key && !channel) open(owner, key, me)
+    })
+}
+
+function open(owner: string, key: string, me: string) {
   const ch = supabase.channel(key, {
     config: { broadcast: { self: false }, presence: { key: me } },
   })
@@ -225,7 +273,14 @@ function join(owner: string, key: string, me: string) {
       if (m && m.n !== me && EMOTES.includes(m.e)) setEmote(m.n, m.e)
     })
     .subscribe((status) => {
-      if (status !== 'SUBSCRIBED' || channel !== ch) return
+      if (channel !== ch) return
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        ready = false
+        recover(status)
+        return
+      }
+      if (status !== 'SUBSCRIBED') return
+      retries = 0
       ready = true
       if (!joinedAt) joinedAt = Date.now()
       if (timer) clearInterval(timer)

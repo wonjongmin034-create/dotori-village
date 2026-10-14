@@ -13,6 +13,7 @@ import { FriendStage } from './FriendStage'
 import { RemotePlayers } from './RemotePlayers'
 import { Plaza } from './PlazaScene'
 import { useVillage, viewItems } from './store'
+import { useGfx } from './gfx'
 
 // fps가 떨어지면 렌더 해상도·효과를 낮춘다 (크롬북 성능 예산).
 function AdaptiveDpr({ onLow }: { onLow: () => void }) {
@@ -23,11 +24,13 @@ function AdaptiveDpr({ onLow }: { onLow: () => void }) {
       flipflops={3}
       onDecline={() => {
         setDpr(1)
+        useGfx.setState({ lite: true })
         onLow()
       }}
       onIncline={() => setDpr(1.4)}
       onFallback={() => {
         setDpr(1)
+        useGfx.setState({ lite: true })
         onLow()
       }}
     />
