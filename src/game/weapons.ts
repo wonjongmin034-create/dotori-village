@@ -52,7 +52,10 @@ export const evolveCost = (tier: number): number | null => (tier >= 1 && tier < 
 export const totalCostToMax = () => EVOLVE_COST.reduce((a, b) => a + b, 0)
 
 // 손에 쥐었을 때 기울기 (0 = 똑바로 세움, 1 = 앞으로 눕힘). 활·지팡이는 거의 세워서 든다.
-export const HOLD_TILT: Record<WeaponFamily, number> = { sword: 1.05, axe: 1.0, spear: 0.8, bow: 0.1, staff: 0.3, hammer: 1.0 }
+export const HOLD_TILT: Record<WeaponFamily, number> = { sword: 1.05, axe: 1.0, spear: 0.8, bow: 0.1, staff: 0.5, hammer: 1.0 }
+
+// 몸에서 바깥쪽으로 벌려 드는 정도 — 뒤에서 봐도 칼날·창끝이 몸에 가리지 않고 보이게
+export const HOLD_ROLL: Record<WeaponFamily, number> = { sword: 0.42, axe: 0.36, spear: 0.32, bow: 0.12, staff: 0.2, hammer: 0.36 }
 
 export const isFamily = (f: unknown): f is WeaponFamily => WEAPON_FAMILIES.includes(f as WeaponFamily)
 export const tierName = (f: WeaponFamily, tier: number) => TIER_NAMES[f][Math.max(1, Math.min(MAX_TIER, tier)) - 1]

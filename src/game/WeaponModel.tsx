@@ -73,53 +73,68 @@ function Halo({ y, len, w, c }: { y: number; len: number; w: number; c: string }
 /* ───────────── 검 ───────────── */
 function Sword({ t }: { t: number }) {
   const p = PAL[t]
-  const L = [0, 0.62, 0.8, 0.95, 1.1, 1.2, 1.32][t]
-  const W = 0.085 + t * 0.012
+  const L = [0, 0.7, 0.9, 1.05, 1.2, 1.32, 1.48][t] // 날 길이
+  const W = [0, 0.15, 0.17, 0.2, 0.24, 0.26, 0.34][t] // 날 너비
+  const kind = t === 4 ? 'bladeflame' : t === 5 ? 'bladerune' : t === 6 ? 'bladeholy' : 'blade'
+  const y0 = 0.18 // 날이 시작하는 높이
+  const glow = p.glow ?? undefined
   return (
     <group>
-      {/* 손잡이 + 꼭지 */}
+      {/* 손잡이: 감은 끈 + 꼭지 */}
       <mesh>
-        <cylinderGeometry args={[0.034, 0.034, 0.27, 10]} />
+        <cylinderGeometry args={[0.04, 0.04, 0.3, 12]} />
         <Toon color={t === 1 ? '#7a5a30' : p.dark} />
       </mesh>
-      {[-0.07, 0, 0.07].map((y) => (
+      {[-0.1, -0.05, 0, 0.05, 0.1].map((y) => (
         <mesh key={y} position={[0, y, 0]}>
-          <cylinderGeometry args={[0.038, 0.038, 0.018, 10]} />
+          <cylinderGeometry args={[0.046, 0.046, 0.02, 12]} />
           <Toon color={p.trim} />
         </mesh>
       ))}
-      <Ball p={[0, -0.16, 0]} r={0.055} c={p.gem} emissive={p.glow ?? undefined} ei={0.5} />
+      <Ball p={[0, -0.18, 0]} r={0.07} c={p.gem} emissive={glow} ei={0.7} />
       {/* 날 */}
-      <Bar p={[0, 0.17 + L / 2, 0]} s={[W, L, 0.032]} c={p.main} emissive={p.glow ?? undefined} ei={t >= 4 ? 0.35 : 0.18} />
-      <mesh position={[0, 0.17 + L + 0.07, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[W * 0.72, 0.16, 4]} />
-        <Toon color={p.main} emissive={p.glow ?? undefined} ei={t >= 4 ? 0.35 : 0.18} />
-      </mesh>
-      {t >= 2 && <Bar p={[0, 0.17 + L / 2, 0.018]} s={[0.018, L * 0.86, 0.01]} c={t === 6 ? '#ffd966' : p.trim} />}
-      {t === 1 && <Bar p={[0, 0.17 + L / 2, 0.018]} s={[0.012, L * 0.9, 0.008]} c={p.dark} />}
-      {/* 날받이 */}
+      <Shaped kind={kind} size={L} scale={[W / L, 1, 1]} depth={0.05} color={p.main} position={[0, y0, 0]} glow={t === 6} />
+      {/* 날 가운데 홈 + 날 끝의 반짝임 */}
+      <Bar p={[0, y0 + L * 0.5, 0.028]} s={[W * 0.16, L * 0.8, 0.012]} c={t === 6 ? '#ffd966' : t === 1 ? p.dark : p.trim} emissive={glow} ei={0.6} />
+      {t === 1 && [0.2, 0.4, 0.6].map((y) => <Bar key={y} p={[0, y0 + L * y, 0.03]} s={[W * 0.7, 0.012, 0.008]} c={p.dark} />)}
+      {/* 날받이 (칼날 아래의 십자 보호대) */}
       {t <= 2 ? (
-        <Bar p={[0, 0.15, 0]} s={[0.26, 0.05, 0.07]} c={p.trim} />
+        <>
+          <Bar p={[0, 0.16, 0]} s={[W * 2.3, 0.07, 0.09]} c={p.trim} />
+          <Ball p={[W * 1.15, 0.16, 0]} r={0.045} c={p.trim} />
+          <Ball p={[-W * 1.15, 0.16, 0]} r={0.045} c={p.trim} />
+        </>
       ) : (
         <>
-          <Bar p={[0, 0.15, 0]} s={[0.3, 0.055, 0.075]} c={p.trim} />
+          <Bar p={[0, 0.16, 0]} s={[W * 2.2, 0.08, 0.1]} c={p.trim} />
           {[-1, 1].map((s) => (
-            <Bar key={s} p={[s * 0.17, 0.2, 0]} s={[0.1, 0.045, 0.06]} c={p.trim} r={s * 0.5} />
+            <group key={s}>
+              <Bar p={[s * W * 1.25, 0.22, 0]} s={[0.2, 0.06, 0.08]} c={p.trim} r={s * 0.6} />
+              <Bar p={[s * W * 1.55, 0.3, 0]} s={[0.14, 0.05, 0.07]} c={p.trim} r={s * 1.0} />
+            </group>
           ))}
-          <Ball p={[0, 0.2, 0.04]} r={0.045} c={p.gem} emissive={p.glow ?? undefined} ei={0.6} />
+          <Ball p={[0, 0.2, 0.05]} r={0.065} c={p.gem} emissive={glow} ei={0.9} />
         </>
       )}
       {t >= 5 &&
         [-1, 1].map((s) => (
-          <Shaped key={s} kind="wing" size={0.16} color={p.trim} depth={0.02} position={[s * 0.1, 0.24, 0]} rotation={[0, s > 0 ? 0 : Math.PI, 0.5 * s]} />
+          <Shaped key={s} kind="wing" size={t === 6 ? 0.36 : 0.26} color={p.trim} glow={t === 6} depth={0.03} position={[s * W * 1.2, 0.3, 0]} rotation={[0, s > 0 ? 0 : Math.PI, 0.55 * s]} />
         ))}
-      {/* 불꽃 날 (4) / 룬 글자 (5) / 빛 (6) */}
+      {/* 불꽃(4) / 룬 글자(5) / 성스러운 빛(6) */}
       {t === 4 &&
-        [0.35, 0.55, 0.75, 0.95].map((y, i) => <Flame key={i} p={[W / 2 + 0.03, 0.17 + y * (L / 1.1), 0]} s={0.9} rot={-0.5} />)}
+        [0.18, 0.34, 0.5, 0.66, 0.82].map((y, i) => (
+          <group key={i}>
+            <Flame p={[W * 0.4, y0 + L * y, 0]} s={1.05} rot={-0.55} />
+            <Flame p={[-W * 0.4, y0 + L * y, 0]} s={1.05} rot={0.55} />
+          </group>
+        ))}
       {t >= 5 &&
-        [0.3, 0.55, 0.8].map((y, i) => <Bar key={i} p={[0, 0.17 + y * (L / 1.2), 0.022]} s={[0.04, 0.045, 0.006]} c={p.glow ?? '#fff'} emissive={p.glow ?? undefined} ei={1.2} />)}
-      {t >= 5 && <Halo y={0.17 + L / 2} len={L + 0.12} w={W + 0.06} c={p.glow ?? '#fff'} />}
-      {t === 6 && <Orbit y={0.17 + L * 0.55} r={0.26} n={4} c="#fff7c8" />}
+        [0.25, 0.42, 0.58, 0.75].map((y, i) => (
+          <Bar key={i} p={[0, y0 + L * y, 0.03]} s={[W * 0.34, W * 0.2, 0.01]} c="#fff" emissive={glow} ei={1.5} r={i * 0.5} />
+        ))}
+      {t >= 5 && <Halo y={y0 + L * 0.5} len={L + 0.2} w={W + 0.1} c={glow ?? '#fff'} />}
+      {t === 6 && <Orbit y={y0 + L * 0.55} r={0.34} n={5} c="#fff7c8" size={0.09} />}
+      {t === 6 && <Halo y={y0 + L * 0.5} len={L + 0.4} w={W + 0.26} c="#fff7c8" />}
     </group>
   )
 }
@@ -194,6 +209,9 @@ function Spear({ t }: { t: number }) {
         <coneGeometry args={[0.05, 0.14, 8]} />
         <Toon color={p.trim} />
       </mesh>
+      {/* 창끝·장식은 한눈에 보이도록 키운다 */}
+      <group position={[0, 1.15, 0]} scale={1.5}>
+        <group position={[0, -1.15, 0]}>
       {/* 창끝 */}
       {t <= 2 && (
         <mesh position={[0, 1.2, 0]}>
@@ -239,6 +257,8 @@ function Spear({ t }: { t: number }) {
       {t === 4 && [0, 1, 2].map((i) => <Flame key={i} p={[(i - 1) * 0.07, 1.46, 0]} s={1.1} />)}
       {t >= 5 && <Halo y={1.2} len={0.6} w={0.4} c={p.glow ?? '#fff'} />}
       {t >= 5 && <Orbit y={1.12} r={0.28} n={t === 6 ? 5 : 3} c={t === 6 ? '#fff7c8' : '#cfe6ff'} />}
+        </group>
+      </group>
     </group>
   )
 }
@@ -317,19 +337,20 @@ function Staff({ t }: { t: number }) {
   return (
     <group>
       <mesh position={[0, 0.3, 0]}>
-        <cylinderGeometry args={[0.032, 0.042, H, 10]} />
+        <cylinderGeometry args={[0.04, 0.05, H, 10]} />
         <Toon color={t <= 2 ? '#8a5a34' : p.dark} />
       </mesh>
-      {[-0.04, 0.04].map((y) => (
+      {[-0.04, 0.04, 0.5].map((y) => (
         <mesh key={y} position={[0, y, 0]}>
-          <cylinderGeometry args={[0.048, 0.048, 0.025, 10]} />
+          <cylinderGeometry args={[0.058, 0.058, 0.03, 10]} />
           <Toon color={p.trim} />
         </mesh>
       ))}
       <mesh position={[0, -0.44, 0]}>
-        <coneGeometry args={[0.04, 0.1, 8]} />
+        <coneGeometry args={[0.05, 0.12, 8]} />
         <Toon color={p.trim} />
       </mesh>
+      <group scale={1.55} position={[0, -orbY * 0.55, 0]}>
       {t === 1 && (
         <group position={[0, orbY - 0.05, 0]}>
           {[-1, 1].map((s) => (
@@ -402,6 +423,7 @@ function Staff({ t }: { t: number }) {
         </group>
       )}
       {t >= 3 && t <= 4 && <Orbit y={orbY + 0.1} r={0.28} n={3} c={p.glow ?? '#fff'} />}
+      </group>
     </group>
   )
 }
@@ -410,58 +432,87 @@ function Staff({ t }: { t: number }) {
 function Hammer({ t }: { t: number }) {
   const p = PAL[t]
   const H = 0.95
-  const head = [0, 0.3, 0.34, 0.36, 0.4, 0.42, 0.48][t]
-  const hc = t === 1 ? '#a8743f' : p.main
+  const r = [0, 0.15, 0.16, 0.17, 0.18, 0.19, 0.22][t] // 머리 굵기
+  const len = [0, 0.5, 0.52, 0.56, 0.6, 0.62, 0.7][t] // 머리 길이
+  const hc = t === 1 ? '#a8743f' : t === 4 ? '#6a2a1a' : p.main
+  const glow = p.glow ?? undefined
   return (
     <group>
       <mesh position={[0, 0.25, 0]}>
-        <cylinderGeometry args={[0.04, 0.045, H + 0.25, 10]} />
+        <cylinderGeometry args={[0.042, 0.048, H + 0.25, 10]} />
         <Toon color={t <= 2 ? '#8a5a34' : p.dark} />
       </mesh>
       {[-0.08, 0.02, 0.12].map((y) => (
         <mesh key={y} position={[0, y, 0]}>
-          <cylinderGeometry args={[0.052, 0.052, 0.025, 10]} />
+          <cylinderGeometry args={[0.056, 0.056, 0.028, 10]} />
           <Toon color={p.trim} />
         </mesh>
       ))}
-      <Ball p={[0, -0.36, 0]} r={0.06} c={p.gem} emissive={p.glow ?? undefined} ei={0.5} />
-      {/* 머리 */}
-      {t === 1 ? (
-        <mesh position={[0, 0.78, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.15, 0.15, head * 1.2, 14]} />
-          <Toon color={hc} />
+      <Ball p={[0, -0.36, 0]} r={0.065} c={p.gem} emissive={glow} ei={0.6} />
+      {/* 머리: 가로로 눕힌 통 + 양쪽 마개 + 쇠띠 */}
+      <group position={[0, 0.8, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[r, r, len, 20]} />
+          <Toon color={hc} emissive={t === 4 ? '#ff5a2a' : glow} ei={t === 4 ? 0.35 : t >= 5 ? 0.3 : 0.1} />
         </mesh>
-      ) : (
-        <Bar p={[0, 0.78, 0]} s={[head * 1.2, head * 0.7, head * 0.7]} c={hc} emissive={p.glow ?? undefined} ei={t >= 4 ? 0.4 : 0.15} />
-      )}
-      {[-1, 1].map((s) => (
-        <Bar key={s} p={[s * head * 0.62, 0.78, 0]} s={[0.05, head * 0.78, head * 0.78]} c={p.trim} />
-      ))}
-      {t === 1 && [-1, 1].map((s) => <Bar key={s} p={[s * 0.19, 0.78, 0]} s={[0.04, 0.34, 0.34]} c={p.dark} />)}
-      {/* 가시(3) 용암 균열(4) 번개(5·6) */}
-      {t >= 3 &&
-        [-1, 1].map((s) => (
+        {[-1, 1].map((s) => (
           <group key={s}>
-            {[0.12, -0.12].map((z) => (
-              <mesh key={z} position={[s * head * 0.72, 0.78, z]} rotation={[0, 0, -s * Math.PI / 2]}>
-                <coneGeometry args={[0.05, 0.14, 6]} />
-                <Toon color={p.trim} />
-              </mesh>
-            ))}
+            <mesh position={[s * (len / 2 + 0.02), 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[r * 1.2, r * 1.2, 0.07, 20]} />
+              <Toon color={t === 1 ? p.dark : p.trim} />
+            </mesh>
+            <mesh position={[s * len * 0.28, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[r * 1.06, r * 1.06, 0.045, 20]} />
+              <Toon color={p.trim} />
+            </mesh>
           </group>
         ))}
-      {t === 3 && [0.12, -0.12].map((x) => <mesh key={x} position={[x, 0.78 + head * 0.38, 0]}><coneGeometry args={[0.04, 0.12, 6]} /><Toon color={p.trim} /></mesh>)}
-      {t >= 4 && [-0.2, 0.0, 0.2].map((x, i) => <Bar key={i} p={[x, 0.78, head * 0.36]} s={[0.03, head * 0.6, 0.01]} c="#ffb04a" emissive="#ff6a3d" ei={1.4} r={i * 0.3 - 0.3} />)}
-      {t === 4 && [-0.15, 0.15].map((x) => <Flame key={x} p={[x, 0.78 + head * 0.5, 0]} s={1.1} />)}
-      {t >= 5 &&
-        [-1, 1].map((s) => (
-          <group key={s} position={[s * (head * 0.8), 0.9, 0.1]}>
-            <Bar p={[0, 0.0, 0]} s={[0.04, 0.18, 0.012]} c="#cfe6ff" emissive="#7fd6ff" ei={1.6} r={0.5} />
-            <Bar p={[0.04, -0.14, 0]} s={[0.04, 0.16, 0.012]} c="#cfe6ff" emissive="#7fd6ff" ei={1.6} r={-0.5} />
-          </group>
-        ))}
-      {t >= 5 && <Halo y={0.78} len={head * 1.1} w={head * 1.7} c={t === 6 ? '#ffe9a0' : '#9fd0ff'} />}
-      {t >= 5 && <Orbit y={0.82} r={head * 1.0} n={t === 6 ? 5 : 3} c={t === 6 ? '#fff7c8' : '#cfe6ff'} />}
+        {/* 손잡이가 꽂히는 둥근 고정쇠 */}
+        <mesh>
+          <sphereGeometry args={[r * 0.75, 12, 10]} />
+          <Toon color={p.trim} />
+        </mesh>
+        {/* 가시(3단계 이상): 양끝과 윗면 */}
+        {t >= 3 &&
+          [-1, 1].map((s) => (
+            <mesh key={s} position={[s * (len / 2 + 0.1), 0, 0]} rotation={[0, 0, -s * Math.PI / 2]}>
+              <coneGeometry args={[r * 0.55, 0.2, 8]} />
+              <Toon color={p.trim} emissive={glow} ei={0.4} />
+            </mesh>
+          ))}
+        {t >= 3 &&
+          [-0.18, 0, 0.18].map((x) => (
+            <mesh key={x} position={[x * len * 1.6, r + 0.03, 0]}>
+              <coneGeometry args={[0.04, 0.12, 6]} />
+              <Toon color={p.trim} emissive={glow} ei={0.4} />
+            </mesh>
+          ))}
+        {/* 용암 줄무늬(4) · 번개 고리(5·6) */}
+        {t === 4 &&
+          [-0.18, 0, 0.18].map((x) => (
+            <mesh key={x} position={[x * len * 1.2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <torusGeometry args={[r * 1.02, 0.014, 6, 24]} />
+              <Glow color="#ffb04a" />
+            </mesh>
+          ))}
+        {t === 4 && [-0.18, 0.18].map((x) => <Flame key={x} p={[x * len * 1.5, r + 0.1, 0]} s={1.3} />)}
+        {t >= 5 &&
+          [-0.2, 0.2].map((x) => (
+            <mesh key={x} position={[x * len * 1.4, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <torusGeometry args={[r * 1.04, 0.016, 6, 24]} />
+              <Glow color={t === 6 ? '#fff3c2' : '#7fd6ff'} />
+            </mesh>
+          ))}
+        {t >= 5 &&
+          [-1, 1].map((s) => (
+            <group key={s} position={[s * (len / 2 + 0.18), 0.1, 0.0]}>
+              <Bar p={[0, 0.0, 0]} s={[0.04, 0.2, 0.012]} c="#cfe6ff" emissive="#7fd6ff" ei={1.6} r={0.5} />
+              <Bar p={[0.04, -0.16, 0]} s={[0.04, 0.18, 0.012]} c="#cfe6ff" emissive="#7fd6ff" ei={1.6} r={-0.5} />
+            </group>
+          ))}
+        {t >= 5 && <Halo y={0} len={r * 2.8} w={len * 1.5} c={t === 6 ? '#ffe9a0' : '#9fd0ff'} />}
+        {t >= 5 && <Orbit y={0.04} r={len * 0.72} n={t === 6 ? 5 : 3} c={t === 6 ? '#fff7c8' : '#cfe6ff'} />}
+      </group>
     </group>
   )
 }
@@ -471,7 +522,7 @@ export function Weapon({ family, tier }: { family: string | null; tier: number }
   const t = Math.max(1, Math.min(6, Math.round(tier || 1)))
   const f: WeaponFamily = family
   return (
-    <group scale={1.18}>
+    <group scale={1.28}>
       <WeaponByFamily f={f} t={t} />
     </group>
   )

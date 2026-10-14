@@ -89,7 +89,24 @@ function axeShape() {
   return s
 }
 
-export type ShapeKind = 'star' | 'heart' | 'wing' | 'starring' | 'heartring' | 'axehead'
+// 칼날: 아래(0)에서 위(1)로, 가로 -0.5~0.5. 오른쪽 가장자리만 적고 왼쪽은 거울처럼 만든다.
+const BLADE_RIGHT: Record<string, [number, number][]> = {
+  blade: [[0.5, 0], [0.5, 0.8], [0, 1]],
+  bladeflame: [[0.5, 0], [0.36, 0.14], [0.5, 0.27], [0.32, 0.42], [0.48, 0.55], [0.26, 0.7], [0.34, 0.83], [0, 1]],
+  bladerune: [[0.5, 0], [0.5, 0.2], [0.64, 0.3], [0.5, 0.38], [0.5, 0.55], [0.62, 0.65], [0.46, 0.73], [0.4, 0.87], [0, 1]],
+  bladeholy: [[0.5, 0], [0.6, 0.4], [0.4, 0.9], [0, 1]],
+}
+function bladeShape(kind: string) {
+  const r = BLADE_RIGHT[kind]
+  const s = new THREE.Shape()
+  s.moveTo(-r[0][0], r[0][1])
+  for (const [x, y] of r) s.lineTo(x, y)
+  for (let i = r.length - 2; i >= 0; i--) s.lineTo(-r[i][0], r[i][1])
+  s.closePath()
+  return s
+}
+
+export type ShapeKind = 'star' | 'heart' | 'wing' | 'starring' | 'heartring' | 'axehead' | 'blade' | 'bladeflame' | 'bladerune' | 'bladeholy'
 
 const geoCache = new Map<string, THREE.BufferGeometry>()
 function geo(kind: ShapeKind, depth: number): THREE.BufferGeometry {
@@ -101,6 +118,7 @@ function geo(kind: ShapeKind, depth: number): THREE.BufferGeometry {
     else if (kind === 'heart') shape = heartShape()
     else if (kind === 'wing') shape = wingShape()
     else if (kind === 'axehead') shape = axeShape()
+    else if (kind.startsWith('blade')) shape = bladeShape(kind)
     else if (kind === 'starring') shape = withHole(starShape(), starShape, 0.55)
     else shape = withHole(heartShape(), heartShape, 0.6)
     g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 10 })
