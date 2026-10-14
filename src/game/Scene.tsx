@@ -11,6 +11,7 @@ import { EditorControls } from './EditorControls'
 import { BrowseInteract } from './BrowseInteract'
 import { FriendStage } from './FriendStage'
 import { RemotePlayers } from './RemotePlayers'
+import { Plaza } from './PlazaScene'
 import { useVillage, viewItems } from './store'
 
 // fps가 떨어지면 렌더 해상도·효과를 낮춘다 (크롬북 성능 예산).
@@ -36,6 +37,7 @@ function AdaptiveDpr({ onLow }: { onLow: () => void }) {
 export function Scene() {
   const itemsRef = useRef<Group>(null)
   const editing = useVillage((s) => s.mode === 'edit')
+  const inPlaza = useVillage((s) => s.plaza != null)
   const itemCount = useVillage((s) => viewItems(s).length)
   const [lite, setLite] = useState(false) // 저사양: 구름·환경광·그림자 끔
 
@@ -98,9 +100,15 @@ export function Scene() {
         />
       )}
 
-      <Island />
-      <PlacedObjects itemsRef={itemsRef} />
-      <FriendStage />
+      {inPlaza ? (
+        <Plaza />
+      ) : (
+        <>
+          <Island />
+          <PlacedObjects itemsRef={itemsRef} />
+          <FriendStage />
+        </>
+      )}
       <RemotePlayers />
       <Player />
       <CameraRig />

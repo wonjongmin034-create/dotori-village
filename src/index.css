@@ -2699,3 +2699,33 @@ canvas {
   flex-direction: column;
   gap: 5px;
 }
+
+/* --- 도토리 광장 --- */
+.plaza-btn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 14px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, #7a6af0, #5b4bd1);
+  box-shadow: 0 3px 10px rgba(91, 75, 209, 0.35);
+  cursor: pointer;
+}
+.plaza-sign {
+  padding: 6px 16px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(91, 75, 209, 0.92);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+.plaza-sign.small {
+  font-size: 14px;
+  background: rgba(60, 50, 140, 0.85);
+}

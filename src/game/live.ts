@@ -5,6 +5,7 @@ import { useVillage } from './store'
 import { normalizeAvatar, viewAvatar, type Avatar } from './avatar'
 import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
+import { nextPlazaRoom } from './plaza'
 
 // 같이 걷기 — 같은 마을(섬)에 있는 친구들을 실시간으로 보여 준다. (Supabase Realtime)
 // 방 = 섬 주인의 마을. 내 마을에 있으면 내 마을 방, 친구 마을에 놀러 가면 그 친구 방.
@@ -28,7 +29,7 @@ export const peers = new Map<string, Peer>()
 
 export const EMOTES = ['👋', '😊', '❤️', '👍', '🎉']
 // 한 마을에 동시에 있을 수 있는 사람 수 (섬 주인 포함). 넘으면 늦게 온 사람은 돌려보낸다.
-export const MAX_IN_ROOM = 5
+export const MAX_IN_ROOM = 10
 const EMOTE_MS = 3500
 
 type LiveState = {
@@ -101,9 +102,10 @@ function send() {
   last = { x: playerPos.x, z: playerPos.z, moving, air: playerPos.y > 0.01, t: performance.now() }
 }
 
-// 150ms마다: 움직이고 있거나 멈춘 순간이거나 3초 넘게 조용했으면 위치를 보낸다.
+// 250ms마다: 움직이고 있거나 멈춘 순간이거나 3초 넘게 조용했으면 위치를 보낸다.
+// 같은 방에 아무도 없으면 보낼 필요가 없다 (서버 메시지를 아끼려고).
 function tick() {
-  if (!ready) return
+  if (!ready || lastNames.length === 0) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   const moved = Math.hypot(playerPos.x - last.x, playerPos.z - last.z) > 0.04
   const air = playerPos.y > 0.01
@@ -144,11 +146,14 @@ function join(owner: string, key: string, me: string) {
       // 자리가 없다 → 내 마을로 돌아가고 안내
       if (!kicked) {
         kicked = true
-        endVisit()
-        useVillage
-          .getState()
-          .setNotice(`${owner}의 마을은 지금 ${MAX_IN_ROOM}명이 다 모였어요.
+        if (key.startsWith('plaza:')) nextPlazaRoom() // 광장이 꽉 찼으면 다음 번호 광장으로
+        else {
+          endVisit()
+          useVillage
+            .getState()
+            .setNotice(`${owner}의 마을은 지금 ${MAX_IN_ROOM}명이 다 모였어요.
 다음 기회에 방문해 주세요! 🙏`)
+        }
       }
       return
     }
@@ -171,7 +176,13 @@ function join(owner: string, key: string, me: string) {
       if (performance.now() < quietUntil) return
       useVillage
         .getState()
-        .flash(owner === me ? `${who}님이 놀러 왔어요! 👋` : `${who}님도 여기 왔어요 👋`)
+        .flash(
+          key.startsWith('plaza:')
+            ? `${who}님이 광장에 왔어요 👋`
+            : owner === me
+              ? `${who}님이 놀러 왔어요! 👋`
+              : `${who}님도 여기 왔어요 👋`,
+        )
     })
     .on('presence', { event: 'leave' }, ({ key: who }) => {
       if (who === me || !lastNames.includes(who)) return
@@ -203,7 +214,7 @@ function join(owner: string, key: string, me: string) {
       ready = true
       joinedAt = Date.now()
       void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt })
-      timer = setInterval(tick, 150)
+      timer = setInterval(tick, 250)
       setTimeout(send, 400)
     })
 }
@@ -215,8 +226,8 @@ function syncRoom() {
     if (channel) leave()
     return
   }
-  const owner = s.visiting ? s.visiting.name : s.session.name
-  const key = `island:${s.session.classCode}:${owner}`
+  const owner = s.plaza != null ? '' : s.visiting ? s.visiting.name : s.session.name
+  const key = s.plaza != null ? `plaza:${s.session.classCode}:${s.plaza}` : `island:${s.session.classCode}:${owner}`
   if (key !== roomKey) join(owner, key, s.session.name)
 }
 
@@ -233,7 +244,7 @@ export function sendEmote(e: string) {
 const liveAvatar = (s: { avatar: Avatar; rideOn: boolean }) => viewAvatar(s.avatar, s.rideOn)
 
 useVillage.subscribe((s, prev) => {
-  if (s.session !== prev.session || s.visiting !== prev.visiting) syncRoom()
+  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza) syncRoom()
   else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn) && ready && channel)
     void channel.track({ avatar: liveAvatar(s), t: joinedAt })
 })

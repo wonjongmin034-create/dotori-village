@@ -45,6 +45,7 @@ const COSTUME: Record<string, Pal> = {
   shark: { body: '#7f96a8', belly: '#e6ecf0', paw: '#68808f' },
 }
 Object.assign(COSTUME, COSTUME_MORE) // 새 코스튬 색
+export const COSTUME_COLORS = COSTUME
 
 // ─────────────────────────── 머리 ───────────────────────────
 

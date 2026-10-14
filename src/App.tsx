@@ -20,6 +20,8 @@ import { FriendsPanel } from './game/FriendsPanel'
 import { FriendInfoPanel } from './game/FriendInfoPanel'
 import { endVisit } from './game/friends'
 import { requestJump } from './game/input'
+import { enterPlaza, leavePlaza } from './game/plaza'
+import { MAX_IN_ROOM, useLive } from './game/live'
 import { LiveHud } from './game/LiveHud'
 import { NoticeModal } from './game/NoticeModal'
 import { DAILY_PER_SUBJECT, farmLimit } from './game/economy'
@@ -74,6 +76,8 @@ export default function App() {
   const mySubs = useVillage((s) => s.mySubs)
   const openSheets = useVillage((s) => s.openSheets)
   const visiting = useVillage((s) => s.visiting)
+  const plaza = useVillage((s) => s.plaza)
+  const roomCount = useLive((s) => s.names.length)
   const openFriends = useVillage((s) => s.openFriends)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
@@ -193,7 +197,9 @@ export default function App() {
         <div className="badge">
           <b>도토리 마을</b>
           <span>
-            {visiting
+            {plaza != null
+              ? `도토리 광장 ${plaza}번 · ${roomCount + 1}/${MAX_IN_ROOM}명`
+              : visiting
               ? `${visiting.name}의 마을 놀러 옴`
               : editing
               ? `꾸미는 중 · 물건 ${itemCount}개`
@@ -205,7 +211,11 @@ export default function App() {
 
         <div className="coinbar">🌰 {coins}</div>
 
-        {visiting ? (
+        {plaza != null ? (
+          <button type="button" className="mode-btn visit-back" onClick={leavePlaza}>
+            🏠 마을로 돌아가기
+          </button>
+        ) : visiting ? (
           <button type="button" className="mode-btn visit-back" onClick={endVisit}>
             🏠 내 마을로 돌아가기
           </button>
@@ -219,7 +229,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !visiting && (
+        {!editing && !visiting && plaza == null && (
           <div className="hud-stack">
             {daily &&
               (() => {
@@ -256,6 +266,11 @@ export default function App() {
                 👫 친구 마을
               </button>
             )}
+            {session && (
+              <button type="button" className="plaza-btn" onClick={() => enterPlaza(1)}>
+                🏛️ 광장
+              </button>
+            )}
           </div>
         )}
 
@@ -289,7 +304,9 @@ export default function App() {
 
         {!editing && (
           <div className="hint">
-            {visiting
+            {plaza != null
+              ? '친구들과 만나는 광장이에요 · 😊 이모티콘으로 인사해 보세요'
+              : visiting
               ? '친구 집을 탭하면 오두막 레벨을 볼 수 있어요 · 구경만 할 수 있어요'
               : coarse
                 ? '밭·우리·게시판을 탭 · 끌어서 카메라 · 두 손가락 확대'

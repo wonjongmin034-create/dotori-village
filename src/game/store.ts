@@ -271,6 +271,7 @@ interface VillageState {
   classQuestions: Question[] // 선생님이 이 반에 추가한 문제
   classLunch: ClassLunch // 선생님이 올린 급식표 (PDF·날짜별 메뉴)
   visiting: Visiting | null // 놀러 간 친구 마을
+  plaza: number | null // 광장 번호 (null = 내 마을에 있음)
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
   notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
@@ -377,6 +378,7 @@ export const useVillage = create<VillageState>((set, get) => {
     classQuestions: [],
     classLunch: {},
     visiting: null,
+    plaza: null,
     friendsOpen: false,
     friendInfoOpen: false,
     notice: null,

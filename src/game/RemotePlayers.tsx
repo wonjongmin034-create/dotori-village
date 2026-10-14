@@ -1,13 +1,17 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { Character, type CharacterRefs } from './Character'
+import { SimpleFigure } from './SimpleFigure'
+import { playerPos } from './player-state'
 import { normalizeAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
 
-const MAX_SHOWN = 8 // 크롬북 성능을 위해 한 번에 그리는 친구 수
+const MAX_SHOWN = 10 // 한 번에 그리는 친구 수 (한 방 최대 10명)
+const DETAILED = 4 // 가까운 이만큼만 옷까지 자세히 그리고, 나머지는 단순하게 (크롬북 성능)
+const DETAIL_DIST = 16
 
 function dampAngle(current: number, target: number, lambda: number, dt: number) {
   let diff = target - current
@@ -19,16 +23,36 @@ function dampAngle(current: number, target: number, lambda: number, dt: number) 
 // 같은 마을에 있는 친구들 — 받은 위치를 부드럽게 따라가며 걷는 모션을 보여 준다.
 export function RemotePlayers() {
   const names = useLive((s) => s.names)
+  const [detail, setDetail] = useState<Set<string>>(() => new Set(names.slice(0, DETAILED)))
+
+  // 0.5초마다: 나와 가까운 친구 몇 명만 자세히 그린다
+  useEffect(() => {
+    const pick = () => {
+      const ranked = names
+        .slice(0, MAX_SHOWN)
+        .map((n) => {
+          const p = peers.get(n)
+          return { n, d: p && p.at ? Math.hypot(p.x - playerPos.x, p.z - playerPos.z) : 99 }
+        })
+        .sort((a, b) => a.d - b.d)
+      const next = new Set(ranked.filter((r, i) => i < DETAILED && r.d < DETAIL_DIST).map((r) => r.n))
+      setDetail((prev) => (prev.size === next.size && [...next].every((n) => prev.has(n)) ? prev : next))
+    }
+    pick()
+    const t = setInterval(pick, 500)
+    return () => clearInterval(t)
+  }, [names])
+
   return (
     <>
       {names.slice(0, MAX_SHOWN).map((n) => (
-        <RemoteFigure key={n} name={n} />
+        <RemoteFigure key={n} name={n} simple={!detail.has(n)} />
       ))}
     </>
   )
 }
 
-function RemoteFigure({ name }: { name: string }) {
+function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
   const root = useRef<THREE.Group>(null)
   const shadow = useRef<THREE.Mesh>(null)
   const yaw = useRef<THREE.Group>(null)
@@ -61,7 +85,7 @@ function RemoteFigure({ name }: { name: string }) {
     const t = state.clock.elapsedTime
 
     // 마지막으로 받은 위치에서 속도만큼 조금 더 간 곳을 목표로 (최대 0.35초)
-    const age = Math.min(0.35, (performance.now() - p.at) / 1000)
+    const age = Math.min(0.6, (performance.now() - p.at) / 1000)
     const tx = p.x + p.vx * age
     const tz = p.z + p.vz * age
     if (!s.init) {
@@ -138,7 +162,11 @@ function RemoteFigure({ name }: { name: string }) {
         <meshBasicMaterial color="#000000" transparent opacity={0.14} depthWrite={false} />
       </mesh>
       <group ref={yaw}>
-        <Character avatar={peer?.avatar ?? normalizeAvatar(null)} refs={refs} />
+        {simple ? (
+          <SimpleFigure avatar={peer?.avatar ?? normalizeAvatar(null)} />
+        ) : (
+          <Character avatar={peer?.avatar ?? normalizeAvatar(null)} refs={refs} />
+        )}
       </group>
       <Html position={[0, 2.25, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
         <div className="name-tag">{name}</div>

@@ -7,6 +7,7 @@ import { playerPos, playerMotion } from './player-state'
 import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 import { useLive } from './live'
+import { constrainToPlaza } from './plaza'
 import { viewAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 
@@ -74,9 +75,12 @@ export function Player() {
       playerPos.addScaledVector(tmp.dir, speed * mag * dt)
       playerMotion.vx = tmp.dir.x * speed * mag
       playerMotion.vz = tmp.dir.z * speed * mag
-      const b = landHalf(viewItems(useVillage.getState())) - 0.4
-      playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
-      playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
+      if (vs.plaza != null) constrainToPlaza(playerPos)
+      else {
+        const b = landHalf(viewItems(vs)) - 0.4
+        playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
+        playerPos.z = Math.max(-b, Math.min(b, playerPos.z))
+      }
 
       st.facing = dampAngle(st.facing, Math.atan2(tmp.dir.x, tmp.dir.z), 12, dt)
       st.phase += dt * (7 + mag * 5)
