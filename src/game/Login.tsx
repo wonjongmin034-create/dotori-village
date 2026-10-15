@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { InstallGuide } from './InstallGuide'
-import { login, teacherLogin, loadLocalSession, loadLocalTeacher } from './cloud'
+import { login, resume, teacherLogin, loadLocalSession, loadLocalTeacher } from './cloud'
+import { peekRejoinFlag } from './classControl'
 
 export function Login({
   onStudent,
@@ -20,6 +21,21 @@ export function Login({
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+
+  // 선생님이 "전원 다시 접속"을 눌러 새로고침된 경우: 같은 기기·같은 이름이면 비밀번호 없이 바로 다시 들어간다
+  // (표시는 resume() 이 끝난 뒤 cloud.ts 가 지운다)
+  useEffect(() => {
+    const s = peekRejoinFlag() ? loadLocalSession() : null
+    if (!s) return
+    let dead = false
+    void resume(s).then((r) => {
+      if (!dead && r === 'in') onStudent()
+    })
+    return () => {
+      dead = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const submitStudent = async (e: FormEvent) => {
     e.preventDefault()

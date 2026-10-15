@@ -5,6 +5,7 @@ import { normalizeAvatar } from './avatar'
 import { playerPos, spawnAt } from './player-state'
 import { LAND_OLD } from './economy'
 import { cleanTitleHat } from './omokStats'
+import { isClosed, CLOSED_TEXT } from './control'
 
 export type Friend = {
   name: string
@@ -60,6 +61,10 @@ export async function fetchFriends(): Promise<Friend[] | null> {
 export async function visitFriend(name: string): Promise<boolean> {
   const { session } = useVillage.getState()
   if (!session) return false
+  if (isClosed()) {
+    useVillage.getState().setNotice(CLOSED_TEXT)
+    return true // 안내를 이미 보여 줬으니 호출한 쪽에서 "실패" 안내를 또 띄우지 않게
+  }
   try {
     const { data, error } = await supabase
       .from('villages')

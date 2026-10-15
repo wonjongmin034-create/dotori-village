@@ -8,6 +8,7 @@ import { endVisit } from './friends'
 import { nextPlazaRoom } from './plaza'
 import { bindOmokIO, omokOnEvent, omokResend, omokOnPresence, omokPresence, omokReset, type OmokPayload, type SeatMeta, type GameState } from './omokState'
 import { cleanTitleHat, useOmokStats } from './omokStats'
+import { useCtl } from './control'
 
 // 같이 걷기 — 같은 마을(섬)에 있는 친구들을 실시간으로 보여 준다. (Supabase Realtime)
 // 방 = 섬 주인의 마을. 내 마을에 있으면 내 마을 방, 친구 마을에 놀러 가면 그 친구 방.
@@ -343,7 +344,8 @@ function open(owner: string, key: string, me: string) {
 // 지금 있어야 할 방으로 맞춘다 (로그인/로그아웃/놀러 가기/돌아오기 때마다)
 function syncRoom() {
   const s = useVillage.getState()
-  if (!s.session) {
+  if (!s.session || useCtl.getState().closed) {
+    // 로그아웃했거나, 선생님이 광장·친구 마을(실시간)을 닫았으면 연결하지 않는다
     if (channel) leave()
     return
   }
@@ -369,6 +371,10 @@ useOmokStats.subscribe((s, prev) => {
   if (s.titles === prev.titles || !channel) return
   const state = channel.presenceState() as Record<string, Meta[]>
   for (const [k, p] of peers) p.avatar = cleanTitleHat(k, normalizeAvatar(state[k]?.[0]?.avatar))
+})
+
+useCtl.subscribe((s, prev) => {
+  if (s.closed !== prev.closed) syncRoom()
 })
 
 useVillage.subscribe((s, prev) => {

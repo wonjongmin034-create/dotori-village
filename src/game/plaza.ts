@@ -3,6 +3,7 @@ import { useVillage } from './store'
 import { playerPos } from './player-state'
 import { COLLIDERS, GATE_Z, PLAZA_RADIUS } from './plazaLayout'
 import { standUp } from './omokState'
+import { isClosed, CLOSED_TEXT } from './control'
 
 // 도토리 광장 — 같은 반 친구들이 모이는 공동 장소.
 // 방 하나에 MAX_IN_ROOM(10)명까지. 꽉 차면 다음 번호의 광장으로 자동으로 옮겨 간다.
@@ -44,6 +45,10 @@ export function enterPlaza(room = 1) {
   const s = useVillage.getState()
   if (!s.session) {
     s.flash('로그인해야 광장에 갈 수 있어요')
+    return
+  }
+  if (isClosed()) {
+    s.setNotice(CLOSED_TEXT)
     return
   }
   s.setVisiting(null) // 열려 있던 창·친구 마을 정리

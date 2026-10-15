@@ -15,6 +15,7 @@ import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, parseQuestions, newQuestionId, SUBJECTS, type Question } from './questions'
 import { TeacherSheets } from './TeacherSheets'
 import { TeacherLunch } from './TeacherLunch'
+import { TeacherControl } from './TeacherControl'
 import type { Mission } from './store'
 
 // 학생이 오늘 틀린 문제 목록
@@ -561,6 +562,7 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
         flash={flash}
       />
 
+      <TeacherControl classCode={classCode} flash={flash} />
       <TeacherLunch classCode={classCode} flash={flash} />
 
       <QuestionMakerCard

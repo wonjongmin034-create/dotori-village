@@ -11,6 +11,7 @@ import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, sanitizeQuestions, type Question } from './questions'
 import { refreshSheets, resetSheets } from './sheets'
 import { sanitizeLunch, type ClassLunch } from './lunch'
+import { pollControl, resetControl, clearRejoinFlag } from './classControl'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -125,6 +126,7 @@ export async function login(
     startPolling()
     void pollGrants()
     void refreshSheets()
+    void pollControl()
     return { ok: true }
   } catch {
     return { ok: false, error: 'network' }
@@ -160,6 +162,7 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
     startPolling()
     void pollGrants()
     void refreshSheets()
+    void pollControl()
     return 'in'
   } catch {
     useVillage.setState({ session, cloud: 'offline' })
@@ -171,6 +174,8 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
 export function logout() {
   saveLocalSession(null)
   stopPolling()
+  resetControl()
+  clearRejoinFlag()
   resetSheets()
   useVillage.getState().setVisiting(null)
   useVillage.setState({ session: null, cloud: 'local', plaza: null })
@@ -335,8 +340,12 @@ export async function pushQuizStat(correct: boolean) {
 /* ---------- 폴링 ---------- */
 
 let poll: ReturnType<typeof setInterval> | null = null
+let ctlPoll: ReturnType<typeof setInterval> | null = null
 function startPolling() {
   stopPolling()
+  clearRejoinFlag() // 들어왔으니 "다시 접속" 표시는 끝
+  // 선생님의 "광장 닫기 / 전원 다시 접속" 신호는 빨리 받아야 해서 따로 10초마다 (가벼운 요청 1개)
+  ctlPoll = setInterval(() => void pollControl(), 10_000)
   poll = setInterval(() => {
     const s = useVillage.getState()
     if (!s.session) return
@@ -349,6 +358,8 @@ function startPolling() {
 function stopPolling() {
   if (poll) clearInterval(poll)
   poll = null
+  if (ctlPoll) clearInterval(ctlPoll)
+  ctlPoll = null
 }
 
 /* ---------- 저장 훅 ---------- */
