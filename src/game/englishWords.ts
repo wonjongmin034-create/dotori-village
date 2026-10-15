@@ -143,7 +143,7 @@ const EXTRA: [string, string][] = [
   ['deadline', '마감일'], ['appointment', '약속'], ['moment', '순간'], ['forever', '영원히'], ['temporary', '일시적인'],
   // (6) 학교·학습
   ['education', '교육'], ['subject', '과목'], ['literature', '문학'], ['grammar', '문법'], ['vocabulary', '어휘'],
-  ['mathematics', '수학(교과 이름)'], ['biology', '생물학'], ['chemistry', '화학'], ['physics', '물리학'], ['geography', '지리'],
+  ['biology', '생물학'], ['chemistry', '화학'], ['physics', '물리학'], ['geography', '지리'],
   // (7) 동작·상태
   ['whisper', '속삭이다'], ['shout', '외치다'], ['argue', '논쟁하다'], ['negotiate', '협상하다'], ['persuade', '설득하다'],
   ['apologize', '사과하다'], ['hesitate', '주저하다'], ['concentrate', '집중하다'], ['observe', '관찰하다'], ['investigate', '조사하다'],
