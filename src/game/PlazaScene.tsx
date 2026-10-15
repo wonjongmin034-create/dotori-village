@@ -6,6 +6,7 @@ import { toonGradient } from './toon'
 import { useOmok, seatPos } from './omokState'
 import { useOmokStats } from './omokStats'
 import { Toon } from './wearKit'
+import { Baked } from './Baked'
 import { BEDS, BENCHES, BOARD_SIGN, FEATURES, OMOK_TABLES, FOUNTAIN, GATE_Z, GAZEBO_POSTS, HIDEOUTS, LAMPS, PAVING_R, PLAZA_RADIUS, STAGE, TREES } from './plaza'
 
 // 도토리 광장의 모습 — 가운데 분수, 둘레의 돌바닥·벤치·가로등·꽃밭, 가장자리의 나무, 북쪽 무대,
@@ -711,9 +712,17 @@ function Features() {
       {FEATURES.map((f) => (
         <group key={f.id} position={[f.x, 0, f.z]}>
           {f.kind === 'pond' && <Pond r={f.r} />}
-          {f.kind === 'gazebo' && <Gazebo r={f.r} />}
+          {f.kind === 'gazebo' && (
+            <Baked>
+              <Gazebo r={f.r} />
+            </Baked>
+          )}
           {f.kind === 'playground' && <Playground />}
-          {f.kind === 'picnic' && <Picnic />}
+          {f.kind === 'picnic' && (
+            <Baked>
+              <Picnic />
+            </Baked>
+          )}
         </group>
       ))}
     </group>
@@ -949,18 +958,21 @@ export function Plaza() {
   return (
     <>
       <Ground />
-      <Paving />
+      {/* 움직이지 않는 장식은 같은 색끼리 한 덩어리로 합쳐 그린다 (그리기 호출을 크게 줄여 렉을 줄임) */}
+      <Baked>
+        <Paving />
+        <Benches />
+        <Lamps />
+        <Beds />
+        <Trees />
+        <Hideouts />
+        <Stage />
+        <Gate />
+      </Baked>
       <Fountain />
-      <Benches />
-      <Lamps />
-      <Beds />
-      <Trees />
-      <Hideouts />
       <Features />
       <OmokTables />
       <RankSign />
-      <Stage />
-      <Gate />
       <Detail />
     </>
   )

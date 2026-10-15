@@ -14,6 +14,8 @@ import { RemotePlayers } from './RemotePlayers'
 import { Plaza } from './PlazaScene'
 import { useVillage, viewItems } from './store'
 import { useGfx } from './gfx'
+import { useOmok } from './omokState'
+import { OmokThrottle } from './OmokThrottle'
 
 // fps가 떨어지면 렌더 해상도·효과를 낮춘다 (크롬북 성능 예산).
 function AdaptiveDpr({ onLow }: { onLow: () => void }) {
@@ -43,10 +45,12 @@ export function Scene() {
   const inPlaza = useVillage((s) => s.plaza != null)
   const itemCount = useVillage((s) => viewItems(s).length)
   const [lite, setLite] = useState(false) // 저사양: 구름·환경광·그림자 끔
+  const omokSeated = useOmok((s) => s.me != null) // 오목 중엔 뒤 화면을 천천히 그리므로 fps 측정(저사양 판단)을 쉰다
 
   return (
     <>
-      <AdaptiveDpr onLow={() => setLite(true)} />
+      {!omokSeated && <AdaptiveDpr onLow={() => setLite(true)} />}
+      <OmokThrottle />
       <color attach="background" args={['#bfe6ef']} />
       <fog attach="fog" args={['#cdeaf0', 30, 110]} />
 
