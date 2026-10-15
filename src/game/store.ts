@@ -80,6 +80,7 @@ export type PlacedItem = {
   avatar?: Avatar // (집에만) 내 캐릭터 외형
   wardrobe?: string[] // (집에만) 산 옷 id들 ("slot:id")
   weapons?: Record<string, number> // (집에만) 가진 무기와 단계 { sword: 3, bow: 1 }
+  boss?: number // (집에만) 지금까지 클리어한 가장 높은 보스 단계 (0 = 아직 없음)
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
@@ -208,6 +209,11 @@ const weaponsOf = (items: PlacedItem[]): Record<string, number> => {
   if (!out.sword && Object.keys(out).length === 0) out.sword = 1
   return out
 }
+// 클리어한 보스 단계 (0~3)
+const bossOf = (items: PlacedItem[]): number => {
+  const b = items.find((i) => i.type === 'house')?.boss
+  return typeof b === 'number' && Number.isFinite(b) ? Math.max(0, Math.min(9, Math.round(b))) : 0
+}
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
   return Array.isArray(w) ? w : []
@@ -283,6 +289,8 @@ interface VillageState {
   classLunch: ClassLunch // 선생님이 올린 급식표 (PDF·날짜별 메뉴)
   visiting: Visiting | null // 놀러 간 친구 마을
   plaza: number | null // 광장 번호 (null = 내 마을에 있음)
+  bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
+  bossCleared: number // 클리어한 가장 높은 보스 단계
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
   notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
@@ -306,6 +314,7 @@ interface VillageState {
   openArmory: () => void
   closeArmory: () => void
   equipWeapon: (family: WeaponFamily | null) => void
+  markBossCleared: (stage: number) => void
   buyWeapon: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
   toggleRide: () => void
@@ -399,6 +408,8 @@ export const useVillage = create<VillageState>((set, get) => {
     classLunch: {},
     visiting: null,
     plaza: null,
+    bossRoom: null,
+    bossCleared: bossOf(initial.items),
     friendsOpen: false,
     friendInfoOpen: false,
     notice: null,
@@ -442,6 +453,15 @@ export const useVillage = create<VillageState>((set, get) => {
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, avatar: next, weapons } : i))
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, avatar: normalizeAvatar(next) })
+    },
+
+    // 보스를 처음 깼을 때 기록한다 (집 데이터에 저장 → 서버에도 올라감)
+    markBossCleared: (stage) => {
+      const { items, bossCleared } = get()
+      if (stage <= bossCleared) return
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, boss: stage } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, bossCleared: stage })
     },
 
     // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
@@ -530,6 +550,7 @@ export const useVillage = create<VillageState>((set, get) => {
         avatar: avatarOf(merged),
         wardrobe: wardrobeOf(merged),
         weapons: weaponsOf(merged),
+        bossCleared: bossOf(merged),
         daily: dailyOf(merged),
       })
     },

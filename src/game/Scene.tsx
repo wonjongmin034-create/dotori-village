@@ -16,6 +16,9 @@ import { useVillage, viewItems } from './store'
 import { useGfx } from './gfx'
 import { useOmok } from './omokState'
 import { OmokThrottle } from './OmokThrottle'
+import { BossArena } from './BossArena'
+import { useBoss } from './bossState'
+import { stageOf } from './bossData'
 
 // fps가 떨어지면 렌더 해상도·효과를 낮춘다 (크롬북 성능 예산).
 function AdaptiveDpr({ onLow }: { onLow: () => void }) {
@@ -46,13 +49,15 @@ export function Scene() {
   const itemCount = useVillage((s) => viewItems(s).length)
   const [lite, setLite] = useState(false) // 저사양: 구름·환경광·그림자 끔
   const omokSeated = useOmok((s) => s.me != null) // 오목 중엔 뒤 화면을 천천히 그리므로 fps 측정(저사양 판단)을 쉰다
+  const inBoss = useVillage((s) => s.bossRoom != null)
+  const bossTheme = useBoss((s) => stageOf(s.game?.stage ?? s.lobbyStage).theme)
 
   return (
     <>
       {!omokSeated && <AdaptiveDpr onLow={() => setLite(true)} />}
       <OmokThrottle />
-      <color attach="background" args={['#bfe6ef']} />
-      <fog attach="fog" args={['#cdeaf0', 30, 110]} />
+      <color attach="background" args={[inBoss ? bossTheme.sky : '#bfe6ef']} />
+      <fog attach="fog" args={[inBoss ? bossTheme.fog : '#cdeaf0', 30, 110]} />
 
       {/* 조명 — 따뜻한 키 + 시원한 하늘/땅 */}
       <hemisphereLight args={['#eaf4ff', '#8fb877', 0.65]} />
@@ -67,9 +72,9 @@ export function Scene() {
         </Environment>
       )}
 
-      <Sky sunPosition={[8, 12, 5]} turbidity={4} rayleigh={0.7} mieCoefficient={0.006} />
+      {!inBoss && <Sky sunPosition={[8, 12, 5]} turbidity={4} rayleigh={0.7} mieCoefficient={0.006} />}
 
-      {!editing && !lite && (
+      {!editing && !lite && !inBoss && (
         <Clouds material={THREE.MeshBasicMaterial} limit={40}>
           <Cloud seed={2} segments={20} bounds={[14, 2, 14]} volume={7} position={[-10, 16, -12]} opacity={0.5} speed={0.12} color="#ffffff" />
           <Cloud seed={7} segments={16} bounds={[12, 2, 12]} volume={6} position={[14, 18, 8]} opacity={0.42} speed={0.1} color="#f2f8ff" />
@@ -93,7 +98,7 @@ export function Scene() {
         />
       )}
 
-      {!lite && (
+      {!lite && !inBoss && (
         <ContactShadows
           key={itemCount}
           position={[0, 0.02, 0]}
@@ -107,7 +112,9 @@ export function Scene() {
         />
       )}
 
-      {inPlaza ? (
+      {inBoss ? (
+        <BossArena />
+      ) : inPlaza ? (
         <Plaza />
       ) : (
         <>

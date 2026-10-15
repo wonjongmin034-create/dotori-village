@@ -11,6 +11,7 @@ type Bucket = { mat: THREE.Material; geos: THREE.BufferGeometry[] }
 
 function signature(m: THREE.Material): string | null {
   if (m.transparent || Array.isArray(m)) return null
+  if ((m as THREE.MeshBasicMaterial).map) return null // 글자·그림이 붙은 재질은 서로 다르니 합치지 않는다
   if (m.type === 'MeshToonMaterial') {
     const t = m as THREE.MeshToonMaterial
     return `T|${t.color.getHex()}|${t.emissive.getHex()}|${t.emissiveIntensity}|${t.side}|${t.gradientMap?.uuid ?? ''}`

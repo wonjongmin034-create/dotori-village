@@ -6,6 +6,9 @@ import { normalizeAvatar, viewAvatar, type Avatar } from './avatar'
 import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
 import { nextPlazaRoom } from './plaza'
+import { nextBossRoom } from './boss'
+import { bindBossIO, bossOnEvent, bossOnPresence, bossPresence, bossResend, bossReset, type BossPayload } from './bossState'
+import { MAX_PARTY } from './bossData'
 import { bindOmokIO, omokOnEvent, omokResend, omokOnPresence, omokPresence, omokReset, type OmokPayload, type SeatMeta, type GameState } from './omokState'
 import { cleanTitleHat, useOmokStats } from './omokStats'
 import { useCtl } from './control'
@@ -79,16 +82,16 @@ let lastNames: string[] = []
 let kicked = false
 let joinedAt = 0 // 이 방에 들어온 시각 (입장 순서 판단용)
 
-type Meta = { avatar?: Avatar; t?: number; seat?: SeatMeta; game?: GameState }
+type Meta = { avatar?: Avatar; t?: number; seat?: SeatMeta; game?: GameState; bm?: { cl?: number } }
 
 // 들어갈 수 있는 사람들: 섬 주인이 제일 먼저, 그다음 먼저 온 순서. 모두가 같은 데이터로 계산하므로 결과가 같다.
-function allowedOf(state: Record<string, Meta[]>, owner: string): string[] {
+function allowedOf(state: Record<string, Meta[]>, owner: string, cap = MAX_IN_ROOM): string[] {
   return Object.keys(state)
     .map((k) => ({ k, t: state[k]?.[0]?.t ?? 0 }))
     .sort((a, b) =>
       a.k === owner ? -1 : b.k === owner ? 1 : a.t - b.t || (a.k < b.k ? -1 : 1),
     )
-    .slice(0, MAX_IN_ROOM)
+    .slice(0, cap)
     .map((o) => o.k)
 }
 
@@ -145,6 +148,10 @@ const moveGapMs = () => {
   return Math.min(2500, Math.max(600, ((n * (n - 1)) / BUDGET) * 1000))
 }
 let lastV = { vx: 0, vz: 0 }
+// 자리로 순간이동했을 때처럼 지금 위치를 바로 알려야 할 때
+export function pushPosNow() {
+  send()
+}
 function tick() {
   if (!ready || lastNames.length === 0) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
@@ -184,13 +191,14 @@ setInterval(() => {
 // 내 presence(누구인지·옷차림·오목 자리)를 방에 알린다
 function pushPresence() {
   if (!channel || !ready) return
-  void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence() })
+  void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence(), ...(roomKey.startsWith('boss:') ? bossPresence() : {}) })
 }
 
 let removal: Promise<unknown> = Promise.resolve()
 let removedAt = 0
 function leave() {
   omokReset()
+  bossReset()
   if (timer) clearInterval(timer)
   timer = null
   // 먼저 비운 다음에 닫는다: 닫는 순간 "CLOSED"가 동기로 오는데, 그때 내가 스스로 나간 것을 "끊겼다"로 착각하면 안 된다
@@ -236,12 +244,13 @@ function open(owner: string, key: string, me: string) {
     const state = ch.presenceState() as Record<string, Meta[]>
     // 내 입장 기록이 아직 안 올라온 첫 sync는 건너뛴다 (그때 판단하면 멀쩡한 나를 내보내게 됨)
     if (!(me in state)) return
-    const allowed = allowedOf(state, owner)
+    const allowed = allowedOf(state, owner, key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM)
     if (!allowed.includes(me)) {
       // 자리가 없다 → 내 마을로 돌아가고 안내
       if (!kicked) {
         kicked = true
         if (key.startsWith('plaza:')) nextPlazaRoom() // 광장이 꽉 찼으면 다음 번호 광장으로
+        else if (key.startsWith('boss:')) nextBossRoom() // 보스 방이 꽉 찼으면 돌려보낸다
         else {
           endVisit()
           useVillage
@@ -263,20 +272,24 @@ function open(owner: string, key: string, me: string) {
     lastNames = names
     useLive.setState({ names, room: owner })
     if (key.startsWith('plaza:')) omokOnPresence(state, allowed)
+    if (key.startsWith('boss:')) bossOnPresence(state, allowed)
   })
     .on('presence', { event: 'join' }, ({ key: who }) => {
       if (who === me) return
       const st = ch.presenceState() as Record<string, Meta[]>
-      if (who in st && !allowedOf(st, owner).includes(who)) return // 자리가 없어 곧 돌아갈 사람
+      if (who in st && !allowedOf(st, owner, key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM).includes(who)) return // 자리가 없어 곧 돌아갈 사람
       send() // 새로 온 친구가 내 위치를 알 수 있게
       if (key.startsWith('plaza:')) setTimeout(omokResend, 600) // 오목 판도 알려 준다
+      if (key.startsWith('boss:')) setTimeout(bossResend, 600) // 보스방 상태도 알려 준다
       if (performance.now() < quietUntil) return
       useVillage
         .getState()
         .flash(
           key.startsWith('plaza:')
             ? `${who}님이 광장에 왔어요 👋`
-            : owner === me
+            : key.startsWith('boss:')
+              ? `${who}님이 보스 방에 왔어요 ⚔️`
+              : owner === me
               ? `${who}님이 놀러 왔어요! 👋`
               : `${who}님도 여기 왔어요 👋`,
         )
@@ -307,6 +320,10 @@ function open(owner: string, key: string, me: string) {
       cntRecv++
       if (key.startsWith('plaza:')) omokOnEvent(payload as OmokPayload)
     })
+    .on('broadcast', { event: 'boss' }, ({ payload }) => {
+      cntRecv++
+      if (key.startsWith('boss:')) bossOnEvent(payload as BossPayload)
+    })
     .on('broadcast', { event: 'emote' }, ({ payload }) => {
       const m = payload as { n: string; e: string }
       if (m && m.n !== me && EMOTES.includes(m.e)) setEmote(m.n, m.e)
@@ -323,7 +340,19 @@ function open(owner: string, key: string, me: string) {
       ready = true
       if (!joinedAt) joinedAt = Date.now()
       if (timer) clearInterval(timer)
-      void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt })
+      void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...(key.startsWith('boss:') ? bossPresence() : {}) })
+      if (key.startsWith('boss:')) {
+        bindBossIO(
+          {
+            send: (p) => {
+              cntSent++
+              void ch.send({ type: 'broadcast', event: 'boss', payload: p })
+            },
+            track: pushPresence,
+          },
+          me,
+        )
+      }
       if (key.startsWith('plaza:')) {
         bindOmokIO(
           {
@@ -349,8 +378,14 @@ function syncRoom() {
     if (channel) leave()
     return
   }
-  const owner = s.plaza != null ? '' : s.visiting ? s.visiting.name : s.session.name
-  const key = s.plaza != null ? `plaza:${s.session.classCode}:${s.plaza}` : `island:${s.session.classCode}:${owner}`
+  const inRoom = s.bossRoom != null || s.plaza != null
+  const owner = inRoom ? '' : s.visiting ? s.visiting.name : s.session.name
+  const key =
+    s.bossRoom != null
+      ? `boss:${s.session.classCode}:${s.bossRoom}`
+      : s.plaza != null
+        ? `plaza:${s.session.classCode}:${s.plaza}`
+        : `island:${s.session.classCode}:${owner}`
   if (key !== roomKey) join(owner, key, s.session.name)
 }
 
@@ -378,7 +413,7 @@ useCtl.subscribe((s, prev) => {
 })
 
 useVillage.subscribe((s, prev) => {
-  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza) syncRoom()
+  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom) syncRoom()
   else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn) && ready && channel)
     pushPresence()
 })

@@ -3,6 +3,7 @@ import { useVillage } from './store'
 import { useCtl, CLOSED_TEXT } from './control'
 import { leavePlaza } from './plaza'
 import { endVisit } from './friends'
+import { leaveBoss } from './boss'
 
 // 선생님 "수업 제어": 광장·친구 마을 닫기 / 학생 전원 다시 접속시키기.
 // classes.control (jsonb) 에 저장 — supabase/schema-8-control.sql 을 실행해야 쓸 수 있다. 없어도 게임은 그대로 돌아간다.
@@ -26,6 +27,7 @@ function applyClosed(closed: boolean) {
   if (closed) {
     // 광장·친구 마을에 있었다면 내 마을로 돌아온다 (실시간 연결은 live.ts 가 알아서 닫는다)
     if (s.plaza != null) leavePlaza()
+    if (s.bossRoom != null) leaveBoss()
     if (s.visiting) endVisit()
     s.setNotice(CLOSED_TEXT)
   } else {
@@ -61,6 +63,7 @@ function handleKick(classCode: string, kick: number) {
   // 실시간 방에서 나오고, 저장이 끝날 시간을 준 뒤 다시 접속(새로고침). 한꺼번에 몰리지 않게 몇 초씩 흩뜨린다.
   const s = useVillage.getState()
   if (s.plaza != null) leavePlaza()
+  if (s.bossRoom != null) leaveBoss()
   if (s.visiting) endVisit()
   s.setNotice('선생님이 모두 다시 접속하게 했어요.\n잠깐 뒤에 자동으로 다시 들어가요 🔄')
   try {

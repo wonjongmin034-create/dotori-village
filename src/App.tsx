@@ -22,6 +22,9 @@ import { endVisit } from './game/friends'
 import { requestJump } from './game/input'
 import { enterPlaza, leavePlaza } from './game/plaza'
 import { OmokHud } from './game/OmokHud'
+import { BossHud, BossPicker, BossEntryButton } from './game/BossHud'
+import { leaveBoss } from './game/boss'
+import { useBoss, isActive } from './game/bossState'
 import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
 import { refreshTitles } from './game/omokStats'
 import { MAX_IN_ROOM, useLive } from './game/live'
@@ -80,6 +83,10 @@ export default function App() {
   const openSheets = useVillage((s) => s.openSheets)
   const visiting = useVillage((s) => s.visiting)
   const plaza = useVillage((s) => s.plaza)
+  const bossRoom = useVillage((s) => s.bossRoom)
+  const bossCount = useBoss((s) => s.roster.length)
+  // 보스전이 진행 중이고 내가 그 팀이면: 이동 조작을 숨긴다 (자리에 고정되어 있다)
+  const inFight = useBoss((s) => !!s.game && isActive(s.game) && s.game.members.some((m) => m.n === session?.name))
   const roomCount = useLive((s) => s.names.length)
   const openFriends = useVillage((s) => s.openFriends)
   const setMode = useVillage((s) => s.setMode)
@@ -225,7 +232,9 @@ export default function App() {
         <div className="badge">
           <b>도토리 마을</b>
           <span>
-            {plaza != null
+            {bossRoom != null
+              ? `보스 방 ${bossRoom}번 · ${Math.max(bossCount, roomCount + 1)}/4명`
+              : plaza != null
               ? `도토리 광장 ${plaza}번 · ${roomCount + 1}/${MAX_IN_ROOM}명`
               : visiting
               ? `${visiting.name}의 마을 놀러 옴`
@@ -240,8 +249,20 @@ export default function App() {
         <div className="coinbar">🌰 {coins}</div>
 
         {plaza != null && <OmokHud />}
+        {bossRoom != null && <BossHud />}
 
-        {plaza != null ? (
+        {bossRoom != null ? (
+          <button
+            type="button"
+            className="mode-btn visit-back"
+            onClick={() => {
+              if (inFight && !window.confirm('지금 나가면 팀이 힘들어져요. 정말 나갈까요?')) return
+              leaveBoss()
+            }}
+          >
+            🏠 마을로 돌아가기
+          </button>
+        ) : plaza != null ? (
           <button type="button" className="mode-btn visit-back" onClick={leavePlaza}>
             🏠 마을로 돌아가기
           </button>
@@ -259,7 +280,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !visiting && plaza == null && (
+        {!editing && !visiting && plaza == null && bossRoom == null && (
           <div className="hud-stack">
             {daily &&
               (() => {
@@ -302,10 +323,11 @@ export default function App() {
                 🏛️ 광장
               </button>
             )}
+            <BossEntryButton />
           </div>
         )}
 
-        {!editing && !visiting && avatar.ride && (
+        {!editing && !visiting && bossRoom == null && avatar.ride && (
           <button
             type="button"
             className="ride-btn"
@@ -319,7 +341,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && (
+        {!editing && !inFight && (
           <button
             type="button"
             className="jump-btn"
@@ -335,7 +357,9 @@ export default function App() {
 
         {!editing && (
           <div className="hint">
-            {plaza != null
+            {bossRoom != null
+              ? '친구 3~4명과 힘을 합쳐 보스를 쓰러뜨려요! 한 사람씩 차례로 문제를 풀어요'
+              : plaza != null
               ? '친구들과 만나는 광장이에요 · 😊 이모티콘으로 인사해 보세요'
               : visiting
               ? '친구 집을 탭하면 오두막 레벨을 볼 수 있어요 · 구경만 할 수 있어요'
@@ -437,7 +461,7 @@ export default function App() {
         {msg && <div className="flash">{msg}</div>}
       </div>
 
-      {!editing && <Joystick />}
+      {!editing && !inFight && <Joystick />}
 
       <FarmPanel />
       <HousePanel />
@@ -445,6 +469,7 @@ export default function App() {
       <ArcadePanel />
       <WardrobePanel />
       <ArmoryPanel />
+      <BossPicker />
       <DailyLearnPanel />
       <SheetPanel />
       <LiveHud />

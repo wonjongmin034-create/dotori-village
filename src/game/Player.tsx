@@ -11,6 +11,10 @@ import { constrainToPlaza } from './plaza'
 import { useOmok, seatPos, seatFacing } from './omokState'
 import { viewAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
+import { useBoss, isActive } from './bossState'
+import { slotPos, slotFacing, constrainToArena } from './bossLayout'
+import { swingPose } from './swing'
+import { pushPosNow } from './live'
 
 const SPEED = 5 // m/s
 const UP = new THREE.Vector3(0, 1, 0)
@@ -45,7 +49,7 @@ export function Player() {
   const avatar = useMemo(() => viewAvatar(baseAvatar, rideOn), [baseAvatar, rideOn])
   const myEmote = useLive((s) => s.emotes.__me)
 
-  const s = useRef({ facing: Math.PI, phase: 0, blink: 0, nextBlink: 2.5, vy: 0, land: 0 })
+  const s = useRef({ facing: Math.PI, phase: 0, blink: 0, nextBlink: 2.5, vy: 0, land: 0, bossLock: false })
   const tmp = useMemo(
     () => ({ forward: new THREE.Vector3(), right: new THREE.Vector3(), dir: new THREE.Vector3() }),
     [],
@@ -73,7 +77,21 @@ export function Player() {
       st.vy = 0
       jumpInput.requested = false
     }
-    const m = editing || sit ? { x: 0, y: 0 } : getMove()
+    // 보스전 중에는 내 팀 자리에 서서 보스를 바라본다
+    const myName = vs.session?.name
+    const bg = vs.bossRoom != null ? useBoss.getState().game : null
+    const bossIdx = bg && isActive(bg) && myName ? bg.members.findIndex((mm) => mm.n === myName) : -1
+    const bossLocked = bg != null && bossIdx >= 0
+    if (bossLocked && bg) {
+      const [bx, bz] = slotPos(bossIdx, bg.members.length)
+      playerPos.set(bx, 0, bz)
+      st.facing = slotFacing(bx, bz)
+      st.vy = 0
+      jumpInput.requested = false
+      if (!st.bossLock) pushPosNow() // 자리로 옮겨졌으니 친구들 화면에도 바로 알린다
+    }
+    st.bossLock = bossLocked
+    const m = editing || sit || bossLocked ? { x: 0, y: 0 } : getMove()
     let mag = Math.hypot(m.x, m.y)
     const moving = mag > 0.02
 
@@ -86,6 +104,7 @@ export function Player() {
       playerMotion.vx = tmp.dir.x * speed * mag
       playerMotion.vz = tmp.dir.z * speed * mag
       if (vs.plaza != null) constrainToPlaza(playerPos)
+      else if (vs.bossRoom != null) constrainToArena(playerPos)
       else {
         const b = landHalf(viewItems(vs)) - 0.4
         playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
@@ -174,6 +193,15 @@ export function Player() {
     }
     // 탈 것을 탔으면 자세를 바꾼다 (타고 있지 않으면 벌어진 팔다리만 원래대로)
     applyRidePose(refs, ride, moving, st.phase)
+
+    // 문제를 맞혔을 때 무기를 크게 휘두른다
+    const sp = myName ? swingPose(myName) : null
+    if (sp) {
+      if (refs.armR.current) refs.armR.current.rotation.x = sp.arm
+      if (refs.armL.current) refs.armL.current.rotation.x = sp.armL
+      if (refs.bob.current) refs.bob.current.rotation.x = sp.lean
+      if (yawGroup.current) yawGroup.current.position.set(Math.sin(st.facing) * sp.lunge, 0, Math.cos(st.facing) * sp.lunge)
+    } else if (yawGroup.current && (yawGroup.current.position.x !== 0 || yawGroup.current.position.z !== 0)) yawGroup.current.position.set(0, 0, 0)
 
     // 눈 깜빡임
     st.nextBlink -= dt

@@ -10,6 +10,8 @@ import { useGfx } from './gfx'
 import { normalizeAvatar } from './avatar'
 import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
+import { swingPose } from './swing'
+import { useVillage } from './store'
 
 const MAX_SHOWN = 10 // 한 번에 그리는 친구 수 (한 방 최대 10명)
 const DETAILED = 4 // 가까운 이만큼만 옷까지 자세히 그리고, 나머지는 단순하게 (크롬북 성능)
@@ -37,7 +39,8 @@ export function RemotePlayers() {
           return { n, d: p && p.at ? Math.hypot(p.x - playerPos.x, p.z - playerPos.z) : 99 }
         })
         .sort((a, b) => a.d - b.d)
-      const keep = useGfx.getState().lite ? 2 : DETAILED // 느릴 때는 자세히 그리는 친구를 줄인다
+      const inBoss = useVillage.getState().bossRoom != null // 보스 방은 최대 4명이라 모두 자세히 (휘두르는 동작이 보여야 한다)
+      const keep = inBoss ? 4 : useGfx.getState().lite ? 2 : DETAILED // 느릴 때는 자세히 그리는 친구를 줄인다
       const next = new Set(ranked.filter((r, i) => i < keep && r.d < DETAIL_DIST).map((r) => r.n))
       setDetail((prev) => (prev.size === next.size && [...next].every((n) => prev.has(n)) ? prev : next))
     }
@@ -157,6 +160,14 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
         if (refs.armR.current) refs.armR.current.rotation.x = -0.8
       }
     }
+
+    const sp = swingPose(name)
+    if (sp) {
+      if (refs.armR.current) refs.armR.current.rotation.x = sp.arm
+      if (refs.armL.current) refs.armL.current.rotation.x = sp.armL
+      if (refs.bob.current) refs.bob.current.rotation.x = sp.lean
+      if (yaw.current) yaw.current.position.set(Math.sin(s.facing) * sp.lunge, 0, Math.cos(s.facing) * sp.lunge)
+    } else if (yaw.current && (yaw.current.position.x !== 0 || yaw.current.position.z !== 0)) yaw.current.position.set(0, 0, 0)
 
     s.nextBlink -= dt
     if (s.nextBlink <= 0 && s.blink === 0) {

@@ -5,6 +5,7 @@ import { cameraDrag, cameraZoom } from './input'
 import { playerPos } from './player-state'
 import { useVillage, landHalf, viewItems } from './store'
 import { LAND_START } from './economy'
+import { camShake } from './bossFx'
 
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -14,6 +15,7 @@ const EDIT_OFFSET = new THREE.Vector3(0, 14, 11)
 
 export function CameraRig() {
   const { camera } = useThree()
+  const size = useThree((st) => st.size)
 
   const s = useRef({
     yaw: Math.PI * 0.12,
@@ -44,7 +46,12 @@ export function CameraRig() {
     const half = cs.plaza != null ? 14 : landHalf(viewItems(cs))
     const zoomOut = 1 + Math.max(0, half - LAND_START) * 0.06
 
-    if (editing) {
+    if (cs.bossRoom != null) {
+      // 보스 방: 싸움터 가운데를 고정해서 본다 (보스와 팀이 한 화면에)
+      tmp.focus.set(0, 0, 0.4)
+      tmp.offset.set(0, 5.3, 10.8)
+      tmp.lookTarget.set(0, 2.8, -3.0)
+    } else if (editing) {
       tmp.focus.set(0, 0, 0)
       tmp.offset.copy(EDIT_OFFSET).multiplyScalar(zoomOut)
       tmp.lookTarget.set(0, 0.5, 0)
@@ -62,6 +69,21 @@ export function CameraRig() {
     st.look.lerp(tmp.lookTarget, k)
     camera.position.copy(st.camPos)
     camera.lookAt(st.look)
+    // 보스 방: 아래쪽에 문제 창이 올라오므로, 장면을 위로 조금 밀어 올려 보스가 가려지지 않게 한다
+    const pc = camera as THREE.PerspectiveCamera
+    if (cs.bossRoom != null) {
+      const off = Math.round(size.height * 0.17)
+      if (!pc.view || !pc.view.enabled || pc.view.offsetY !== off || pc.view.fullHeight !== size.height) {
+        pc.setViewOffset(size.width, size.height, 0, off, size.width, size.height)
+      }
+    } else if (pc.view && pc.view.enabled) pc.clearViewOffset()
+    // 맞거나 공격당할 때 화면이 잠깐 흔들린다
+    if (camShake.amp > 0.001) {
+      const t = performance.now() / 1000
+      camera.position.x += Math.sin(t * 53) * camShake.amp * 0.22
+      camera.position.y += Math.sin(t * 71) * camShake.amp * 0.16
+      camShake.amp *= Math.exp(-dt * 7)
+    } else camShake.amp = 0
   })
 
   return null

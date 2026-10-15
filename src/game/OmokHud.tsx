@@ -34,6 +34,7 @@ import {
 import { untilAward } from './omokWeek'
 import { ArmoryButton } from './ArmoryPanel'
 import { NetStats } from './NetStats'
+import { BossEntryButton } from './BossHud'
 
 const S = 32 // 칸 간격 (svg 단위)
 const SIZE = N * S
@@ -415,6 +416,7 @@ export function OmokHud() {
           🏆 오목 순위
         </button>
         <ArmoryButton />
+        <BossEntryButton />
       </div>
       {near && !me && (
         <button type="button" className="omok-sit-btn" onClick={() => sitDown(near.tb, near.s)}>
