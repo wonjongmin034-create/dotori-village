@@ -32,7 +32,7 @@ export const STAGES: Stage[] = [
     id: 2,
     name: '알파벳 용 렉시',
     subject: '영어 단어',
-    ms: 15_000,
+    ms: 10_000,
     hp: 100,
     life: 5,
     reward: 60,
