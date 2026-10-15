@@ -55,6 +55,10 @@ export const STAGES: Stage[] = [
 export const stageOf = (id: number): Stage => STAGES[Math.max(1, Math.min(STAGES.length, id)) - 1]
 
 export const MIN_PARTY = 3
+
+// 선생님 혼자 시험해 볼 수 있는 연습 모드: 주소 끝에 ?solo 를 붙이면 1명으로도 시작하고 모든 단계를 고를 수 있다.
+// 대신 3명 미만으로 한 판은 도토리·클리어 기록이 없다 (그래서 학생이 주소를 따라 써도 얻을 것이 없다).
+export const soloTest = () => typeof location !== 'undefined' && /[?&]solo(\b|=)/.test(location.search)
 export const MAX_PARTY = 4
 export const BOSS_ROOMS = 9 // 보스 방 번호는 1~9
 

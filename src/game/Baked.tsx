@@ -25,7 +25,7 @@ function signature(m: THREE.Material): string | null {
 
 // position·normal·uv 만 남기고 인덱스 없는 모양으로 통일 (그래야 서로 합칠 수 있다)
 function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4): THREE.BufferGeometry {
-  let g = src.index ? src.toNonIndexed() : src.clone()
+  const g = src.index ? src.toNonIndexed() : src.clone()
   for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name)
   if (!g.attributes.normal) g.computeVertexNormals()
   if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2))
@@ -47,7 +47,6 @@ function prepared(src: THREE.BufferGeometry, matrix: THREE.Matrix4): THREE.Buffe
       }
     }
   }
-  g = g.toNonIndexed()
   return g
 }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Deck } from './bossQuestions'
-import { ANSWER_GRACE_MS, MAX_PARTY, MIN_PARTY, RESULT_MS, dmgOf, stageOf, STAGES, type StageId } from './bossData'
+import { ANSWER_GRACE_MS, MAX_PARTY, MIN_PARTY, RESULT_MS, dmgOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
 //   · 다른 사람이 고른 답은 방장에게 보내고, 방장이 맞는지 따져서 결과를 방 전체에 알린다.
@@ -143,13 +143,14 @@ export const isActive = (g: BossGame) => g.phase === 'intro' || g.phase === 'ask
 
 // 이 팀이 도전할 수 있는 가장 높은 단계 = 팀원 모두가 바로 앞 단계를 깬 단계
 export function maxStageFor(roster: Member[]): number {
+  if (soloTest()) return STAGES.length // 연습 모드는 모든 단계를 고를 수 있다
   if (roster.length === 0) return 1
   const minCl = Math.min(...roster.map((r) => r.cl))
   return Math.min(STAGES.length, minCl + 1)
 }
 
 export function startBlockReason(roster: Member[]): string | null {
-  if (roster.length < MIN_PARTY) return `${MIN_PARTY}명 이상 모여야 해요 (지금 ${roster.length}명)`
+  if (roster.length < (soloTest() ? 1 : MIN_PARTY)) return `${MIN_PARTY}명 이상 모여야 해요 (지금 ${roster.length}명)`
   if (roster.length > MAX_PARTY) return `최대 ${MAX_PARTY}명까지예요`
   return null
 }
@@ -221,7 +222,7 @@ function presentNames(): Set<string> {
 function askNext(g: BossGame) {
   const here = presentNames()
   const alive = g.members.filter((m) => here.has(m.n))
-  if (alive.length < 2) {
+  if (alive.length < (soloTest() ? 1 : 2)) {
     publish({ ...g, phase: 'aborted', seq: g.seq + 1 })
     return
   }
@@ -295,7 +296,7 @@ function hostTick() {
   } else if (isActive(g)) {
     // 팀원이 너무 많이 나가서 둘 미만이 되면 중단
     const here = presentNames()
-    if (g.members.filter((m) => here.has(m.n)).length < 2) publish({ ...g, phase: 'aborted', seq: g.seq + 1 })
+    if (g.members.filter((m) => here.has(m.n)).length < (soloTest() ? 1 : 2)) publish({ ...g, phase: 'aborted', seq: g.seq + 1 })
   }
 }
 

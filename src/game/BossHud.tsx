@@ -15,7 +15,7 @@ import {
   useBoss,
   type BossGame,
 } from './bossState'
-import { BOSS_ROOMS, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, stageOf } from './bossData'
+import { BOSS_ROOMS, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
 import { enterBoss, leaveBoss, useBossUi } from './boss'
 import { tierName, isFamily } from './weapons'
 
@@ -222,9 +222,11 @@ function Lobby({ room }: { room: number }) {
         ))}
       </ul>
       <p className="boss-hint">
-        {roster.length < MIN_PARTY
-          ? `${MIN_PARTY}명 이상 모여야 해요 (지금 ${roster.length}명). 친구를 불러요! 📣`
-          : `${roster.length}명이 모였어요!`}
+        {soloTest() && roster.length < MIN_PARTY
+          ? `🧪 연습 모드: ${roster.length}명으로도 시작해요 (도토리·클리어 기록 없음)`
+          : roster.length < MIN_PARTY
+            ? `${MIN_PARTY}명 이상 모여야 해요 (지금 ${roster.length}명). 친구를 불러요! 📣`
+            : `${roster.length}명이 모였어요!`}
       </p>
 
       <div className="boss-stages">
@@ -335,6 +337,11 @@ export function BossHud() {
         return
       }
       const cfg = stageOf(g.stage)
+      if (g.members.length < MIN_PARTY) {
+        // 3명 미만으로 한 판(선생님 연습 모드)은 도토리·클리어 기록이 없다
+        setBossResult({ gid: g.gid, won: true, stage: g.stage, coins: 0, note: '연습 모드라 도토리와 클리어 기록은 없어요 🧪' })
+        return
+      }
       const first = v.bossCleared < g.stage && g.stage <= v.bossCleared + 1
       if (first) {
         v.markBossCleared(g.stage)
