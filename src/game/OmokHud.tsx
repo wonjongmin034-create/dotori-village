@@ -33,6 +33,7 @@ import {
 } from './omokStats'
 import { untilAward } from './omokWeek'
 import { ArmoryButton } from './ArmoryPanel'
+import { NetStats } from './NetStats'
 
 const S = 32 // 칸 간격 (svg 단위)
 const SIZE = N * S
@@ -420,6 +421,7 @@ export function OmokHud() {
           🪑 앉아서 오목 두기
         </button>
       )}
+      <NetStats />
       {me && <OmokPanel result={result} />}
       {dash && <Dashboard onClose={() => setDash(false)} />}
     </>

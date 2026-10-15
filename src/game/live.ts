@@ -41,6 +41,32 @@ type LiveState = {
 }
 export const useLive = create<LiveState>(() => ({ names: [], room: null, emotes: {} }))
 
+// 서버 메시지 사용량 (선생님이 주소 끝에 ?stats 를 붙이면 광장 화면 위쪽에 보인다)
+//  한 사람이 보낸 메시지는 방의 다른 사람 수만큼 전달된 것으로 세어진다 → 방 전체 합계 ≈ (보낸 수 + 받은 수) 를 사람 수로 곱해 어림한다.
+export const useNet = create<{ n: number; sent: number; recv: number; est: number }>(() => ({ n: 0, sent: 0, recv: 0, est: 0 }))
+let cntSent = 0
+let cntRecv = 0
+export function statsOn(): boolean {
+  try {
+    if (location.search.includes('stats=0')) localStorage.removeItem('dotori.stats')
+    else if (location.search.includes('stats')) localStorage.setItem('dotori.stats', '1')
+    return localStorage.getItem('dotori.stats') === '1'
+  } catch {
+    return location.search.includes('stats') && !location.search.includes('stats=0')
+  }
+}
+setInterval(() => {
+  const sent = cntSent / 2
+  const recv = cntRecv / 2
+  cntSent = 0
+  cntRecv = 0
+  if (!roomKey || !statsOn()) return
+  const n = lastNames.length + 1
+  const est = Math.round((sent + recv) * n)
+  if (est > 80) console.warn('[live] 서버 메시지가 많아요: 약', est, '/초 (무료 한도 100)')
+  useNet.setState({ n, sent: Math.round(sent * 10) / 10, recv: Math.round(recv * 10) / 10, est })
+}, 2000)
+
 let channel: RealtimeChannel | null = null
 let roomKey = ''
 let ready = false
@@ -101,22 +127,32 @@ function send() {
       f: r2(playerMotion.facing),
     },
   })
+  cntSent++
   last = { x: playerPos.x, z: playerPos.z, moving, air: playerPos.y > 0.01, t: performance.now() }
 }
 
 // 0.25초마다 확인하되, 서버 메시지를 아끼려고 "꼭 필요할 때만" 위치를 보낸다.
 //  - 같은 방에 아무도 없으면 안 보낸다.
-//  - 받는 쪽이 속도로 위치를 이어 그리니까, 같은 방향으로 계속 걸을 때는 약 0.9초에 한 번이면 충분하다.
+//  - 받는 쪽이 속도로 위치를 이어 그리니까, 같은 방향으로 계속 걸을 때는 가끔만 보내도 된다 (인원수에 따라 아래 moveGapMs).
 //  - 방향을 바꾸거나 멈추거나 점프할 때는 바로 보낸다.
+// 서버(무료)는 "초당 메시지 100개"가 한도이고, 한 사람이 보낸 위치는 방의 모든 사람에게 전달되어 세어진다.
+// → 방 하나가 쓰는 양 ≈ 사람수 × (사람수-1) ÷ 전송간격. 이 값이 BUDGET 을 안 넘도록 사람이 많을수록 전송 간격을 늘린다.
+//   (2명: 0.6초, 5명: 0.6초, 7명: 약 1초, 10명: 약 2.3초. 받는 쪽은 속도로 이어 그려서 크게 티가 안 난다.)
+const BUDGET = 40
+const moveGapMs = () => {
+  const n = lastNames.length + 1
+  return Math.min(2500, Math.max(600, ((n * (n - 1)) / BUDGET) * 1000))
+}
 let lastV = { vx: 0, vz: 0 }
 function tick() {
   if (!ready || lastNames.length === 0) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   const air = playerPos.y > 0.01
   const now = performance.now()
-  const turned = Math.hypot(playerMotion.vx - lastV.vx, playerMotion.vz - lastV.vz) > 1.2
+  const gap = moveGapMs()
+  const turned = Math.hypot(playerMotion.vx - lastV.vx, playerMotion.vz - lastV.vz) > 1.2 && now - last.t > Math.max(350, gap / 2)
   const stateChanged = air !== last.air || moving !== last.moving
-  const due = now - last.t > (air ? 300 : moving ? 900 : 3000)
+  const due = now - last.t > (air ? 400 : moving ? gap : Math.max(3000, gap))
   if (stateChanged || turned || due) {
     lastV = { vx: playerMotion.vx, vz: playerMotion.vz }
     send()
@@ -264,8 +300,10 @@ function open(owner: string, key: string, me: string) {
       p.vy = m.vy ?? 0
       p.facing = m.f
       p.at = performance.now()
+      cntRecv++
     })
     .on('broadcast', { event: 'omok' }, ({ payload }) => {
+      cntRecv++
       if (key.startsWith('plaza:')) omokOnEvent(payload as OmokPayload)
     })
     .on('broadcast', { event: 'emote' }, ({ payload }) => {
@@ -288,7 +326,10 @@ function open(owner: string, key: string, me: string) {
       if (key.startsWith('plaza:')) {
         bindOmokIO(
           {
-            send: (p) => void ch.send({ type: 'broadcast', event: 'omok', payload: p }),
+            send: (p) => {
+              cntSent++
+              void ch.send({ type: 'broadcast', event: 'omok', payload: p })
+            },
             track: pushPresence,
           },
           me,

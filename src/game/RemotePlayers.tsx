@@ -88,7 +88,9 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
     const t = state.clock.elapsedTime
 
     // 마지막으로 받은 위치에서 속도만큼 조금 더 간 곳을 목표로 (최대 0.35초)
-    const age = Math.min(1.1, (performance.now() - p.at) / 1000)
+    const rawAge = (performance.now() - p.at) / 1000
+    const age = Math.min(3, rawAge) // 인원이 많으면 위치가 2~3초에 한 번 온다 → 그 사이를 속도로 이어 그린다
+    const ageY = Math.min(1.1, rawAge)
     const tx = p.x + p.vx * age
     const tz = p.z + p.vz * age
     if (!s.init) {
@@ -103,7 +105,7 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
     s.x += (tx - s.x) * k
     s.z += (tz - s.z) * k
     // 점프 높이: 받은 높이에서 속도·중력으로 조금 더 간 곳을 따라간다
-    const ty = Math.max(0, p.y + p.vy * age - 12 * age * age)
+    const ty = Math.max(0, p.y + p.vy * ageY - 12 * ageY * ageY)
     s.y += (ty - s.y) * (1 - Math.exp(-18 * dt))
     // 너무 멀어졌으면(순간이동) 바로 붙는다
     if (Math.hypot(tx - s.x, tz - s.z) > 6) {
