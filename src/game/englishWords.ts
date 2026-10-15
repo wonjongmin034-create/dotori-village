@@ -125,7 +125,38 @@ const CORE: [string, string][] = [
 ]
 
 // ✏️ 여기에 단어를 더 넣으세요: ['english', '뜻']
-const EXTRA: [string, string][] = []
+const EXTRA: [string, string][] = [
+  // 선생님이 준 단어 (1) 가족·사람
+  ['relative', '친척'], ['teenager', '청소년'], ['adult', '어른'], ['elderly', '노인'], ['neighbor', '이웃'],
+  ['guest', '손님'], ['host', '주최자'], ['leader', '리더'], ['member', '회원'], ['opponent', '상대'],
+  // (2) 동물
+  ['dolphin', '돌고래'], ['kangaroo', '캥거루'], ['chameleon', '카멜레온'], ['flamingo', '플라밍고'], ['gorilla', '고릴라'],
+  ['leopard', '표범'], ['rhinoceros', '코뿔소'], ['cobra', '코브라'], ['starfish', '불가사리'], ['scorpion', '전갈'],
+  // (3) 음식
+  ['grape', '포도'], ['pineapple', '파인애플'], ['watermelon', '수박'], ['shrimp', '새우'], ['lobster', '바닷가재'],
+  ['sushi', '초밥'], ['spaghetti', '스파게티'], ['dumpling', '만두'], ['vinegar', '식초'], ['mustard', '머스터드'],
+  // (4) 자연·환경
+  ['continent', '대륙'], ['climate', '기후'], ['pollution', '오염'], ['atmosphere', '대기'], ['earthquake', '지진'],
+  ['tsunami', '쓰나미'], ['hurricane', '허리케인'], ['landslide', '산사태'], ['glacier', '빙하'], ['wildfire', '산불'],
+  // (5) 숫자·시간
+  ['twenty-first', '21번째'], ['thirtieth', '30번째'], ['century', '세기'], ['decade', '10년'], ['schedule', '일정'],
+  ['deadline', '마감일'], ['appointment', '약속'], ['moment', '순간'], ['forever', '영원히'], ['temporary', '일시적인'],
+  // (6) 학교·학습
+  ['education', '교육'], ['subject', '과목'], ['literature', '문학'], ['grammar', '문법'], ['vocabulary', '어휘'],
+  ['mathematics', '수학(교과 이름)'], ['biology', '생물학'], ['chemistry', '화학'], ['physics', '물리학'], ['geography', '지리'],
+  // (7) 동작·상태
+  ['whisper', '속삭이다'], ['shout', '외치다'], ['argue', '논쟁하다'], ['negotiate', '협상하다'], ['persuade', '설득하다'],
+  ['apologize', '사과하다'], ['hesitate', '주저하다'], ['concentrate', '집중하다'], ['observe', '관찰하다'], ['investigate', '조사하다'],
+  // (8) 감정·성격
+  ['confident', '자신감 있는'], ['patient', '참을성 있는'], ['ambitious', '야망 있는'], ['creative', '창의적인'], ['generous', '관대한'],
+  ['stubborn', '고집 센'], ['selfish', '이기적인'], ['sensitive', '민감한'], ['reliable', '믿을 수 있는'], ['mysterious', '신비로운'],
+  // (9) 직업·사회
+  ['engineer', '엔지니어'], ['scientist', '과학자'], ['director', '감독'], ['musician', '음악가'], ['journalist', '기자'],
+  ['politician', '정치인'], ['entrepreneur', '사업가'], ['designer', '디자이너'], ['psychologist', '심리학자'], ['translator', '번역가'],
+  // (10) 교통수단·장소
+  ['subway', '지하철'], ['highway', '고속도로'], ['ferry', '여객선'], ['spaceship', '우주선'], ['terminal', '터미널'],
+  ['embassy', '대사관'], ['skyscraper', '고층 빌딩'], ['warehouse', '창고'], ['stadium', '경기장'], ['amusement park', '놀이공원'],
+]
 
 export type Word = { en: string; ko: string }
 
