@@ -144,8 +144,10 @@ function OmokPanel({ result }: { result: RewardResult | null }) {
   }, [])
 
   const name = session?.name ?? ''
-  const game = games[me.tb] ?? null
   const [sa, sb] = seats[me.tb] ?? [null, null]
+  const rawGame = games[me.tb] ?? null
+  // 내가 두는 판이 아니면(상대가 바뀐 직후의 옛 판) 보여 주지 않는다
+  const game = rawGame && (rawGame.black === session?.name || rawGame.white === session?.name) ? rawGame : null
   const opp = me.s === 0 ? sb : sa
   const myColor = game ? (game.black === name ? 'black' : 'white') : null
   const mover = game && !game.over ? (game.moves.length % 2 === 0 ? game.black : game.white) : null

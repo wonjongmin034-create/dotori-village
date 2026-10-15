@@ -84,6 +84,7 @@ export function omokReset() {
   io = null
   if (pendingTimer) clearTimeout(pendingTimer)
   missingSince = {}
+  pairSince = null
   useOmok.setState({ seats: {}, games: {}, ready: {}, me: null, rcv: {}, pending: false, banner: null })
 }
 
@@ -239,7 +240,7 @@ export function omokResend() {
 function startGame(tb: number, a: string, b: string) {
   const blackFirst = Math.random() < 0.5 // 선(흑)은 무작위
   publish(tb, {
-    gid: Date.now(),
+    gid: Math.max(Date.now(), (useOmok.getState().games[tb]?.gid ?? 0) + 1), // 방장이 바뀌어도 이전 판보다 항상 크게
     black: blackFirst ? a : b,
     white: blackFirst ? b : a,
     moves: [],
@@ -247,6 +248,9 @@ function startGame(tb: number, a: string, b: string) {
     over: null,
   })
 }
+
+const inGame = (g: GameState, n: string) => g.black === n || g.white === n
+let pairSince: { key: string; t: number } | null = null
 
 function hostTick() {
   const st = useOmok.getState()
@@ -263,12 +267,28 @@ function hostTick() {
     }
     return
   }
-  if (!a || !b || hostOf(tb) !== myName) return
+  if (!a || !b) {
+    pairSince = null
+    return
+  }
+  // 둘이 함께 앉은 지 1.2초가 지나야 시작 (잠깐 앉았다 일어나는 경우·presence 반영 지연 대비).
+  // 상대 기기의 시계는 틀릴 수 있으니, 내 화면에서 둘이 보이기 시작한 때부터 잰다.
+  const pairKey = a + '|' + b + '|' + tb
+  if (!pairSince || pairSince.key !== pairKey) pairSince = { key: pairKey, t: Date.now() }
+  if (hostOf(tb) !== myName) return
   if (cur && Date.now() - lastSent > 5000) omokResend()
   const g = st.games[tb]
-  const settled = Date.now() - me.at > 1200 && Date.now() - (atOf[a === myName ? b : a] ?? 0) > 1200
+  const settled = Date.now() - pairSince.t > 1200
   if (!g) {
     if (settled) startGame(tb, a, b)
+    return
+  }
+  // 앉은 사람이 판의 사람들과 다르다 (상대가 나가고 새 친구가 앉았다) → 옛 판은 끝내고 새 판을 연다
+  if (!inGame(g, a) || !inGame(g, b)) {
+    if (!g.over) {
+      const stay = inGame(g, a) ? a : inGame(g, b) ? b : null
+      publish(tb, { ...g, over: { kind: 'leave', winner: stay, line: [] } })
+    } else if (settled) startGame(tb, a, b)
     return
   }
   if (g.over) {
