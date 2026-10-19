@@ -7,6 +7,8 @@ import {
   teacherSetQuestions,
   teacherToggleArcade,
   teacherResetPin,
+  teacherRenameStudent,
+  teacherDeleteStudent,
   teacherLogout,
   type ClassData,
   type StudentRow,
@@ -16,6 +18,7 @@ import { dailySet, parseQuestions, newQuestionId, SUBJECTS, type Question } from
 import { TeacherSheets } from './TeacherSheets'
 import { TeacherLunch } from './TeacherLunch'
 import { TeacherControl } from './TeacherControl'
+import { TeacherPin } from './TeacherPin'
 import type { Mission } from './store'
 
 // 학생이 오늘 틀린 문제 목록
@@ -476,6 +479,8 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
 
       {msg && <div className="dash-toast">{msg}</div>}
 
+      <TeacherPin classCode={classCode} isDefault={data.teacherPin === '1234'} flash={flash} onChanged={load} />
+
       {/* 도토리 주기 */}
       <section className="dash-card">
         <h3>🌰 도토리 주기</h3>
@@ -547,6 +552,55 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
                   }}
                 >
                   비번↺
+                </button>
+                <button
+                  type="button"
+                  className="stu-pin"
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    const to = window.prompt(`"${s.name}"의 새 이름을 적어 주세요 (12자 이내)\n바꾸면 그 학생은 새 이름으로 다시 로그인해야 해요.`, s.name)
+                    if (to == null || to.trim() === s.name) return
+                    const r = await teacherRenameStudent(classCode, s.name, to)
+                    flash(
+                      r === 'ok'
+                        ? `${s.name} → ${to.trim()} 로 바꿨어요`
+                        : r === 'exists'
+                          ? '이미 있는 이름이에요'
+                          : r === 'invalid'
+                            ? '이름은 12자 이내로, 기존과 다르게 적어 주세요'
+                            : r === 'missing'
+                              ? '그 학생을 찾지 못했어요 (새로고침해 보세요)'
+                              : '바꾸지 못했어요. 인터넷을 확인해 주세요',
+                    )
+                    if (r === 'ok') void load()
+                  }}
+                >
+                  이름✎
+                </button>
+                <button
+                  type="button"
+                  className="stu-pin danger"
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    if (
+                      !window.confirm(
+                        `"${s.name}" 계정을 삭제할까요?\n마을·도토리(${s.coins}개)·오목 기록·학습지 제출이 모두 지워지고 되돌릴 수 없어요.`,
+                      )
+                    )
+                      return
+                    const ok = await teacherDeleteStudent(classCode, s.name)
+                    flash(ok ? `${s.name} 계정을 삭제했어요` : '삭제하지 못했어요. 인터넷을 확인해 주세요')
+                    if (ok) {
+                      setPicked((p) => {
+                        const n = new Set(p)
+                        n.delete(s.name)
+                        return n
+                      })
+                      void load()
+                    }
+                  }}
+                >
+                  삭제🗑
                 </button>
               </label>
             )

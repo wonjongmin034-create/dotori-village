@@ -154,7 +154,7 @@ export function Login({
               <input
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="기본값 1234"
+                placeholder="선생님 비밀번호"
                 autoComplete="off"
               />
             </label>

@@ -569,6 +569,93 @@ export async function teacherToggleArcade(classCode: string, enabled: boolean) {
   await supabase.from('classes').update({ arcade_enabled: enabled }).eq('code', classCode)
 }
 
+/* ---------- 선생님 비밀번호 · 학생 계정 관리 ---------- */
+
+export type PinChange = 'ok' | 'wrong' | 'weak' | 'network'
+
+// 선생님 비밀번호 바꾸기 (지금 비밀번호를 다시 확인한다)
+export async function teacherChangePin(classCode: string, current: string, next: string): Promise<PinChange> {
+  const n = next.trim()
+  if (n.length < 4 || n === '1234' || n === current.trim()) return 'weak'
+  try {
+    const { data, error } = await supabase.from('classes').select('teacher_pin').eq('code', classCode).maybeSingle()
+    if (error || !data) return 'network'
+    if ((data.teacher_pin ?? '1234') !== current.trim()) return 'wrong'
+    const { error: e2 } = await supabase
+      .from('classes')
+      .update({ teacher_pin: n, updated_at: new Date().toISOString() })
+      .eq('code', classCode)
+    return e2 ? 'network' : 'ok'
+  } catch {
+    return 'network'
+  }
+}
+
+// 이름이 적혀 있는 목록(최근 도토리 지급의 "받은 사람", 공동 미션의 "완료한 사람")에서 이름을 바꾸거나(to) 지운다(null)
+async function replaceNameInLists(classCode: string, from: string, to: string | null) {
+  const since = new Date(Date.now() - 8 * 86400_000).toISOString()
+  const { data: gs } = await supabase.from('grants').select('id, consumed_by').eq('class_code', classCode).gt('created_at', since)
+  for (const g of gs ?? []) {
+    const list = Array.isArray(g.consumed_by) ? (g.consumed_by as string[]) : []
+    if (!list.includes(from)) continue
+    const next = to ? list.map((n) => (n === from ? to : n)) : list.filter((n) => n !== from)
+    await supabase.from('grants').update({ consumed_by: next }).eq('id', g.id)
+  }
+  const { data: c } = await supabase.from('classes').select('mission').eq('code', classCode).maybeSingle()
+  const m = c?.mission as { done?: string[] } | null | undefined
+  if (m && Array.isArray(m.done) && m.done.includes(from)) {
+    const done = to ? m.done.map((n) => (n === from ? to : n)) : m.done.filter((n) => n !== from)
+    await supabase.from('classes').update({ mission: { ...m, done } }).eq('code', classCode)
+  }
+}
+
+export type RenameResult = 'ok' | 'invalid' | 'exists' | 'missing' | 'network'
+
+// 학생 닉네임 바꾸기: 마을·오목 기록·학습지 제출·도토리 지급 기록의 이름을 모두 새 이름으로
+export async function teacherRenameStudent(classCode: string, oldName: string, newName: string): Promise<RenameResult> {
+  const to = newName.trim()
+  if (!to || to.length > 12 || to === '*' || to === oldName || /[\r\n]/.test(to)) return 'invalid'
+  try {
+    const { data: dup } = await supabase.from('villages').select('name').eq('class_code', classCode).eq('name', to).maybeSingle()
+    if (dup) return 'exists'
+    const { data, error } = await supabase
+      .from('villages')
+      .update({ name: to })
+      .eq('class_code', classCode)
+      .eq('name', oldName)
+      .select('name')
+    if (error) return 'network'
+    if (!data || data.length === 0) return 'missing'
+    // 계정 이름은 이미 바뀌었으니, 나머지 기록은 일부 실패해도 계속 진행
+    await Promise.allSettled([
+      supabase.from('omok_stats').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
+      supabase.from('submissions').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
+      supabase.from('grants').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
+      replaceNameInLists(classCode, oldName, to),
+    ])
+    return 'ok'
+  } catch {
+    return 'network'
+  }
+}
+
+// 학생 계정 삭제: 마을과 그 학생의 오목 기록·학습지 제출·개인 지급 기록까지 모두 지운다 (되돌릴 수 없음)
+export async function teacherDeleteStudent(classCode: string, name: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('villages').delete().eq('class_code', classCode).eq('name', name)
+    if (error) return false
+    await Promise.allSettled([
+      supabase.from('omok_stats').delete().eq('class_code', classCode).eq('student', name),
+      supabase.from('submissions').delete().eq('class_code', classCode).eq('student', name),
+      supabase.from('grants').delete().eq('class_code', classCode).eq('student', name),
+      replaceNameInLists(classCode, name, null),
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function teacherResetPin(classCode: string, student: string) {
   await supabase
     .from('villages')

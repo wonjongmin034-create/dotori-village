@@ -3771,3 +3771,49 @@ canvas {
     font-size: 15px;
   }
 }
+
+/* 선생님: 비밀번호 카드 · 학생 계정 관리 */
+.stu-pin + .stu-pin {
+  margin-left: 0;
+}
+.stu-pin.danger {
+  background: #fde0e0;
+  color: #b33a3a;
+}
+.dash-warn {
+  border: 2px solid #e5533d;
+  background: #fff4f0;
+}
+.dash-warn-text {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #b33a2a;
+}
+.pin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a6b5f;
+}
+.pin-form input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #d9d4be;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.pin-err {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #d03a3a;
+}
