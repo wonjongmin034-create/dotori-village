@@ -26,6 +26,7 @@ import { BossHud, BossPicker, BossEntryButton } from './game/BossHud'
 import { leaveBoss } from './game/boss'
 import { useBoss, isActive } from './game/bossState'
 import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
+import { PetButton, PetPanel } from './game/PetPanel'
 import { refreshTitles } from './game/omokStats'
 import { MAX_IN_ROOM, useLive } from './game/live'
 import { LiveHud } from './game/LiveHud'
@@ -313,6 +314,7 @@ export default function App() {
               })()}
 
             <ArmoryButton />
+            <PetButton />
             {session && (
               <button type="button" className="friends-btn" onClick={openFriends}>
                 👫 친구 마을
@@ -469,6 +471,7 @@ export default function App() {
       <ArcadePanel />
       <WardrobePanel />
       <ArmoryPanel />
+      <PetPanel />
       <BossPicker />
       <DailyLearnPanel />
       <SheetPanel />

@@ -4178,3 +4178,133 @@ canvas {
   color: #b33a2a;
   font-weight: 800;
 }
+
+/* --- 펫 --- */
+.pet-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, #f2a14a, #d9822c);
+  box-shadow: 0 3px 10px rgba(217, 130, 44, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.pet-btn.ready {
+  animation: pet-ready 1.1s ease-in-out infinite;
+}
+.pet-btn i {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 11px;
+  color: #b8560c;
+  background: #fff;
+}
+@keyframes pet-ready {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.pet-preview {
+  background: linear-gradient(180deg, #e4f3f6, #f3f0dc);
+}
+.pet-pick {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.pet-pick button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 2px;
+  border: 1px solid #e3e1d2;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.pet-pick button span {
+  font-size: 22px;
+}
+.pet-pick button small {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #5a655c;
+}
+.pet-pick button.on {
+  border-color: #d9822c;
+  background: #fff3e2;
+}
+.pet-blurb {
+  margin: 4px 0 2px;
+  font-size: 13.5px;
+  color: #4a5a4e;
+}
+.pet-feed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 6px;
+}
+.pet-feed small {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8a6a2b;
+  white-space: nowrap;
+}
+.pet-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: #ece6d0;
+  overflow: hidden;
+}
+.pet-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f6b24a, #e2832a);
+  transition: width 0.4s;
+}
+.pet-ladder li {
+  grid-template-columns: 26px 1fr auto auto;
+}
+.pet-ladder .gd {
+  font-size: 11px;
+  color: inherit;
+}
+.armory-flash.pet-fail {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.92), rgba(200, 210, 220, 0.7) 60%, rgba(200, 210, 220, 0) 100%);
+}
+.armory-flash.pet-fail b {
+  color: #6a7a8a;
+}
+.armory-btns button.pet-bye {
+  flex: 0 0 auto;
+  background: #f3e4e1;
+  color: #a5463a;
+}
+.armory-confirm .go.bye {
+  background: #c9473a;
+  border-color: #c9473a;
+}
+.pet-preview {
+  height: 176px;
+}
+.pet-ladder li {
+  padding: 3px 8px;
+}
+@media (max-height: 560px) {
+  .pet-preview {
+    height: 120px;
+  }
+}

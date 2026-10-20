@@ -33,6 +33,7 @@ import {
 } from './omokStats'
 import { untilAward } from './omokWeek'
 import { ArmoryButton } from './ArmoryPanel'
+import { PetButton } from './PetPanel'
 import { NetStats } from './NetStats'
 import { BossEntryButton } from './BossHud'
 
@@ -416,6 +417,7 @@ export function OmokHud() {
           🏆 오목 순위
         </button>
         <ArmoryButton />
+        <PetButton />
         <BossEntryButton />
       </div>
       {near && !me && (

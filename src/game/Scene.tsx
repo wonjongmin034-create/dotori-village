@@ -11,6 +11,7 @@ import { EditorControls } from './EditorControls'
 import { BrowseInteract } from './BrowseInteract'
 import { FriendStage } from './FriendStage'
 import { RemotePlayers } from './RemotePlayers'
+import { MyPet, RemotePets } from './PetFollower'
 import { Plaza } from './PlazaScene'
 import { useVillage, viewItems } from './store'
 import { useGfx } from './gfx'
@@ -124,7 +125,9 @@ export function Scene() {
         </>
       )}
       <RemotePlayers />
+      <RemotePets />
       <Player />
+      <MyPet />
       <CameraRig />
       <EditorControls itemsRef={itemsRef} />
       <BrowseInteract itemsRef={itemsRef} />

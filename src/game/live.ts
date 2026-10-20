@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useVillage } from './store'
 import { normalizeAvatar, viewAvatar, type Avatar } from './avatar'
+import { petView, type PetState } from './pets'
 import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
 import { nextPlazaRoom } from './plaza'
@@ -399,7 +400,7 @@ export function sendEmote(e: string) {
 }
 
 // 친구들에게 보여 주는 내 모습 (탈 것에서 내렸으면 탈 것 없이)
-const liveAvatar = (s: { avatar: Avatar; rideOn: boolean }) => viewAvatar(s.avatar, s.rideOn)
+const liveAvatar = (s: { avatar: Avatar; rideOn: boolean; pet: PetState | null }): Avatar => ({ ...viewAvatar(s.avatar, s.rideOn), pet: petView(s.pet) })
 
 // 지난주 오목왕 명단이 갱신되면, 방에 있는 친구들의 오목왕 모자를 다시 확인한다
 useOmokStats.subscribe((s, prev) => {
@@ -414,6 +415,6 @@ useCtl.subscribe((s, prev) => {
 
 useVillage.subscribe((s, prev) => {
   if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom) syncRoom()
-  else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn) && ready && channel)
+  else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn || s.pet?.sp !== prev.pet?.sp || s.pet?.st !== prev.pet?.st) && ready && channel)
     pushPresence()
 })

@@ -28,6 +28,19 @@ import { dateKey, type ClassLunch } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
 import { findItem, houseNeeded, ownsItem, type Slot } from './wardrobe'
+import {
+  EVOLVE_COST_PET,
+  FEED_NEED,
+  FEED_NEED_SCORE,
+  MAX_STAGE,
+  SPECIES_MAP,
+  canEvolve,
+  isPetSpecies,
+  normalizePet,
+  rollEvolve,
+  stageLabel,
+  type PetState,
+} from './pets'
 import { FAMILY_HOUSE, MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
 
 export type { Avatar }
@@ -83,6 +96,8 @@ export type PlacedItem = {
   wardrobe?: string[] // (집에만) 산 옷 id들 ("slot:id")
   weapons?: Record<string, number> // (집에만) 가진 무기와 단계 { sword: 3, bow: 1 }
   boss?: number // (집에만) 지금까지 클리어한 가장 높은 보스 단계 (0 = 아직 없음)
+  pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
+  petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
@@ -216,6 +231,7 @@ const bossOf = (items: PlacedItem[]): number => {
   const b = items.find((i) => i.type === 'house')?.boss
   return typeof b === 'number' && Number.isFinite(b) ? Math.max(0, Math.min(9, Math.round(b))) : 0
 }
+const petOf = (items: PlacedItem[]): PetState | null => normalizePet(items.find((i) => i.type === 'house')?.pet)
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
   return Array.isArray(w) ? w : []
@@ -293,6 +309,9 @@ interface VillageState {
   plaza: number | null // 광장 번호 (null = 내 마을에 있음)
   bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
   bossCleared: number // 클리어한 가장 높은 보스 단계
+  pet: PetState | null // 키우는 펫
+  petOpen: boolean // 펫 창 열림
+  petFx: { at: number; ok: boolean; st: number } | null // 방금 한 진화 결과 (반짝이는 화면용)
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
   notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
@@ -319,6 +338,12 @@ interface VillageState {
   markBossCleared: (stage: number) => void
   buyWeapon: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
+  openPet: () => void
+  closePet: () => void
+  choosePet: (sp: string) => void
+  feedPet: () => void
+  evolvePet: () => void
+  releasePet: () => void
   toggleRide: () => void
   chooseWardrobe: (slot: Slot, id: string) => void
   hydrateFromCloud: (coins: number, items: PlacedItem[]) => void
@@ -412,6 +437,9 @@ export const useVillage = create<VillageState>((set, get) => {
     plaza: null,
     bossRoom: null,
     bossCleared: bossOf(initial.items),
+    pet: petOf(initial.items),
+    petOpen: false,
+    petFx: null,
     friendsOpen: false,
     friendInfoOpen: false,
     notice: null,
@@ -514,6 +542,86 @@ export const useVillage = create<VillageState>((set, get) => {
       })
     },
 
+    openPet: () => set({ petOpen: true }),
+    closePet: () => set({ petOpen: false, petFx: null }),
+
+    // 처음 키울 알을 고른다 (한 번에 한 마리)
+    choosePet: (sp) => {
+      const { items, pet } = get()
+      if (pet || !isPetSpecies(sp)) return
+      const next: PetState = { sp, st: 0, fed: 0, pity: 0 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, pet: next } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, pet: next })
+      get().flash(`${SPECIES_MAP[sp].label}의 알을 받았어요! 🥚`)
+    },
+
+    // 먹이 주기 — 하루 한 번, 오늘의 학습을 15문제 이상 맞힌 날만
+    feedPet: () => {
+      const { items, pet, daily } = get()
+      if (!pet) return
+      const today = dateKey()
+      const house = items.find((i) => i.type === 'house')
+      if (pet.st >= MAX_STAGE) {
+        get().flash('다 자란 펫은 먹이가 필요 없어요 🏆')
+        return
+      }
+      if (house?.petFed === today) {
+        get().flash('오늘은 이미 먹이를 줬어요. 내일 또 주세요!')
+        return
+      }
+      const score = daily && daily.day === today ? daily.score : 0
+      if (score < FEED_NEED_SCORE) {
+        get().flash(`오늘의 학습을 ${FEED_NEED_SCORE}문제 이상 맞히면 먹이를 줄 수 있어요 (지금 ${score}문제)`)
+        return
+      }
+      if (pet.fed >= FEED_NEED[pet.st]) {
+        get().flash('배가 불러요! 이제 진화할 수 있어요 ✨')
+        return
+      }
+      const next: PetState = { ...pet, fed: pet.fed + 1 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, pet: next, petFed: today } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, pet: next })
+      get().flash('냠냠! 먹이를 먹었어요 🍖')
+    },
+
+    // 진화 — 도토리를 내고 확률로 성공한다. 집 단계가 모자라면 할 수 없다.
+    evolvePet: () => {
+      const { items, pet, coins } = get()
+      if (!pet) return
+      const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
+      const chk = canEvolve(pet, houseLv)
+      if (!chk.ok) {
+        get().flash(chk.why)
+        return
+      }
+      const cost = EVOLVE_COST_PET[pet.st]
+      if (coins < cost) {
+        get().flash(`도토리가 ${cost - coins}개 모자라요`)
+        return
+      }
+      const ok = rollEvolve(pet)
+      const next: PetState = ok
+        ? { ...pet, st: pet.st + 1, fed: 0, pity: 0 }
+        : { ...pet, pity: pet.pity + 1 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, pet: next } : i))
+      const nextCoins = coins - cost
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, coins: nextCoins, pet: next, petFx: { at: Date.now(), ok, st: next.st } })
+      get().flash(ok ? `${stageLabel(next.sp, next.st)}(으)로 진화! -${cost} 도토리` : `아쉽게 실패… 다음엔 성공 확률이 올라가요 -${cost} 도토리`)
+    },
+
+    // 펫을 보낸다 (다른 알을 키우려면 먼저 버려야 한다)
+    releasePet: () => {
+      const { items, pet } = get()
+      if (!pet) return
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, pet: null } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, pet: null, petFx: null })
+      get().flash('펫을 떠나보냈어요. 새 알을 고를 수 있어요')
+    },
+
     chooseWardrobe: (slot, id) => {
       const item = findItem(slot, id)
       if (!item) return
@@ -566,6 +674,7 @@ export const useVillage = create<VillageState>((set, get) => {
         wardrobe: wardrobeOf(merged),
         weapons: weaponsOf(merged),
         bossCleared: bossOf(merged),
+        pet: petOf(merged),
         daily: dailyOf(merged),
       })
     },

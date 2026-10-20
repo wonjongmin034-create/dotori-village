@@ -1,3 +1,5 @@
+import type { PetView } from './pets'
+
 // 아바타(캐릭터 외형) 설정. 옷 갈아입히기 시스템의 기반.
 export type Avatar = {
   skin: string
@@ -15,6 +17,7 @@ export type Avatar = {
   ride: string | null // 탈 것 id (null = 걸어 다님)
   weapon: string | null // 들고 있는 무기 종류 (null = 안 듦)
   wt: number // 들고 있는 무기의 단계 1~6
+  pet?: PetView | null // 따라다니는 펫 (실시간 접속 정보로만 전해진다 — 저장은 집의 pet 에)
 }
 
 export const DEFAULT_AVATAR: Avatar = {
