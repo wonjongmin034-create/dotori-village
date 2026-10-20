@@ -245,20 +245,20 @@ class MixedDeck {
   }
 }
 
-// 제한 시간 — 페이즈(lv)가 오를수록 짧아진다. 마지막(3페이즈)은 보기 고르기 5초.
-//  · 보기 고르기: 10초 → 7.5초 → 5초 (문제 글이 길면 읽는 시간을 조금 더 준다)
-//  · 가위바위보·홀짝: 6초 → 5초 → 4초
+// 제한 시간 — 페이즈(lv)가 오를수록 짧아진다. 마지막(3페이즈)은 보기 고르기 4초.
+//  · 보기 고르기: 8초 → 6초 → 4초 (문제 글이 길면 읽는 시간을 조금 더 준다)
+//  · 가위바위보·홀짝: 5초 → 4초 → 3초
 //  · 글자 타일·순서·숫자 입력은 손으로 여러 번 눌러야 해서, 같은 5초로는 불가능하니 따로 정한다
 export function timeFor(q: BossQ, lv: 1 | 2 | 3): number {
   const k = q.k ?? 'mc'
   const i = lv - 1
-  if (k === 'rps' || k === 'oe') return [6000, 5000, 4000][i]
-  if (k === 'num') return [18_000, 14_000, 9000][i]
-  if (k === 'tiles') return lv === 3 ? 7000 + Math.max(0, (q.len ?? 7) - 7) * 500 : 11_000
-  if (k === 'order') return lv === 3 ? 10_000 : 13_000
-  const base = [10_000, 7500, 5000][i]
-  const longText = q.t.length > 26 ? [3000, 2500, 2000][i] : 0
-  const longOpt = q.o.some((x) => x.length > 12) ? 1500 : 0
+  if (k === 'rps' || k === 'oe') return [5000, 4000, 3000][i]
+  if (k === 'num') return [15_000, 11_000, 8000][i]
+  if (k === 'tiles') return lv === 3 ? 6000 + Math.max(0, (q.len ?? 7) - 7) * 500 : 9000
+  if (k === 'order') return lv === 3 ? 8500 : 11_000
+  const base = [8000, 6000, 4000][i]
+  const longText = q.t.length > 26 ? [2500, 2000, 1500][i] : 0
+  const longOpt = q.o.some((x) => x.length > 12) ? 1200 : 0
   return base + longText + longOpt
 }
 
