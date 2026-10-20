@@ -212,21 +212,20 @@ export async function recordResult(f: FinishInfo): Promise<RewardResult> {
   useVillage.getState().addCoins(coins, `오목 ${f.result === 'win' ? '승리' : f.result === 'draw' ? '무승부' : '참여'}`)
 
   // 서버에 기록 (실패해도 게임은 계속)
+  // 주의: 두 줄을 한 번에(배열로) 저장하면, 줄마다 열이 달라서 서버가 빈 값으로 채우다 "rewarded 는 비울 수 없다"며 통째로 거절한다.
+  //       (예전에 이렇게 보내서 승점·순위가 한 번도 저장되지 않았다) → 줄마다 따로 저장한다.
   try {
-    const { error } = await supabase.from('omok_stats').upsert(
-      [
-        { class_code: s.classCode, student: s.name, week: w, points: mine.points, wins: mine.wins, losses: mine.losses, draws: mine.draws, updated_at: mine.updated_at },
-        {
-          class_code: s.classCode,
-          student: s.name,
-          week: -1,
-          rewarded: { day: daily.day, games: daily.games },
-          pairs: daily.pairs,
-          updated_at: mine.updated_at,
-        },
-      ],
-      { onConflict: 'class_code,student,week' },
-    )
+    const opt = { onConflict: 'class_code,student,week' }
+    const [r1, r2] = await Promise.all([
+      supabase
+        .from('omok_stats')
+        .upsert({ class_code: s.classCode, student: s.name, week: w, points: mine.points, wins: mine.wins, losses: mine.losses, draws: mine.draws, updated_at: mine.updated_at }, opt),
+      supabase
+        .from('omok_stats')
+        .upsert({ class_code: s.classCode, student: s.name, week: -1, rewarded: { day: daily.day, games: daily.games }, pairs: daily.pairs, updated_at: mine.updated_at }, opt),
+    ])
+    const error = r1.error ?? r2.error
+    if (error) console.warn('[omok] 기록 저장 실패:', error.message)
     useOmokStats.setState({ db: error ? 'missing' : 'ok' })
   } catch {
     useOmokStats.setState({ db: 'missing' })
