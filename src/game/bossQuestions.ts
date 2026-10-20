@@ -191,7 +191,9 @@ class MixedDeck {
     const mini = [0.1, 0.15, 0.22][lv - 1]
     if (!this.lastMini && Math.random() < mini) {
       this.lastMini = true
-      return Math.random() < 0.5 ? rpsQ() : oeQ()
+      const m = Math.random() < 0.5 ? rpsQ() : oeQ()
+      m.ms = timeFor(m, lv)
+      return m
     }
     this.lastMini = false
 
@@ -238,17 +240,26 @@ class MixedDeck {
       }
       r -= w
     }
-    q.ms ??= defaultMs(q, lv)
+    q.ms = timeFor(q, lv) // 페이즈가 오를수록 촉박해진다
     return q
   }
 }
 
-// 문제 종류와 길이에 따른 제한 시간 (페이즈가 오를수록 짧아진다)
-function defaultMs(q: BossQ, lv: 1 | 2 | 3): number {
+// 제한 시간 — 페이즈(lv)가 오를수록 짧아진다. 마지막(3페이즈)은 보기 고르기 5초.
+//  · 보기 고르기: 10초 → 7.5초 → 5초 (문제 글이 길면 읽는 시간을 조금 더 준다)
+//  · 가위바위보·홀짝: 6초 → 5초 → 4초
+//  · 글자 타일·순서·숫자 입력은 손으로 여러 번 눌러야 해서, 같은 5초로는 불가능하니 따로 정한다
+export function timeFor(q: BossQ, lv: 1 | 2 | 3): number {
   const k = q.k ?? 'mc'
-  if (k === 'num') return lv === 3 ? 22_000 : 18_000
-  const base = [10_000, 9_000, 8_000][lv - 1]
-  return base + (q.t.length > 26 ? 3000 : 0) + (q.o.some((x) => x.length > 12) ? 2000 : 0)
+  const i = lv - 1
+  if (k === 'rps' || k === 'oe') return [6000, 5000, 4000][i]
+  if (k === 'num') return [18_000, 14_000, 9000][i]
+  if (k === 'tiles') return lv === 3 ? 7000 + Math.max(0, (q.len ?? 7) - 7) * 500 : 11_000
+  if (k === 'order') return lv === 3 ? 10_000 : 13_000
+  const base = [10_000, 7500, 5000][i]
+  const longText = q.t.length > 26 ? [3000, 2500, 2000][i] : 0
+  const longOpt = q.o.some((x) => x.length > 12) ? 1500 : 0
+  return base + longText + longOpt
 }
 
 /* ---------- 한 판 동안 쓰는 "카드 더미" (같은 문제가 다시 나오지 않게) ---------- */
