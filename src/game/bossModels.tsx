@@ -642,7 +642,142 @@ function Tiger() {
   )
 }
 
+/* ============================================================
+   4단계: 올빼미 대마법사 아르카 — 별무늬 로브와 마법사 모자, 빛나는 지팡이. 둘레에 과목 책들이 돈다.
+   페이즈가 오르면 발밑에 불길한 고리가 생긴다.
+   ============================================================ */
+function Owl() {
+  const wingL = useRef<THREE.Group>(null)
+  const wingR = useRef<THREE.Group>(null)
+  const head = useRef<THREE.Group>(null)
+  const staff = useRef<THREE.Group>(null)
+  const orb = useRef<THREE.Mesh>(null)
+  const body = useRef<THREE.Group>(null)
+  const ring2 = useRef<THREE.Mesh>(null)
+  const ring3 = useRef<THREE.Mesh>(null)
+
+  useFrame(() => {
+    const t = nowSec()
+    const atk = clamp01((t - bossFx.atkAt) / 0.95)
+    const hit = clamp01((t - bossFx.hitAt) / 0.5)
+    const roar = atk > 0 && atk < 1 ? Math.sin(atk * Math.PI) : 0
+    const flap = ss(t * (2.2 + bossFx.lv * 0.5)) * (0.18 + roar * 0.45)
+    if (wingR.current) wingR.current.rotation.z = 0.35 + flap
+    if (wingL.current) wingL.current.rotation.z = -0.35 - flap
+    if (body.current) body.current.position.y = ss(t * 1.6) * 0.06
+    if (head.current) {
+      head.current.rotation.y = ss(t * 0.7) * 0.25
+      head.current.rotation.x = -roar * 0.25 + Math.sin(hit * Math.PI) * 0.3
+      head.current.rotation.z = ss(t * 0.9) * 0.05
+    }
+    if (staff.current) staff.current.rotation.x = -roar * 0.7 + ss(t * 1.3) * 0.03
+    if (orb.current) {
+      const k = 1 + ss(t * 4) * 0.12 + roar * 0.5
+      orb.current.scale.setScalar(k)
+    }
+    if (ring2.current) ring2.current.visible = bossFx.lv >= 2
+    if (ring3.current) ring3.current.visible = bossFx.lv >= 3
+    if (ring2.current) ring2.current.rotation.z = t * 0.6
+    if (ring3.current) ring3.current.rotation.z = -t * 0.9
+  })
+
+  const feather = '#6b52a8'
+  const featherDark = '#4a3a82'
+  const chest = '#efe3ff'
+  const robe = '#27327a'
+  const gold = '#ffd86b'
+  const hat = '#1f2760'
+  const beak = '#ffb21f'
+
+  return (
+    <group>
+      <group ref={body}>
+        {/* 발 */}
+        {[-0.7, 0.7].map((x) => (
+          <group key={x}>
+            <Cyl p={[x, 0.45, 0.2]} r={0.14} r2={0.18} h={0.9} c={beak} />
+            {[-0.25, 0, 0.25].map((dx) => (
+              <Cone key={dx} p={[x + dx, 0.1, 0.62]} r={0.1} h={0.5} c="#ffe9a8" rot={[Math.PI / 2, 0, 0]} />
+            ))}
+          </group>
+        ))}
+        {/* 로브 */}
+        <Cyl p={[0, 1.55, 0]} r={2.0} r2={1.15} h={2.5} c={robe} />
+        <Ring p={[0, 0.34, 0]} r={1.97} t={0.1} c={gold} e={gold} ei={0.35} rot={[Math.PI / 2, 0, 0]} />
+        <Ring p={[0, 2.7, 0]} r={1.13} t={0.08} c={gold} e={gold} ei={0.35} rot={[Math.PI / 2, 0, 0]} />
+        {[
+          [-0.7, 1.0], [0.6, 1.4], [-0.2, 1.9], [0.9, 0.8], [-1.1, 1.6], [0.1, 0.9],
+        ].map(([x, y], i) => (
+          <Ball key={i} p={[x, y, 1.5 - Math.abs(y - 1.6) * 0.18]} r={0.1} c={gold} e={gold} ei={0.9} />
+        ))}
+        {/* 몸통·가슴 깃털 */}
+        <Ball p={[0, 3.45, 0]} r={1.3} s={[1.05, 1.2, 0.95]} c={feather} />
+        <Ball p={[0, 3.35, 0.85]} r={1} s={[0.85, 1.05, 0.42]} c={chest} />
+        {[0, 1, 2].map((r) =>
+          [-0.4, 0, 0.4].map((x) => (
+            <Ball key={`${r}${x}`} p={[x + (r % 2) * 0.2 - 0.1, 3.75 - r * 0.38, 1.1]} r={0.2} s={[1, 0.7, 0.4]} c="#c9b6ee" />
+          )),
+        )}
+        {/* 날개 */}
+        <group ref={wingR} position={[1.2, 3.9, -0.15]}>
+          <group rotation={[-0.45, 0.45, 0]}>
+            <Wing side={1} size={2.6} membrane={featherDark} bone={gold} />
+          </group>
+        </group>
+        <group ref={wingL} position={[-1.2, 3.9, -0.15]}>
+          <group rotation={[-0.45, -0.45, 0]}>
+            <Wing side={-1} size={2.6} membrane={featherDark} bone={gold} />
+          </group>
+        </group>
+        {/* 지팡이 */}
+        <group ref={staff} position={[2.25, 0, 0.9]}>
+          <Cyl p={[0, 2.35, 0]} r={0.075} r2={0.09} h={4.7} c="#7b4f2a" />
+          <Ring p={[0, 4.75, 0]} r={0.36} t={0.06} c={gold} e={gold} ei={0.5} rot={[Math.PI / 2, 0, 0.3]} />
+          <mesh ref={orb} position={[0, 4.85, 0]}>
+            <sphereGeometry args={[0.3, 16, 12]} />
+            <Toon color="#9fefff" emissive="#7fe3ff" ei={1.4} />
+          </mesh>
+          <Ball p={[0, 1.7, 0.02]} r={0.2} c={featherDark} />
+        </group>
+        {/* 머리 */}
+        <group ref={head} position={[0, 4.95, 0.15]}>
+          <Ball p={[0, 0, 0]} r={1.15} s={[1.12, 1.0, 1.0]} c={feather} />
+          {[-1, 1].map((sd) => (
+            <group key={sd}>
+              <Ball p={[sd * 0.52, -0.02, 0.86]} r={0.64} s={[1, 1, 0.36]} c="#f4ecff" />
+              <Ball p={[sd * 0.52, 0.02, 1.05]} r={0.34} c="#ffe36a" e="#ffd23a" ei={1.1} />
+              <Ball p={[sd * 0.52, 0.02, 1.34]} r={0.15} s={[0.8, 1.2, 0.5]} c="#14102a" />
+              <Bx p={[sd * 0.52, 0.5, 1.05]} s={[0.72, 0.13, 0.16]} c={featherDark} rot={[0, 0, -sd * 0.32]} />
+              <Cone p={[sd * 0.78, 0.98, -0.02]} r={0.2} h={0.75} c={featherDark} rot={[0, 0, -sd * 0.45]} />
+            </group>
+          ))}
+          <Cone p={[0, -0.18, 1.45]} r={0.24} h={0.6} c={beak} rot={[Math.PI / 2, 0, 0]} />
+          {/* 마법사 모자 */}
+          <Cyl p={[0, 0.98, 0]} r={1.55} h={0.12} c={hat} />
+          <Cyl p={[0, 1.08, 0]} r={1.02} r2={1.0} h={0.2} c={gold} />
+          <group rotation={[0, 0, 0.12]} position={[0, 0, 0]}>
+            <Cone p={[0.1, 2.25, 0]} r={1.0} h={2.4} c={hat} />
+            <Shaped kind="star" size={0.36} depth={0.05} color={gold} glow position={[0.05, 1.5, 0.92]} />
+            <Ball p={[0.52, 3.55, 0]} r={0.14} c={gold} e={gold} ei={0.9} />
+          </group>
+        </group>
+      </group>
+      {/* 페이즈 고리 */}
+      <mesh ref={ring2} position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[3.1, 3.3, 48]} />
+        <meshBasicMaterial color="#ffa24d" transparent opacity={0.85} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ring3} position={[0, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <ringGeometry args={[3.6, 3.85, 6]} />
+        <meshBasicMaterial color="#ff4d4d" transparent opacity={0.9} side={THREE.DoubleSide} />
+      </mesh>
+
+      <Orbiters items={['수', '국', '영', '과', '사', '史']} r={4.7} y={1.9} size={0.95} speed={0.5} tile="#2b2f78" fg="#ffe9a8" glow="#7fe3ff" />
+    </group>
+  )
+}
+
 export function BossModel({ stage }: { stage: number }) {
-  const body = useMemo(() => (stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
+  const body = useMemo(() => (stage === 4 ? <Owl /> : stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
   return <Shell key={stage}>{body}</Shell>
 }

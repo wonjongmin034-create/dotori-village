@@ -7,11 +7,13 @@ export const bossFx = {
   deadAt: -99, // 보스가 쓰러지기 시작한 시각
   introAt: -99, // 등장 연출 시작
   dmg: 0,
+  lv: 1, // 종합 보스의 페이즈 (1~3)
 }
 
 export const resetBossFx = () => {
   bossFx.hitAt = bossFx.atkAt = bossFx.deadAt = bossFx.introAt = -99
   bossFx.dmg = 0
+  bossFx.lv = 1
 }
 
 // 화면 흔들림 (CameraRig 가 읽는다). 0~1, 저절로 줄어든다.

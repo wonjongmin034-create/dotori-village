@@ -62,7 +62,7 @@ function ArenaBase({ stage }: { stage: number }) {
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
           <circleGeometry args={[ARENA_R - 0.4, 56]} />
-          <Toon color={stage === 3 ? '#d2c08e' : stage === 2 ? '#8c7fd0' : '#b9ae94'} />
+          <Toon color={stage === 4 ? '#454b96' : stage === 3 ? '#d2c08e' : stage === 2 ? '#8c7fd0' : '#b9ae94'} />
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
           <ringGeometry args={[ARENA_R - 1.6, ARENA_R - 0.4, 56]} />
@@ -75,7 +75,20 @@ function ArenaBase({ stage }: { stage: number }) {
         {/* 기둥 */}
         {pillars.map(([x, , z], i) => (
           <group key={i} position={[x, 0, z]}>
-            {stage === 3 ? (
+            {stage === 4 ? (
+              <>
+                <mesh position={[0, 1.4, 0]}>
+                  <boxGeometry args={[1.0, 2.8, 0.9]} />
+                  <Toon color="#3b2a4a" />
+                </mesh>
+                {['#ff6b6b', '#ffd166', '#6bd6a0', '#6bb6ff', '#c58bff'].map((c, k) => (
+                  <mesh key={c} position={[0, 0.55 + k * 0.5, 0.47]}>
+                    <boxGeometry args={[0.8, 0.34, 0.06]} />
+                    <Toon color={c} />
+                  </mesh>
+                ))}
+              </>
+            ) : stage === 3 ? (
               <>
                 <mesh position={[0, 1.2, 0]}>
                   <cylinderGeometry args={[0.32, 0.38, 2.4, 14]} />
@@ -141,8 +154,15 @@ function ArenaBase({ stage }: { stage: number }) {
               <meshBasicMaterial map={labelTex(['天', '地', '玄', '黃'][i % 4], '#ffe9a8', '#9b3a30')} />
             </mesh>
           ))}
+        {stage === 4 &&
+          ring(8, ARENA_R - 3.0, 0.4).map(([x, , z], i) => (
+            <mesh key={i} position={[x, 0.05, z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[1.3, 1.3]} />
+              <meshBasicMaterial map={labelTex(['수', '국', '영', '과', '사', '史', '✎', '?'][i], '#ffe9a8', '#2b2f78')} />
+            </mesh>
+          ))}
       </Baked>
-      <Flames spots={flameSpots} color={stage === 2 ? '#b9a0ff' : '#ffb347'} />
+      <Flames spots={flameSpots} color={stage === 4 ? '#8fd8ff' : stage === 2 ? '#b9a0ff' : '#ffb347'} />
     </>
   )
 }
@@ -160,20 +180,42 @@ function Backdrop({ stage }: { stage: number }) {
       return { x: Math.sin(ang) * r, z: Math.cos(ang) * r, h: 6 + rnd() * 12, w: 5 + rnd() * 5, k: i % 3 }
     })
   }, [stage])
+  const stars = useMemo(() => {
+    let a = 99
+    const rnd = () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296)
+    return Array.from({ length: 70 }, () => {
+      const ang = rnd() * Math.PI * 2
+      const r = 70 + rnd() * 25
+      return [Math.sin(ang) * r, 12 + rnd() * 50, Math.cos(ang) * r] as V3
+    })
+  }, [])
   const cols =
-    stage === 1 ? ['#8fc98a', '#7fb8a8', '#9ccf8f'] : stage === 2 ? ['#9a86e8', '#7a68d0', '#b7a4f5'] : ['#5c8f86', '#4d7f7a', '#6aa095']
+    stage === 1
+      ? ['#8fc98a', '#7fb8a8', '#9ccf8f']
+      : stage === 2
+        ? ['#9a86e8', '#7a68d0', '#b7a4f5']
+        : stage === 4
+          ? ['#2b2a6a', '#3a3a86', '#24235a']
+          : ['#5c8f86', '#4d7f7a', '#6aa095']
   return (
     <Baked>
       {hills.map((h, i) => (
         <mesh key={i} position={[h.x, stage === 1 ? 0 : h.h / 2 - 1, h.z]} scale={stage === 1 ? [1.6, 0.55, 1.6] : [1, 1, 1]}>
-          {stage === 2 ? <coneGeometry args={[h.w * 0.45, h.h * 1.3, 5]} /> : stage === 3 ? <coneGeometry args={[h.w, h.h, 6]} /> : <sphereGeometry args={[h.w, 14, 10]} />}
+          {stage === 2 || stage === 4 ? <coneGeometry args={[h.w * 0.45, h.h * (stage === 4 ? 1.8 : 1.3), 5]} /> : stage === 3 ? <coneGeometry args={[h.w, h.h, 6]} /> : <sphereGeometry args={[h.w, 14, 10]} />}
           <Toon color={cols[h.k]} emissive={stage === 2 ? '#6a4fe0' : undefined} ei={0.25} />
         </mesh>
       ))}
-      <mesh position={stage === 3 ? [0, 22, -70] : stage === 2 ? [-26, 30, -62] : [26, 34, -64]}>
-        <circleGeometry args={[stage === 3 ? 12 : 7, 40]} />
-        <meshBasicMaterial color={stage === 3 ? '#ff6a4a' : stage === 2 ? '#fff3c4' : '#fff1b8'} fog={false} />
+      <mesh position={stage === 3 ? [0, 22, -70] : stage === 2 ? [-26, 30, -62] : stage === 4 ? [-30, 36, -66] : [26, 34, -64]}>
+        <circleGeometry args={[stage === 3 ? 12 : stage === 4 ? 9 : 7, 40]} />
+        <meshBasicMaterial color={stage === 3 ? '#ff6a4a' : stage === 2 || stage === 4 ? '#fff3c4' : '#fff1b8'} fog={false} />
       </mesh>
+      {stage === 4 &&
+        stars.map((p, i) => (
+          <mesh key={i} position={p}>
+            <sphereGeometry args={[0.35, 5, 4]} />
+            <meshBasicMaterial color={i % 3 === 0 ? '#bfe9ff' : '#fff6c8'} fog={false} />
+          </mesh>
+        ))}
     </Baked>
   )
 }
@@ -479,6 +521,7 @@ function FxLayer() {
         resetBossFx()
         bossFx.introAt = nowSec()
       }
+      bossFx.lv = g.lv ?? 1
       if (!newFight && prev && prev.seq === g.seq) return
       if (g.phase === 'result' && g.last) {
         const last = g.last
@@ -494,6 +537,8 @@ function FxLayer() {
             camShake.amp = Math.max(camShake.amp, 0.25 + last.tier * 0.06)
           }, 190)
           setTimeout(() => add({ kind: 'hit', last, from: [sx, 0, sz], to: AIM }, 2400), 190)
+        } else if (last.draw) {
+          // 가위바위보 비김: 아무 일도 없다
         } else {
           setTimeout(() => {
             bossFx.atkAt = nowSec()
@@ -502,6 +547,14 @@ function FxLayer() {
             add({ kind: 'shock' }, 1000)
             camShake.amp = Math.max(camShake.amp, 0.9)
           }, 620)
+        }
+        // 보스가 다음 페이즈로: 포효하며 충격파
+        if (last.lvUp) {
+          setTimeout(() => {
+            bossFx.atkAt = nowSec()
+            add({ kind: 'shock' }, 1000)
+            camShake.amp = Math.max(camShake.amp, 1)
+          }, 700)
         }
         // 마지막 일격이면 보스가 쓰러진다
         if (g.end === 'won') bossFx.deadAt = nowSec() + (last.fam === 'bow' || last.fam === 'staff' ? 0.9 : 0.6)

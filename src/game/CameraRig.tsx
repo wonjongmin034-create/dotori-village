@@ -72,7 +72,7 @@ export function CameraRig() {
     // 보스 방: 아래쪽에 문제 창이 올라오므로, 장면을 위로 조금 밀어 올려 보스가 가려지지 않게 한다
     const pc = camera as THREE.PerspectiveCamera
     if (cs.bossRoom != null) {
-      const off = Math.round(size.height * 0.17)
+      const off = Math.round(size.height * (size.height < 560 ? 0.06 : 0.17)) // 낮은 화면은 위 표시줄도 얇아서 덜 올린다
       if (!pc.view || !pc.view.enabled || pc.view.offsetY !== off || pc.view.fullHeight !== size.height) {
         pc.setViewOffset(size.width, size.height, 0, off, size.width, size.height)
       }

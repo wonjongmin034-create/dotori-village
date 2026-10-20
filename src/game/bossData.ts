@@ -2,7 +2,7 @@
 //  팀은 생명(하트)을 같이 쓴다. 한 사람씩 차례로 문제를 푼다.
 //  맞히면 그 사람의 무기 단계만큼 보스 체력이 깎이고, 시간 안에 못 풀거나 틀리면 팀 생명이 1 깎인다.
 
-export type StageId = 1 | 2 | 3
+export type StageId = 1 | 2 | 3 | 4
 
 export type Stage = {
   id: StageId
@@ -13,6 +13,7 @@ export type Stage = {
   life: number // 팀 생명(하트)
   reward: number // 처음 클리어할 때 받는 도토리 (한 번만)
   intro: string // 보스가 나올 때 한마디
+  mixed?: boolean // 종합 보스: 문제를 섞어 내고, 체력이 줄면 페이즈가 올라가 어려워진다
   theme: { sky: string; fog: string; ground: string; ring: string; accent: string }
 }
 
@@ -50,6 +51,18 @@ export const STAGES: Stage[] = [
     intro: '역사를 모르는 자는 이 문을 지날 수 없다!',
     theme: { sky: '#f3c9a0', fog: '#f1d2b4', ground: '#b9a56a', ring: '#c9b48a', accent: '#e5533d' },
   },
+  {
+    id: 4,
+    name: '올빼미 대마법사 아르카',
+    subject: '종합 (5학년)',
+    ms: 10_000,
+    hp: 270,
+    life: 11,
+    reward: 200,
+    mixed: true,
+    intro: '지금까지 배운 모든 것으로 덤벼라! 내 체력이 줄수록 문제는 어려워진다!',
+    theme: { sky: '#1b1a44', fog: '#2a2860', ground: '#3b4080', ring: '#6c70c8', accent: '#ffd86b' },
+  },
 ]
 
 export const stageOf = (id: number): Stage => STAGES[Math.max(1, Math.min(STAGES.length, id)) - 1]
@@ -65,7 +78,18 @@ export const BOSS_ROOMS = 9 // 보스 방 번호는 1~9
 // 무기 단계(1~6)에 따른 공격력. 승부는 문제를 맞히는 것이 크고, 무기는 보너스.
 export const BASE_DMG = 10
 export const TIER_MULT = [1, 1.15, 1.3, 1.5, 1.75, 2]
-export const dmgOf = (tier: number) => Math.round(BASE_DMG * TIER_MULT[Math.max(1, Math.min(6, Math.round(tier || 1))) - 1])
+// 4단계(종합)는 무기 단계 차이가 훨씬 크다: 1단계 무기는 6, 6단계 무기는 30. (밸런스는 시뮬레이션으로 맞춤)
+export const STAGE_DMG: Record<number, number[]> = { 4: [6, 9, 13, 18, 24, 30] }
+export const dmgOf = (tier: number, stage = 1) => {
+  const t = Math.max(1, Math.min(6, Math.round(tier || 1)))
+  const table = STAGE_DMG[stage]
+  return table ? table[t - 1] : Math.round(BASE_DMG * TIER_MULT[t - 1])
+}
+
+// 종합 보스의 페이즈: 보스 체력이 66% 아래면 2, 33% 아래면 3. 페이즈가 오를 때마다 팀 생명이 조금 회복된다.
+export const phaseOf = (hp: number, maxHp: number): 1 | 2 | 3 => (hp / maxHp > 0.66 ? 1 : hp / maxHp > 0.33 ? 2 : 3)
+export const HEAL_ON_PHASE = 2
+export const RPS_WIN_MULT = 1.5 // 가위바위보에서 이기면 이만큼 센 공격
 
 export const RESULT_MS = 1900 // 문제 하나가 끝나고 정답·연출을 보여 주는 시간
 export const ANSWER_GRACE_MS = 1200 // 인터넷 지연 때문에 억울하지 않게 더 기다려 주는 시간

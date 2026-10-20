@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVillage } from './store'
 import {
   answer,
   chooseStage,
   isActive,
   maxStageFor,
+  notifyBoss,
   onBossFinish,
   refreshMyPresence,
   rematch,
@@ -15,7 +16,7 @@ import {
   useBoss,
   type BossGame,
 } from './bossState'
-import { BOSS_ROOMS, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
+import { BOSS_ROOMS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
 import { enterBoss, leaveBoss, useBossUi } from './boss'
 import { tierName, isFamily } from './weapons'
 
@@ -93,6 +94,7 @@ function BossTop({ game }: { game: BossGame }) {
     <div className="boss-top">
       <div className="boss-name">
         {cfg.name} <small>{cfg.subject}</small>
+        {cfg.mixed && <span className={`boss-phase p${game.lv}`}>{game.lv}페이즈</span>}
       </div>
       <div className="boss-hp">
         <div className="boss-hp-fill" style={{ width: `${pct}%` }} />
@@ -112,6 +114,9 @@ function BossTop({ game }: { game: BossGame }) {
 }
 
 /* ---------- 아래쪽: 문제 ---------- */
+const HAND_ICON = ['✌️', '✊', '✋']
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫']
+
 function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
   const rcv = useBoss((s) => s.rcv)
   const picked = useBoss((s) => s.picked)
@@ -119,6 +124,11 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
   const avatar = useVillage((s) => s.avatar)
   const cfg = stageOf(game.stage)
   const now = useNow(100, game.phase === 'ask')
+  // 이 문제에서 내가 누르고 있는 것 (타일 번호 / 순서 / 숫자 글자). 문제가 바뀌면 비워진다.
+  const key = `${game.gid}:${game.n}`
+  const [sel, setSel] = useState<{ key: string; v: (number | string)[] }>({ key: '', v: [] })
+  const cur = sel.key === key ? sel.v : []
+  const setCur = (v: (number | string)[]) => setSel({ key, v })
 
   if (game.phase === 'intro') {
     return (
@@ -126,7 +136,8 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         <b>⚔️ {cfg.name} 등장!</b>
         <span>{cfg.intro}</span>
         <small>
-          팀 생명 {game.maxLife}개 · 한 사람씩 차례로 풀어요 · 제한 시간 {Math.round(cfg.ms / 1000)}초
+          팀 생명 {game.maxLife}개 · 한 사람씩 차례로 풀어요 · 제한 시간{' '}
+          {cfg.mixed ? '문제마다 달라요' : `${Math.round(cfg.ms / 1000)}초`}
         </small>
       </div>
     )
@@ -134,6 +145,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
 
   const q = game.q
   if (!q) return null
+  const k = q.k ?? 'mc'
   const mine = game.who === name
   const asking = game.phase === 'ask'
   const left = asking ? Math.max(0, game.ms - (now - rcv)) : 0
@@ -141,6 +153,30 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
   const last = game.last
   const showRes = game.phase === 'result' && last
   const myTier = avatar.weapon && isFamily(avatar.weapon) ? avatar.wt : 1
+  const canAnswer = asking && mine && picked < 0 && !pending
+  const locked = !canAnswer
+
+  const tileTap = (i: number) => {
+    if (locked || cur.includes(i)) return
+    const next = [...cur, i]
+    setCur(next)
+    if (q.len && next.length >= q.len) answer(next.map((x) => q.o[x as number]).join(''))
+  }
+  const orderTap = (i: number) => {
+    if (locked) return
+    if (cur.includes(i)) {
+      setCur(cur.slice(0, cur.indexOf(i))) // 눌렀던 것을 다시 누르면 거기서부터 취소
+      return
+    }
+    const next = [...cur, i]
+    setCur(next)
+    if (next.length >= q.o.length) answer(next as number[])
+  }
+  const keyTap = (c: string) => {
+    if (locked) return
+    if (c === '⌫') setCur(cur.slice(0, -1))
+    else if (c === '.' ? cur.length > 0 && !cur.includes('.') && cur.length < 7 : cur.length < 7) setCur([...cur, c])
+  }
 
   return (
     <div className={`boss-sheet${mine && asking ? ' mine' : ''}`}>
@@ -152,14 +188,19 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
             <b>{game.who}님 차례예요</b>
           )
         ) : showRes ? (
-          last.ok ? (
-            <b className="ok">✅ 정답! {last.who}님의 공격 −{last.dmg}</b>
+          last.draw ? (
+            <b>🤝 비겼어요! 한 번 더 도전</b>
+          ) : last.ok ? (
+            <b className="ok">
+              ✅ {last.kind === 'rps' || last.kind === 'oe' ? '이겼다!' : '정답!'} {last.who}님의 공격 −{last.dmg}
+            </b>
           ) : (
             <b className="bad">{last.timeout ? '⏰ 시간 초과!' : '❌ 아쉬워요!'} 보스의 반격 💥</b>
           )
         ) : null}
         <small>
-          {game.n}번째 문제 · 내 공격력 {dmgOf(myTier)}
+          {q.cat && <span className="boss-cat">{q.cat}</span>}
+          {game.n}번째 · 내 공격력 {dmgOf(myTier, game.stage)}
           {avatar.weapon && isFamily(avatar.weapon) ? ` (${tierName(avatar.weapon, avatar.wt)})` : ''}
         </small>
       </div>
@@ -174,20 +215,116 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
       {q.sub && <div className="boss-sub">{q.sub}</div>}
       <div className={`boss-q${q.t.length > 26 ? ' long' : ''}`}>{q.t}</div>
 
-      <div className="boss-opts">
-        {q.o.map((o, i) => {
-          let cls = ''
-          if (showRes) {
-            if (i === last.a) cls = 'right'
-            else if (i === last.pick) cls = 'wrong'
-          } else if (picked === i) cls = 'picked'
-          return (
-            <button key={i} type="button" className={cls} disabled={!asking || !mine || picked >= 0 || pending} onClick={() => answer(i)}>
+      {/* 보기 고르기 */}
+      {k === 'mc' && (
+        <div className="boss-opts">
+          {q.o.map((o, i) => {
+            let cls = ''
+            if (showRes) {
+              if (i === last.a) cls = 'right'
+              else if (i === last.pick) cls = 'wrong'
+            } else if (picked === i) cls = 'picked'
+            return (
+              <button key={i} type="button" className={cls} disabled={locked} onClick={() => answer(i)}>
+                {o}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* 가위바위보 · 홀짝 */}
+      {(k === 'rps' || k === 'oe') && (
+        <div className={`boss-hands ${k}`}>
+          {q.o.map((o, i) => (
+            <button key={i} type="button" className={picked === i ? 'picked' : ''} disabled={locked} onClick={() => answer(i)}>
+              <span>{k === 'rps' ? HAND_ICON[i] : i === 0 ? '1️⃣' : '2️⃣'}</span>
               {o}
             </button>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* 글자 타일로 단어 만들기 */}
+      {k === 'tiles' && (
+        <>
+          <div className="boss-slots">
+            {Array.from({ length: q.len ?? 0 }, (_, i) => (
+              <span key={i} className={cur[i] != null ? 'on' : ''}>
+                {cur[i] != null ? q.o[cur[i] as number] : ''}
+              </span>
+            ))}
+          </div>
+          <div className="boss-tiles">
+            {q.o.map((c, i) => (
+              <button key={i} type="button" disabled={locked || cur.includes(i)} onClick={() => tileTap(i)}>
+                {c}
+              </button>
+            ))}
+          </div>
+          {!locked && cur.length > 0 && (
+            <button type="button" className="boss-undo" onClick={() => setCur(cur.slice(0, -1))}>
+              ⌫ 한 글자 지우기
+            </button>
+          )}
+        </>
+      )}
+
+      {/* 순서대로 누르기 */}
+      {k === 'order' && (
+        <>
+          <div className="boss-order">
+            {q.o.map((o, i) => {
+              const at = cur.indexOf(i)
+              return (
+                <button key={i} type="button" className={at >= 0 ? 'on' : ''} disabled={locked && at < 0} onClick={() => orderTap(i)}>
+                  <i>{at >= 0 ? at + 1 : ''}</i>
+                  {o}
+                </button>
+              )
+            })}
+          </div>
+          {!locked && cur.length > 0 && (
+            <button type="button" className="boss-undo" onClick={() => setCur([])}>
+              ↺ 처음부터 다시
+            </button>
+          )}
+        </>
+      )}
+
+      {/* 숫자 입력 */}
+      {k === 'num' && (
+        <>
+          <div className="boss-numshow">{cur.length ? cur.join('') : '?'}</div>
+          <div className="boss-pad">
+            {KEYS.map((c) => (
+              <button key={c} type="button" disabled={locked} onClick={() => keyTap(c)}>
+                {c}
+              </button>
+            ))}
+            <button type="button" className="go" disabled={locked || cur.length === 0} onClick={() => answer(cur.join(''))}>
+              확인
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 결과: 정답 보여 주기 */}
+      {showRes && k !== 'mc' && (
+        <div className="boss-reveal">
+          {k === 'rps' || k === 'oe' ? (
+            <>
+              {last.pickText ? `내 선택: ${last.pickText} · ` : ''}
+              {last.ansText}
+            </>
+          ) : (
+            <>
+              정답: <b>{last.ansText}</b>
+              {!last.ok && last.pickText ? <small> (내 답: {last.pickText})</small> : null}
+            </>
+          )}
+        </div>
+      )}
       {asking && !mine && <div className="boss-wait">{game.who}님이 푸는 중이에요… 응원해 주세요! 📣</div>}
     </div>
   )
@@ -243,7 +380,9 @@ function Lobby({ room }: { room: number }) {
             >
               <b>{locked ? '🔒' : s.id === stage ? '✔️' : ''} {s.id}단계</b>
               <span>{s.name}</span>
-              <small>{s.subject} · {Math.round(s.ms / 1000)}초 · 🌰{s.reward}</small>
+              <small>
+                {s.subject} · {s.mixed ? '문제마다 다름' : `${Math.round(s.ms / 1000)}초`} · 🌰{s.reward}
+              </small>
             </button>
           )
         })}
@@ -355,6 +494,23 @@ export function BossHud() {
     })
     return () => onBossFinish(null)
   }, [])
+
+  // 종합 보스: 다음 페이즈로 올라가면 알린다
+  const gidRef = useRef(0)
+  const lvRef = useRef(1)
+  const lv = game?.lv ?? 1
+  const gid = game?.gid ?? 0
+  useEffect(() => {
+    if (!game || !mine) return
+    if (gid !== gidRef.current) {
+      gidRef.current = gid
+      lvRef.current = lv
+      return
+    }
+    if (lv > lvRef.current) notifyBoss(`🔥 보스가 화났다! ${lv}페이즈 — 문제가 어려워져요 (팀 생명 +${HEAL_ON_PHASE})`)
+    lvRef.current = lv
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gid, lv, mine])
 
   // 이미 전투가 시작된 방에 나중에 들어왔으면 돌려보낸다
   useEffect(() => {

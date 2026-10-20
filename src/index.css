@@ -3817,3 +3817,331 @@ canvas {
   font-weight: 800;
   color: #d03a3a;
 }
+
+/* 보스: 새 문제 형식 (글자 타일 · 순서 · 숫자 · 가위바위보/홀짝) */
+.boss-cat {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  background: #7a6af0;
+}
+.boss-phase {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #3a2a00;
+  background: #ffd86b;
+}
+.boss-phase.p2 {
+  background: #ffa24d;
+}
+.boss-phase.p3 {
+  color: #fff;
+  background: #e5533d;
+  animation: boss-pulse 0.9s ease-in-out infinite;
+}
+@keyframes boss-pulse {
+  50% {
+    transform: scale(1.12);
+  }
+}
+.boss-hands {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.boss-hands.oe {
+  grid-template-columns: repeat(2, 1fr);
+}
+.boss-hands button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border: 2px solid #d9d4be;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 900;
+  color: #2d2a3a;
+  background: #fff;
+  cursor: pointer;
+}
+.boss-hands button span {
+  font-size: 34px;
+  line-height: 1.1;
+}
+.boss-hands button.picked {
+  border-color: #7a6af0;
+  background: #ece8ff;
+}
+.boss-hands button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.boss-hands button.picked:disabled {
+  opacity: 1;
+}
+.boss-slots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+.boss-slots span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 42px;
+  border-bottom: 3px solid #b9b3a0;
+  border-radius: 8px 8px 2px 2px;
+  font-size: 24px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #2d2a3a;
+  background: #f4f1e4;
+}
+.boss-slots span.on {
+  border-bottom-color: #7a6af0;
+  background: #ece8ff;
+}
+.boss-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.boss-tiles button {
+  width: 42px;
+  height: 46px;
+  border: 2px solid #d9d4be;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #2d2a3a;
+  background: #fff;
+  cursor: pointer;
+}
+.boss-tiles button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.boss-undo {
+  display: block;
+  margin: 8px auto 0;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #5a4bd1;
+  background: #ece8ff;
+  cursor: pointer;
+}
+.boss-order {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.boss-order button {
+  position: relative;
+  min-height: 48px;
+  padding: 8px 6px 8px 30px;
+  border: 2px solid #d9d4be;
+  border-radius: 14px;
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  color: #2d2a3a;
+  background: #fff;
+  word-break: keep-all;
+  cursor: pointer;
+}
+.boss-order button i {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 20px;
+  text-align: center;
+  color: #fff;
+  background: #c9c6b8;
+}
+.boss-order button.on {
+  border-color: #7a6af0;
+  background: #ece8ff;
+}
+.boss-order button.on i {
+  background: #7a6af0;
+}
+.boss-numshow {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 28px;
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 2px;
+  color: #2d2a3a;
+  background: #f4f1e4;
+}
+.boss-pad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.boss-pad button {
+  height: 40px;
+  border: 2px solid #d9d4be;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #2d2a3a;
+  background: #fff;
+  cursor: pointer;
+}
+.boss-pad button.go {
+  grid-column: span 4;
+  height: 42px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(180deg, #7a6af0, #5b4bd1);
+}
+.boss-pad button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.boss-reveal {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  color: #3a4a3e;
+  background: #f0eee2;
+}
+.boss-reveal small {
+  color: #8a9088;
+}
+.boss-stages {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+@media (max-height: 560px) {
+  .boss-slots span {
+    width: 28px;
+    height: 34px;
+    font-size: 19px;
+  }
+  .boss-tiles button {
+    width: 36px;
+    height: 38px;
+    font-size: 18px;
+  }
+  .boss-pad button {
+    height: 32px;
+    font-size: 16px;
+  }
+  .boss-pad button.go {
+    height: 34px;
+  }
+  .boss-hands button span {
+    font-size: 26px;
+  }
+  .boss-numshow {
+    font-size: 22px;
+    padding: 3px 8px;
+  }
+  .boss-order button {
+    min-height: 38px;
+    font-size: 13px;
+  }
+}
+
+/* 보스: 낮은 화면의 위 표시줄 — 한 줄로 줄여서 보스 머리를 가리지 않게 */
+@media (max-height: 560px) {
+  .boss-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    top: 46px;
+    width: min(94vw, 640px);
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+  .boss-top .boss-name {
+    flex: none;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .boss-top .boss-name small {
+    display: none;
+  }
+  .boss-top .boss-hp {
+    flex: 1;
+    height: 14px;
+    margin: 0;
+  }
+  .boss-top .boss-hp span {
+    font-size: 10px;
+  }
+  .boss-top .boss-hearts {
+    flex: none;
+    gap: 0;
+    font-size: 12px;
+  }
+}
+
+/* 보스: 낮은 화면 2 — 위 표시줄이 오른쪽 버튼과 겹치지 않게, 순서 문제가 한 화면에 들어오게 */
+@media (max-height: 560px) {
+  .boss-top {
+    width: min(60vw, 470px);
+  }
+  .boss-sheet {
+    max-height: 52vh;
+  }
+  .boss-order {
+    gap: 5px;
+  }
+  .boss-order button {
+    min-height: 32px;
+    padding: 4px 4px 4px 28px;
+    font-size: 12.5px;
+  }
+  .boss-q {
+    margin: 0 0 4px;
+  }
+  .boss-turn {
+    font-size: 13px;
+  }
+  .boss-timer {
+    margin: 3px 0;
+    height: 11px;
+  }
+}
+
+/* 보스: 숫자 패드 낮은 화면 — 6칸 × 2줄 + 확인 */
+@media (max-height: 560px) {
+  .boss-pad {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .boss-pad button.go {
+    grid-column: span 6;
+  }
+}

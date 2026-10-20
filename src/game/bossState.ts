@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { Deck } from './bossQuestions'
-import { ANSWER_GRACE_MS, MAX_PARTY, MIN_PARTY, RESULT_MS, dmgOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
+import { Deck, publicOf, type Answer, type BossQ, type PublicQ, type QKind } from './bossQuestions'
+import { ANSWER_GRACE_MS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
 //   · 다른 사람이 고른 답은 방장에게 보내고, 방장이 맞는지 따져서 결과를 방 전체에 알린다.
@@ -10,7 +10,21 @@ import { ANSWER_GRACE_MS, MAX_PARTY, MIN_PARTY, RESULT_MS, dmgOf, soloTest, stag
 
 export type Member = { n: string; cl: number; wf: string | null; wt: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계
 export type Phase = 'intro' | 'ask' | 'result' | 'won' | 'lost' | 'aborted'
-export type LastHit = { who: string; ok: boolean; dmg: number; pick: number; a: number; fam: string | null; tier: number; timeout: boolean }
+export type LastHit = {
+  who: string
+  ok: boolean
+  dmg: number
+  pick: number // (보기 고르기) 고른 보기 번호, 아니면 -1
+  a: number // (보기 고르기) 정답 번호, 아니면 -1
+  fam: string | null
+  tier: number
+  timeout: boolean
+  kind: QKind
+  draw?: boolean // 가위바위보 비김 (피해도 생명 감소도 없다)
+  ansText?: string // 정답(또는 보스의 패)을 글로 보여 줄 때
+  pickText?: string // 내가 낸 답
+  lvUp?: boolean // 이 일격으로 보스가 다음 페이즈로 올라갔다
+}
 
 export type BossGame = {
   gid: number
@@ -23,7 +37,8 @@ export type BossGame = {
   maxLife: number
   n: number // 지금까지 낸 문제 수
   who: string // 이번 문제를 푸는 사람
-  q: { t: string; o: string[]; sub?: string } | null
+  q: PublicQ | null
+  lv: 1 | 2 | 3 // 종합 보스의 페이즈 (1~3)
   ms: number // 이번 문제 제한 시간
   qa: number // 이 단계가 시작된 시각 (방장 시계)
   phase: Phase
@@ -34,7 +49,7 @@ export type BossGame = {
 
 export type BossPayload =
   | { k: 'st'; g: BossGame }
-  | { k: 'ans'; gid: number; i: number; n: string; p: number }
+  | { k: 'ans'; gid: number; i: number; n: string; p: number | string | number[] }
   | { k: 'lb'; stage: number }
   | { k: 'rs' } // 끝난 판을 치우고 대기실로 돌아간다 (방장이 보낸다)
 
@@ -71,7 +86,7 @@ let myName = ''
 let tickTimer: ReturnType<typeof setInterval> | null = null
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
 let deck: Deck | null = null
-let curA = -1 // (방장만) 지금 문제의 정답 번호
+let curQ: BossQ | null = null // (방장만) 지금 문제 — 정답이 들어 있다
 let lastSent = 0
 let hostMissingSince = 0
 const processed = new Set<number>()
@@ -95,7 +110,7 @@ export function bossReset() {
   io = null
   if (pendingTimer) clearTimeout(pendingTimer)
   deck = null
-  curA = -1
+  curQ = null
   hostMissingSince = 0
   useBoss.setState({ roster: [], host: null, game: null, lobbyStage: 1, rcv: 0, pending: false, picked: -1, banner: null, result: null })
 }
@@ -190,7 +205,7 @@ export function startFight(): string | null {
   const stage = Math.min(st.lobbyStage, maxStageFor(st.roster)) as StageId
   const cfg = stageOf(stage)
   deck = new Deck(stage)
-  curA = -1
+  curQ = null
   const members = st.roster.map((m) => ({ ...m }))
   const prev = st.game?.gid ?? 0
   publish({
@@ -205,6 +220,7 @@ export function startFight(): string | null {
     n: 0,
     who: members[0].n,
     q: null,
+    lv: 1,
     ms: cfg.ms,
     qa: Date.now() + INTRO_MS, // 이 시각이 되면 첫 문제가 나간다
     phase: 'intro',
@@ -237,34 +253,124 @@ function askNext(g: BossGame) {
       break
     }
   }
-  const q = deck!.next()
-  curA = q.a
+  const q = deck!.next(g.lv)
+  curQ = q
+  if (import.meta.env.DEV) {
+    // 개발용: 시험 도구가 정답을 읽을 수 있게 (운영 빌드에는 없다)
+    try {
+      localStorage.setItem('__bossA', JSON.stringify({ gid: g.gid, n: g.n + 1, a: q.a, k: q.k ?? 'mc' }))
+    } catch {
+      /* noop */
+    }
+  }
   publish({
     ...g,
     n: g.n + 1,
     who,
-    q: { t: q.t, o: q.o, sub: q.sub },
+    q: publicOf(q),
+    ms: q.ms ?? stageOf(g.stage).ms,
     qa: Date.now(),
     phase: 'ask',
     seq: g.seq + 1,
   })
 }
 
-function resolve(g: BossGame, pick: number, timeout: boolean) {
+const HANDS = ['가위', '바위', '보']
+
+type Judged = { ok: boolean; draw: boolean; pickIdx: number; aIdx: number; ansText?: string; pickText?: string }
+
+// 낸 답이 맞는지 따진다 (가위바위보·홀짝은 여기서 보스가 정한다 — 답을 낸 뒤에 정하므로 미리 알 수 없다)
+function judge(q: BossQ, p: Answer | undefined, timeout: boolean): Judged {
+  const k = q.k ?? 'mc'
+  const none: Judged = { ok: false, draw: false, pickIdx: -1, aIdx: typeof q.a === 'number' ? q.a : -1 }
+  if (k === 'mc') {
+    const a = q.a as number
+    const ok = !timeout && p === a
+    return { ok, draw: false, pickIdx: typeof p === 'number' ? p : -1, aIdx: a, ansText: q.o[a], pickText: typeof p === 'number' ? q.o[p] : undefined }
+  }
+  if (k === 'tiles') {
+    const w = String(q.a)
+    return { ...none, ok: !timeout && typeof p === 'string' && p.toLowerCase() === w, aIdx: -1, ansText: w, pickText: typeof p === 'string' ? p : undefined }
+  }
+  if (k === 'num') {
+    const ok = !timeout && typeof p === 'string' && Math.abs(Number(p) - Number(q.a)) < 1e-9
+    return { ...none, ok, aIdx: -1, ansText: String(q.a), pickText: typeof p === 'string' ? p : undefined }
+  }
+  if (k === 'order') {
+    const a = q.a as number[]
+    const ok = !timeout && Array.isArray(p) && p.length === a.length && p.every((x, i) => x === a[i])
+    return { ...none, ok, aIdx: -1, ansText: a.map((i) => q.o[i]).join(' → '), pickText: Array.isArray(p) ? p.map((i) => q.o[i]).join(' → ') : undefined }
+  }
+  if (k === 'rps') {
+    const b = Math.floor(Math.random() * 3)
+    const me = typeof p === 'number' ? p : -1
+    if (timeout || me < 0) return { ...none, aIdx: -1, ansText: `보스: ${HANDS[b]}` }
+    const draw = me === b
+    const ok = !draw && (me + 2) % 3 === b // 바위(1)는 가위(0)를, 보(2)는 바위(1)를, 가위(0)는 보(2)를 이긴다
+    return { ok, draw, pickIdx: me, aIdx: -1, ansText: `보스: ${HANDS[b]}`, pickText: HANDS[me] }
+  }
+  // 홀짝: 보스가 도토리 1~9개를 쥐고 있다
+  const count = 1 + Math.floor(Math.random() * 9)
+  const odd = count % 2 === 1
+  const me = typeof p === 'number' ? p : -1
+  const ok = !timeout && me >= 0 && odd === (me === 0)
+  return { ok, draw: false, pickIdx: me, aIdx: -1, ansText: `도토리 ${count}개 → ${odd ? '홀수' : '짝수'}`, pickText: me === 0 ? '홀수' : me === 1 ? '짝수' : undefined }
+}
+
+function validAnswer(q: BossQ, p: unknown): boolean {
+  const k = q.k ?? 'mc'
+  if (k === 'mc' || k === 'rps' || k === 'oe') return typeof p === 'number' && Number.isInteger(p) && p >= 0 && p < q.o.length
+  if (k === 'tiles') return typeof p === 'string' && p.length >= 1 && p.length <= 30
+  if (k === 'num') return typeof p === 'string' && /^\d{1,7}(\.\d{1,4})?$/.test(p)
+  if (k === 'order') return Array.isArray(p) && p.length === q.o.length && new Set(p).size === p.length && p.every((x) => Number.isInteger(x) && x >= 0 && x < q.o.length)
+  return false
+}
+
+function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
+  const q = curQ
+  if (!q) return
   const me = g.members.find((m) => m.n === g.who)
-  const ok = !timeout && pick === curA
-  const dmg = ok ? dmgOf(me?.wt ?? 1) : 0
+  const j = judge(q, pick, timeout)
+  const cfg = stageOf(g.stage)
+  const mult = q.k === 'rps' && j.ok ? RPS_WIN_MULT : 1
+  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage) * mult) : 0
   const hp = Math.max(0, g.hp - dmg)
-  const life = ok ? g.life : Math.max(0, g.life - 1)
+  let life = j.ok || j.draw ? g.life : Math.max(0, g.life - 1)
+  // 종합 보스: 체력이 다음 구간으로 내려가면 보스가 화나서 다음 페이즈 — 팀 생명이 조금 회복된다
+  let lv = g.lv
+  let lvUp = false
+  if (cfg.mixed && hp > 0) {
+    const nl = phaseOf(hp, g.maxHp)
+    if (nl > lv) {
+      lv = nl
+      lvUp = true
+      life = Math.min(g.maxLife, life + HEAL_ON_PHASE)
+    }
+  }
   const end: BossGame['end'] = hp <= 0 ? 'won' : life <= 0 ? 'lost' : null
   publish({
     ...g,
     hp,
     life,
+    lv,
     phase: 'result',
     qa: Date.now(),
     end,
-    last: { who: g.who, ok, dmg, pick, a: curA, fam: me?.wf ?? null, tier: me?.wt ?? 1, timeout },
+    last: {
+      who: g.who,
+      ok: j.ok,
+      dmg,
+      pick: j.pickIdx,
+      a: j.aIdx,
+      fam: me?.wf ?? null,
+      tier: me?.wt ?? 1,
+      timeout,
+      kind: q.k ?? 'mc',
+      draw: j.draw || undefined,
+      ansText: j.ansText,
+      pickText: j.pickText,
+      lvUp: lvUp || undefined,
+    },
     seq: g.seq + 1,
   })
 }
@@ -325,7 +431,7 @@ export function bossOnEvent(p: BossPayload) {
     const g = st.game
     if (st.host !== myName || !g || g.gid !== p.gid || g.phase !== 'ask' || g.n !== p.i || g.who !== p.n) return
     if (Date.now() > g.qa + g.ms + ANSWER_GRACE_MS) return
-    if (!Number.isInteger(p.p) || p.p < 0 || p.p > 3) return
+    if (!curQ || !validAnswer(curQ, p.p)) return
     resolve(g, p.p, false)
   }
 }
@@ -349,17 +455,19 @@ export const setBossResult = (r: BossResult | null) => useBoss.setState({ result
 
 /* ---------- 화면에서 부르는 동작 ---------- */
 
-export function answer(pick: number) {
+// pick: 보기 번호 / 만든 단어 / 숫자 글자 / 누른 순서(보기 번호 목록) — 문제 종류에 따라 다르다
+export function answer(pick: number | string | number[]) {
   const st = useBoss.getState()
   const g = st.game
   if (!g || g.phase !== 'ask' || g.who !== myName || st.pending || st.picked >= 0) return
+  const flag = typeof pick === 'number' ? pick : 0 // 보기 고르기는 고른 번호를 표시하고, 나머지는 "냈다"는 표시만
   if (st.host === myName) {
-    useBoss.setState({ picked: pick })
+    useBoss.setState({ picked: flag })
     resolve(g, pick, false)
     return
   }
   io?.send({ k: 'ans', gid: g.gid, i: g.n, n: myName, p: pick })
-  useBoss.setState({ pending: true, picked: pick })
+  useBoss.setState({ pending: true, picked: flag })
   if (pendingTimer) clearTimeout(pendingTimer)
   pendingTimer = setTimeout(() => useBoss.setState({ pending: false }), 3000)
 }
