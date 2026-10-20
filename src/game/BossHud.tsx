@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useVillage } from './store'
+import { useVillage, bossLeftOf } from './store'
 import {
   answer,
   chooseStage,
@@ -7,6 +7,8 @@ import {
   maxStageFor,
   notifyBoss,
   onBossFinish,
+  onBossStart,
+  setMyLeft,
   refreshMyPresence,
   rematch,
   setBossResult,
@@ -16,7 +18,7 @@ import {
   useBoss,
   type BossGame,
 } from './bossState'
-import { BOSS_ROOMS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
+import { BOSS_ROOMS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
 import { enterBoss, leaveBoss, useBossUi } from './boss'
 import { tierName, isFamily } from './weapons'
 
@@ -139,6 +141,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
           팀 생명 {game.maxLife}개{cfg.mixed && game.maxLife > cfg.life ? ` (기본 ${cfg.life} + 집 보너스 ${game.maxLife - cfg.life})` : ''} · 한 사람씩 차례로 풀어요 · 제한 시간{' '}
           {cfg.mixed ? '문제마다 달라요' : `${Math.round(cfg.ms / 1000)}초`}
         </small>
+        {cfg.mixed && <small>⚠️ 틀리면 보스 체력이 {BOSS_HEAL_ON_MISS} 회복돼요!</small>}
       </div>
     )
   }
@@ -195,7 +198,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
               ✅ {last.kind === 'rps' || last.kind === 'oe' ? '이겼다!' : '정답!'} {last.who}님의 공격 −{last.dmg}
             </b>
           ) : (
-            <b className="bad">{last.timeout ? '⏰ 시간 초과!' : '❌ 아쉬워요!'} 보스의 반격 💥</b>
+            <b className="bad">{last.timeout ? '⏰ 시간 초과!' : '❌ 아쉬워요!'} 보스의 반격 💥{last.heal ? ` · 보스 체력 +${last.heal} 회복` : ''}</b>
           )
         ) : null}
         <small>
@@ -354,7 +357,7 @@ function Lobby({ room }: { room: number }) {
             {m.n === host ? '👑 ' : ''}
             {m.n}
             {m.n === name ? ' (나)' : ''}
-            <small> ⭐{m.cl}/{STAGES.length}</small>
+            <small> ⭐{m.cl}/{STAGES.length} · 🎟️{m.tl}/{BOSS_DAILY}</small>
           </li>
         ))}
       </ul>
@@ -409,6 +412,7 @@ function Lobby({ room }: { room: number }) {
         <p className="boss-hint">방장({host})이 단계를 고르고 시작해요 🙂</p>
       )}
       {err && <p className="boss-err">{err}</p>}
+      <p className="boss-hint small">🎟️ 보스 도전은 하루 {BOSS_DAILY}번까지예요 (전투를 시작할 때마다 1번 써요).</p>
       <p className="boss-hint small">처음 깬 보스만 도토리를 줘요. 이미 깬 보스는 몇 번을 해도 연습만 돼요.</p>
     </div>
   )
@@ -466,6 +470,17 @@ export function BossHud() {
   const name = session?.name ?? ''
   const mine = !!game && game.members.some((m) => m.n === name)
   const active = !!game && isActive(game)
+
+  // 전투가 시작되면 오늘 도전 횟수를 1 쓰고, 친구들에게도 남은 횟수를 알린다
+  useEffect(() => {
+    onBossStart((g) => {
+      const v = useVillage.getState()
+      v.spendBossTry(g.gid)
+      setMyLeft(bossLeftOf(useVillage.getState().bossTry))
+      refreshMyPresence()
+    })
+    return () => onBossStart(null)
+  }, [])
 
   // 한 판이 끝나면: 처음 깬 보스에만 도토리 (한 번만)
   useEffect(() => {

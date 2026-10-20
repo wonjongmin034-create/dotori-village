@@ -3,7 +3,9 @@ import { useVillage } from './store'
 import { playerPos } from './player-state'
 import { isClosed, CLOSED_TEXT } from './control'
 import { LOBBY_SPAWN_Z } from './bossLayout'
-import { setMyCleared, setMyHouse } from './bossState'
+import { setMyCleared, setMyHouse, setMyLeft } from './bossState'
+import { bossLeftOf } from './store'
+import { soloTest } from './bossData'
 
 // 보스 방 들어가고 나오기 (광장의 enterPlaza / leavePlaza 와 같은 방식)
 
@@ -17,7 +19,13 @@ export function enterBoss(room = 1) {
     s.setNotice(CLOSED_TEXT)
     return
   }
+  const left = bossLeftOf(s.bossTry)
+  if (left <= 0 && !soloTest()) {
+    s.flash('오늘 보스 도전 기회를 모두 썼어요. 내일 또 도전해요! 💪')
+    return
+  }
   s.setVisiting(null) // 열려 있던 창·친구 마을 정리
+  setMyLeft(left)
   setMyCleared(s.bossCleared)
   setMyHouse(s.items.find((i) => i.type === 'house')?.level ?? 1)
   playerPos.set((Math.random() - 0.5) * 5, 0, LOBBY_SPAWN_Z + Math.random())

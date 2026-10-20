@@ -68,6 +68,7 @@ export const STAGES: Stage[] = [
 export const stageOf = (id: number): Stage => STAGES[Math.max(1, Math.min(STAGES.length, id)) - 1]
 
 export const MIN_PARTY = 3
+export const BOSS_DAILY = 5 // 하루에 보스에 도전할 수 있는 횟수 (전투를 시작할 때마다 1번 쓴다)
 
 // 종합(4단계) 보스의 팀 생명 = 기본 생명 + 팀원 각자의 집 보너스. 집 1~5단계 → 0·0·1·1·2 (합계는 최대 6)
 export const HOUSE_LIFE = [0, 0, 1, 1, 2]
@@ -98,6 +99,8 @@ export const dmgOf = (tier: number, stage = 1) => {
 // 종합 보스의 페이즈: 보스 체력이 66% 아래면 2, 33% 아래면 3. 페이즈가 오를 때마다 팀 생명이 조금 회복된다.
 export const phaseOf = (hp: number, maxHp: number): 1 | 2 | 3 => (hp / maxHp > 0.66 ? 1 : hp / maxHp > 0.33 ? 2 : 3)
 export const HEAL_ON_PHASE = 2
+// 종합(4단계) 보스는 학생이 틀리거나 시간이 넘으면 체력을 이만큼 회복한다 (가위바위보 비김은 제외, 최대 체력까지)
+export const BOSS_HEAL_ON_MISS = 8
 export const RPS_WIN_MULT = 1.5 // 가위바위보에서 이기면 이만큼 센 공격
 
 export const RESULT_MS = 1900 // 문제 하나가 끝나고 정답·연출을 보여 주는 시간

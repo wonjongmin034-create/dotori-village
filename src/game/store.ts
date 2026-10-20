@@ -21,6 +21,7 @@ import {
   houseNeededForLand,
   farmLimit,
 } from './economy'
+import { BOSS_DAILY } from './bossData'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
 import { findFreeSpot, resolveFarmOverlaps } from './layout'
@@ -97,11 +98,17 @@ export type PlacedItem = {
   weapons?: Record<string, number> // (집에만) 가진 무기와 단계 { sword: 3, bow: 1 }
   boss?: number // (집에만) 지금까지 클리어한 가장 높은 보스 단계 (0 = 아직 없음)
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
+  bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
 }
+
+// 하루 보스 도전 기록 — day 가 오늘이 아니면 0번으로 본다. gid 는 마지막으로 센 전투 (다시 접속해도 같은 판을 두 번 세지 않게)
+export type BossTry = { day: string; n: number; gid: number }
+export const bossLeftOf = (t: BossTry | null | undefined): number =>
+  Math.max(0, BOSS_DAILY - (t && t.day === dateKey() ? t.n : 0))
 
 export type Mode = 'browse' | 'edit'
 
@@ -231,6 +238,10 @@ const bossOf = (items: PlacedItem[]): number => {
   const b = items.find((i) => i.type === 'house')?.boss
   return typeof b === 'number' && Number.isFinite(b) ? Math.max(0, Math.min(9, Math.round(b))) : 0
 }
+const bossTryOf = (items: PlacedItem[]): BossTry | null => {
+  const t = items.find((i) => i.type === 'house')?.bossTry
+  return t && typeof t.day === 'string' && Number.isFinite(t.n) ? { day: t.day, n: Math.max(0, Math.round(t.n)), gid: Number(t.gid) || 0 } : null
+}
 const petOf = (items: PlacedItem[]): PetState | null => normalizePet(items.find((i) => i.type === 'house')?.pet)
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
@@ -310,6 +321,7 @@ interface VillageState {
   bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
+  bossTry: BossTry | null // 오늘 보스 도전 횟수
   petOpen: boolean // 펫 창 열림
   petFx: { at: number; ok: boolean; st: number } | null // 방금 한 진화 결과 (반짝이는 화면용)
   friendsOpen: boolean // 친구 목록 패널
@@ -336,6 +348,7 @@ interface VillageState {
   closeArmory: () => void
   equipWeapon: (family: WeaponFamily | null) => void
   markBossCleared: (stage: number) => void
+  spendBossTry: (gid: number) => void
   buyWeapon: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
   openPet: () => void
@@ -438,6 +451,7 @@ export const useVillage = create<VillageState>((set, get) => {
     bossRoom: null,
     bossCleared: bossOf(initial.items),
     pet: petOf(initial.items),
+    bossTry: bossTryOf(initial.items),
     petOpen: false,
     petFx: null,
     friendsOpen: false,
@@ -492,6 +506,17 @@ export const useVillage = create<VillageState>((set, get) => {
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, boss: stage } : i))
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, bossCleared: stage })
+    },
+
+    // 보스 전투를 시작할 때 오늘 도전 횟수를 1 쓴다 (같은 판은 한 번만)
+    spendBossTry: (gid) => {
+      const { items, bossTry } = get()
+      if (bossTry && bossTry.gid === gid) return
+      const today = dateKey()
+      const next: BossTry = { day: today, n: (bossTry && bossTry.day === today ? bossTry.n : 0) + 1, gid }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, bossTry: next } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, bossTry: next })
     },
 
     // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
@@ -675,6 +700,7 @@ export const useVillage = create<VillageState>((set, get) => {
         weapons: weaponsOf(merged),
         bossCleared: bossOf(merged),
         pet: petOf(merged),
+        bossTry: bossTryOf(merged),
         daily: dailyOf(merged),
       })
     },

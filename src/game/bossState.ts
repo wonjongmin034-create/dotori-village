@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Deck, publicOf, type Answer, type BossQ, type PublicQ, type QKind } from './bossQuestions'
-import { ANSWER_GRACE_MS, HEAL_ON_PHASE, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
+import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
 //   · 다른 사람이 고른 답은 방장에게 보내고, 방장이 맞는지 따져서 결과를 방 전체에 알린다.
@@ -8,7 +8,7 @@ import { ANSWER_GRACE_MS, HEAL_ON_PHASE, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_M
 //   · 서버 메시지를 아끼려고 "문제가 나갈 때 / 답이 올 때 / 결과가 나올 때"만 보낸다. 시간은 매초 알리지 않고 제한 시간만 알린다.
 //   · 이 방은 최대 4명이라 메시지가 아주 적다.
 
-export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계
+export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number; tl: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계, 오늘 남은 도전 횟수
 export type Phase = 'intro' | 'ask' | 'result' | 'won' | 'lost' | 'aborted'
 export type LastHit = {
   who: string
@@ -24,6 +24,7 @@ export type LastHit = {
   ansText?: string // 정답(또는 보스의 패)을 글로 보여 줄 때
   pickText?: string // 내가 낸 답
   lvUp?: boolean // 이 일격으로 보스가 다음 페이즈로 올라갔다
+  heal?: number // 틀려서 보스가 회복한 체력
 }
 
 export type BossGame = {
@@ -131,11 +132,15 @@ let myHouse = 1
 export const setMyHouse = (n: number) => {
   myHouse = n
 }
-export const bossPresence = () => ({ bm: { cl: myCleared, hl: myHouse } })
+let myLeft = BOSS_DAILY
+export const setMyLeft = (n: number) => {
+  myLeft = n
+}
+export const bossPresence = () => ({ bm: { cl: myCleared, hl: myHouse, tl: myLeft } })
 
 /* ---------- 방(presence)이 바뀔 때 ---------- */
 
-type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number }; bm?: { cl?: number; hl?: number } }
+type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number }; bm?: { cl?: number; hl?: number; tl?: number } }
 
 export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: string[]) {
   const roster: Member[] = allowed.map((n) => {
@@ -143,7 +148,8 @@ export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: s
     const cl = typeof m?.bm?.cl === 'number' ? Math.max(0, Math.min(STAGES.length, Math.round(m.bm.cl))) : 0
     const wt = typeof m?.avatar?.wt === 'number' ? m.avatar.wt : 1
     const hl = typeof m?.bm?.hl === 'number' ? Math.max(1, Math.min(5, Math.round(m.bm.hl))) : 1
-    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl }
+    const tl = typeof m?.bm?.tl === 'number' ? Math.max(0, Math.min(BOSS_DAILY, Math.round(m.bm.tl))) : BOSS_DAILY
+    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl, tl }
   })
   const host = allowed[0] ?? null
   useBoss.setState({ roster, host })
@@ -172,6 +178,8 @@ export function maxStageFor(roster: Member[]): number {
 export function startBlockReason(roster: Member[]): string | null {
   if (roster.length < (soloTest() ? 1 : MIN_PARTY)) return `${MIN_PARTY}명 이상 모여야 해요 (지금 ${roster.length}명)`
   if (roster.length > MAX_PARTY) return `최대 ${MAX_PARTY}명까지예요`
+  const spent = roster.filter((m) => m.tl <= 0).map((m) => m.n)
+  if (spent.length && !soloTest()) return `${spent.join(', ')}님은 오늘 도전 기회를 모두 썼어요`
   return null
 }
 
@@ -182,6 +190,7 @@ function publish(g: BossGame) {
   useBoss.setState({ game: g, rcv, pending: false, ...(g.phase === 'ask' ? { picked: -1 } : {}) })
   io?.send({ k: 'st', g })
   lastSent = Date.now()
+  maybeStart(g)
   maybeFinish(g)
 }
 
@@ -340,7 +349,8 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
   const cfg = stageOf(g.stage)
   const mult = q.k === 'rps' && j.ok ? RPS_WIN_MULT : 1
   const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage) * mult) : 0
-  const hp = Math.max(0, g.hp - dmg)
+  const heal = cfg.mixed && !j.ok && !j.draw ? Math.min(BOSS_HEAL_ON_MISS, g.maxHp - g.hp) : 0 // 틀리면 보스가 체력을 회복한다
+  const hp = Math.max(0, g.hp - dmg) + heal
   let life = j.ok || j.draw ? g.life : Math.max(0, g.life - 1)
   // 종합 보스: 체력이 다음 구간으로 내려가면 보스가 화나서 다음 페이즈 — 팀 생명이 조금 회복된다
   let lv = g.lv
@@ -376,6 +386,7 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
       ansText: j.ansText,
       pickText: j.pickText,
       lvUp: lvUp || undefined,
+      heal: heal || undefined,
     },
     seq: g.seq + 1,
   })
@@ -430,6 +441,7 @@ export function bossOnEvent(p: BossPayload) {
     const cur = st.game
     if (cur && (p.g.gid < cur.gid || (p.g.gid === cur.gid && p.g.seq <= cur.seq))) return
     useBoss.setState({ game: p.g, rcv: Date.now(), pending: false, picked: p.g.phase === 'ask' ? -1 : st.picked })
+    maybeStart(p.g)
     maybeFinish(p.g)
     return
   }
@@ -447,6 +459,16 @@ export function bossOnEvent(p: BossPayload) {
 let finishHandler: ((g: BossGame) => void) | null = null
 export const onBossFinish = (fn: ((g: BossGame) => void) | null) => {
   finishHandler = fn
+}
+
+// 내가 들어 있는 전투가 시작되면 "오늘 도전 1번 사용"으로 센다 (연습 모드는 제외)
+let startHandler: ((g: BossGame) => void) | null = null
+export const onBossStart = (fn: ((g: BossGame) => void) | null) => {
+  startHandler = fn
+}
+function maybeStart(g: BossGame) {
+  if (soloTest() || !isActive(g) || !g.members.some((m) => m.n === myName)) return
+  startHandler?.(g)
 }
 
 function maybeFinish(g: BossGame) {
