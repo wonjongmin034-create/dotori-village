@@ -3,7 +3,7 @@ import { useVillage } from './store'
 import { playerPos } from './player-state'
 import { isClosed, CLOSED_TEXT } from './control'
 import { LOBBY_SPAWN_Z } from './bossLayout'
-import { setMyCleared } from './bossState'
+import { setMyCleared, setMyHouse } from './bossState'
 
 // 보스 방 들어가고 나오기 (광장의 enterPlaza / leavePlaza 와 같은 방식)
 
@@ -19,6 +19,7 @@ export function enterBoss(room = 1) {
   }
   s.setVisiting(null) // 열려 있던 창·친구 마을 정리
   setMyCleared(s.bossCleared)
+  setMyHouse(s.items.find((i) => i.type === 'house')?.level ?? 1)
   playerPos.set((Math.random() - 0.5) * 5, 0, LOBBY_SPAWN_Z + Math.random())
   useVillage.setState({ bossRoom: room, plaza: null })
 }

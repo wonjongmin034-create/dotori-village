@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Deck, publicOf, type Answer, type BossQ, type PublicQ, type QKind } from './bossQuestions'
-import { ANSWER_GRACE_MS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
+import { ANSWER_GRACE_MS, HEAL_ON_PHASE, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
 //   · 다른 사람이 고른 답은 방장에게 보내고, 방장이 맞는지 따져서 결과를 방 전체에 알린다.
@@ -8,7 +8,7 @@ import { ANSWER_GRACE_MS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WI
 //   · 서버 메시지를 아끼려고 "문제가 나갈 때 / 답이 올 때 / 결과가 나올 때"만 보낸다. 시간은 매초 알리지 않고 제한 시간만 알린다.
 //   · 이 방은 최대 4명이라 메시지가 아주 적다.
 
-export type Member = { n: string; cl: number; wf: string | null; wt: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계
+export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계
 export type Phase = 'intro' | 'ask' | 'result' | 'won' | 'lost' | 'aborted'
 export type LastHit = {
   who: string
@@ -127,18 +127,23 @@ let myCleared = 0
 export const setMyCleared = (n: number) => {
   myCleared = n
 }
-export const bossPresence = () => ({ bm: { cl: myCleared } })
+let myHouse = 1
+export const setMyHouse = (n: number) => {
+  myHouse = n
+}
+export const bossPresence = () => ({ bm: { cl: myCleared, hl: myHouse } })
 
 /* ---------- 방(presence)이 바뀔 때 ---------- */
 
-type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number }; bm?: { cl?: number } }
+type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number }; bm?: { cl?: number; hl?: number } }
 
 export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: string[]) {
   const roster: Member[] = allowed.map((n) => {
     const m = state[n]?.[0]
     const cl = typeof m?.bm?.cl === 'number' ? Math.max(0, Math.min(STAGES.length, Math.round(m.bm.cl))) : 0
     const wt = typeof m?.avatar?.wt === 'number' ? m.avatar.wt : 1
-    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1 }
+    const hl = typeof m?.bm?.hl === 'number' ? Math.max(1, Math.min(5, Math.round(m.bm.hl))) : 1
+    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl }
   })
   const host = allowed[0] ?? null
   useBoss.setState({ roster, host })
@@ -207,6 +212,7 @@ export function startFight(): string | null {
   deck = new Deck(stage)
   curQ = null
   const members = st.roster.map((m) => ({ ...m }))
+  const life = lifeFor(cfg, members.map((m) => m.hl))
   const prev = st.game?.gid ?? 0
   publish({
     gid: Math.max(Date.now(), prev + 1),
@@ -215,8 +221,8 @@ export function startFight(): string | null {
     members,
     hp: cfg.hp,
     maxHp: cfg.hp,
-    life: cfg.life,
-    maxLife: cfg.life,
+    life,
+    maxLife: life,
     n: 0,
     who: members[0].n,
     q: null,

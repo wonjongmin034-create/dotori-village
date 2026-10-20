@@ -57,7 +57,7 @@ export const STAGES: Stage[] = [
     subject: '종합 (5학년)',
     ms: 10_000,
     hp: 270,
-    life: 11,
+    life: 6, // 기본 생명 — 팀원의 집이 좋을수록 늘어난다 (lifeFor)
     reward: 200,
     mixed: true,
     intro: '지금까지 배운 모든 것으로 덤벼라! 내 체력이 줄수록 문제는 어려워진다!',
@@ -68,6 +68,15 @@ export const STAGES: Stage[] = [
 export const stageOf = (id: number): Stage => STAGES[Math.max(1, Math.min(STAGES.length, id)) - 1]
 
 export const MIN_PARTY = 3
+
+// 종합(4단계) 보스의 팀 생명 = 기본 생명 + 팀원 각자의 집 보너스. 집 1~5단계 → 0·0·1·1·2 (합계는 최대 6)
+export const HOUSE_LIFE = [0, 0, 1, 1, 2]
+export const HOUSE_LIFE_CAP = 6
+export const houseLife = (houseLv: number) => HOUSE_LIFE[Math.max(1, Math.min(HOUSE_LIFE.length, Math.round(houseLv || 1))) - 1]
+export function lifeFor(cfg: Stage, houseLevels: number[]): number {
+  if (!cfg.mixed) return cfg.life
+  return cfg.life + Math.min(HOUSE_LIFE_CAP, houseLevels.reduce((a, lv) => a + houseLife(lv), 0))
+}
 
 // 선생님 혼자 시험해 볼 수 있는 연습 모드: 주소 끝에 ?solo 를 붙이면 1명으로도 시작하고 모든 단계를 고를 수 있다.
 // 대신 3명 미만으로 한 판은 도토리·클리어 기록이 없다 (그래서 학생이 주소를 따라 써도 얻을 것이 없다).

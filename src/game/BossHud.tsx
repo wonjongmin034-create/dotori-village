@@ -136,7 +136,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         <b>⚔️ {cfg.name} 등장!</b>
         <span>{cfg.intro}</span>
         <small>
-          팀 생명 {game.maxLife}개 · 한 사람씩 차례로 풀어요 · 제한 시간{' '}
+          팀 생명 {game.maxLife}개{cfg.mixed && game.maxLife > cfg.life ? ` (기본 ${cfg.life} + 집 보너스 ${game.maxLife - cfg.life})` : ''} · 한 사람씩 차례로 풀어요 · 제한 시간{' '}
           {cfg.mixed ? '문제마다 달라요' : `${Math.round(cfg.ms / 1000)}초`}
         </small>
       </div>
