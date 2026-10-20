@@ -4145,3 +4145,36 @@ canvas {
     grid-column: span 6;
   }
 }
+
+/* 집 단계 혜택 · 잠긴 옷 */
+.house-perks {
+  margin: 6px 0 8px;
+  padding: 8px 10px 8px 22px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: left;
+  color: #3a4a3e;
+  background: #f4f1e4;
+}
+.house-perks small {
+  color: #8a9088;
+}
+.house-lock {
+  margin: 6px 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #b33a2a;
+  background: #fff0ea;
+}
+.wd-opt.locked {
+  opacity: 0.62;
+  background: #ecebe4;
+}
+.wd-opt.locked .wd-tag {
+  color: #b33a2a;
+  font-weight: 800;
+}

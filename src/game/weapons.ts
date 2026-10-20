@@ -57,6 +57,9 @@ export const HOLD_TILT: Record<WeaponFamily, number> = { sword: 1.05, axe: 1.0, 
 // 몸에서 바깥쪽으로 벌려 드는 정도 — 뒤에서 봐도 칼날·창끝이 몸에 가리지 않고 보이게
 export const HOLD_ROLL: Record<WeaponFamily, number> = { sword: 0.42, axe: 0.36, spear: 0.32, bow: 0.12, staff: 0.2, hammer: 0.36 }
 
+// 새 무기 종류를 얻으려면 필요한 집 단계 (검은 처음부터 가지고 있다). 이미 가진 무기는 그대로.
+export const FAMILY_HOUSE: Record<WeaponFamily, number> = { sword: 1, axe: 2, spear: 2, bow: 3, hammer: 3, staff: 4 }
+
 export const isFamily = (f: unknown): f is WeaponFamily => WEAPON_FAMILIES.includes(f as WeaponFamily)
 export const tierName = (f: WeaponFamily, tier: number) => TIER_NAMES[f][Math.max(1, Math.min(MAX_TIER, tier)) - 1]
 export const gradeOf = (tier: number) => GRADES[Math.max(1, Math.min(MAX_TIER, tier)) - 1]

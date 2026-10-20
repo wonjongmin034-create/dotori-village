@@ -315,6 +315,19 @@ export function itemsForSlot(slot: Slot) {
 export function findItem(slot: Slot, id: string) {
   return WARDROBE.find((w) => w.slot === slot && w.id === id)
 }
+// 옷·탈것은 비쌀수록 높은 단계의 집이 있어야 살 수 있다 (이미 가진 것·입어 보기는 언제나 가능).
+//  40 이하 = 집 1단계(누구나) · 90 이하 = 2단계 · 180 이하 = 3단계 · 330 이하 = 4단계 · 그보다 비싸면 5단계
+export const HOUSE_PRICE_STEPS = [40, 90, 180, 330]
+export function houseNeeded(item: WardrobeItem): number {
+  if (item.cost === 0 || item.special) return 1
+  const i = HOUSE_PRICE_STEPS.findIndex((p) => item.cost <= p)
+  return i < 0 ? HOUSE_PRICE_STEPS.length + 1 : i + 1
+}
+// 이 단계의 집이 되면 새로 살 수 있게 되는 것들 (비싼 순)
+export function unlockedAt(level: number): WardrobeItem[] {
+  return WARDROBE.filter((w) => !w.special && w.cost > 0 && houseNeeded(w) === level).sort((a, b) => b.cost - a.cost)
+}
+
 // 무료거나 이미 산 아이템이면 true
 export function ownsItem(item: WardrobeItem, owned: string[]) {
   return item.cost === 0 || owned.includes(`${item.slot}:${item.id}`)

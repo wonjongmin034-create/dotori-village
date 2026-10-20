@@ -10,6 +10,7 @@ import {
   COLOR_SLOTS,
   itemsForSlot,
   findItem,
+  houseNeeded,
   ownsItem,
   type Slot,
 } from './wardrobe'
@@ -62,6 +63,7 @@ export function WardrobePanel() {
   const coins = useVillage((s) => s.coins)
   const close = useVillage((s) => s.closeFarm)
   const choose = useVillage((s) => s.chooseWardrobe)
+  const houseLv = useVillage((s) => s.items.find((i) => i.type === 'house')?.level ?? 1)
 
   const [slot, setSlot] = useState<Slot>('hair')
   // 아직 안 산 옷은 먼저 입어 보고, 마음에 들면 산다
@@ -75,7 +77,9 @@ export function WardrobePanel() {
     trial && trialItem
       ? { ...avatar, [trial.slot]: nullable(trial.slot) && trial.id === 'none' ? null : trial.id }
       : avatar
-  const canBuy = !!trialItem && coins >= trialItem.cost
+  const needLv = trialItem ? houseNeeded(trialItem) : 1
+  const houseOk = houseLv >= needLv
+  const canBuy = !!trialItem && coins >= trialItem.cost && houseOk
 
   const isColor = COLOR_SLOTS.includes(slot)
   const current = (avatar[slot] as string | null) ?? 'none'
@@ -108,7 +112,11 @@ export function WardrobePanel() {
               <b>
                 &lsquo;{trialItem.label}&rsquo; 구매하시겠습니까? <em>🌰 {trialItem.cost}</em>
               </b>
-              {!canBuy && <small className="wd-trial-poor">도토리가 {trialItem.cost - coins}개 모자라요</small>}
+              {!houseOk ? (
+                <small className="wd-trial-poor">🔒 집이 {needLv}단계가 되면 살 수 있어요 (지금 {houseLv}단계). 입어 보기만 할 수 있어요</small>
+              ) : (
+                !canBuy && <small className="wd-trial-poor">도토리가 {trialItem.cost - coins}개 모자라요</small>
+              )}
             </div>
             <div className="wd-trial-btns">
               <button
@@ -148,13 +156,14 @@ export function WardrobePanel() {
             .map((it) => {
             const has = ownsItem(it, owned)
             const equipped = current === it.id
-            const cannotAfford = !has && coins < it.cost
+            const lockedByHouse = !has && houseNeeded(it) > houseLv
+            const cannotAfford = !has && !lockedByHouse && coins < it.cost
             const trying = trial?.slot === slot && trial.id === it.id
             return (
               <button
                 key={it.id}
                 type="button"
-                className={`wd-opt ${equipped ? 'equipped' : ''} ${cannotAfford ? 'poor' : ''} ${trying ? 'trying' : ''}`}
+                className={`wd-opt ${equipped ? 'equipped' : ''} ${cannotAfford ? 'poor' : ''} ${lockedByHouse ? 'locked' : ''} ${trying ? 'trying' : ''}`}
                 onClick={() => {
                   if (has) {
                     choose(slot, it.id)
@@ -176,7 +185,7 @@ export function WardrobePanel() {
                   </span>
                 )}
                 <span className="wd-tag">
-                  {equipped ? '착용중' : trying ? '입어보는 중' : has ? (it.cost === 0 ? '' : '보유') : `🌰${it.cost}`}
+                  {equipped ? '착용중' : trying ? '입어보는 중' : has ? (it.cost === 0 ? '' : '보유') : lockedByHouse ? `🔒 집${houseNeeded(it)}단계` : `🌰${it.cost}`}
                 </span>
               </button>
             )
@@ -184,7 +193,7 @@ export function WardrobePanel() {
         </div>
 
         <p className="wd-hint">
-          기본 옷은 무료예요. 특별한 건 눌러서 먼저 입어 보고, 마음에 들면 도토리로 사요. 한 번 사면 계속 쓸 수 있어요. (전체 {WARDROBE.length}종)
+          기본 옷은 무료예요. 특별한 건 눌러서 먼저 입어 보고, 마음에 들면 도토리로 사요. 비싼 옷일수록 높은 단계의 집이 있어야 살 수 있어요 (🔒). 한 번 사면 계속 쓸 수 있어요. (전체 {WARDROBE.length}종)
         </p>
       </div>
     </div>

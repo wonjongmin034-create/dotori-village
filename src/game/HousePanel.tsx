@@ -1,4 +1,6 @@
-import { HOUSE_LEVELS, houseLevel, landExpand, landPyeong, LAND_OLD } from './economy'
+import { HOUSE_LEVELS, farmLimit, houseLevel, houseNeededForLand, landCapFor, landExpand, landPyeong, LAND_OLD } from './economy'
+import { unlockedAt } from './wardrobe'
+import { FAMILY_EMOJI, FAMILY_HOUSE, FAMILY_LABEL, WEAPON_FAMILIES } from './weapons'
 import { useVillage } from './store'
 
 export function HousePanel() {
@@ -16,6 +18,13 @@ export function HousePanel() {
 
   const half = item.land ?? LAND_OLD
   const land = landExpand(half)
+  const landLocked = !!land && land.next > landCapFor(cur) // 집 단계가 낮아서 더 넓힐 수 없다
+  const perks = (lv: number) => {
+    const cap = landCapFor(lv) * 2
+    const gear = unlockedAt(lv)
+    const guns = WEAPON_FAMILIES.filter((f) => FAMILY_HOUSE[f] === lv && lv > 1)
+    return { cap, gear, guns, plot: farmLimit('plot', lv) ?? 0, coop: farmLimit('coop', lv) ?? 0 }
+  }
 
   return (
     <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
@@ -43,6 +52,23 @@ export function HousePanel() {
                 <span className="house-cost">🌰 {next.cost}</span>
               </div>
               <p>{next.desc}</p>
+              <ul className="house-perks">
+                <li>
+                  🌱 밭 {perks(next.level).plot}개 · 🐔 우리 {perks(next.level).coop}개
+                </li>
+                <li>🟩 땅을 {perks(next.level).cap} × {perks(next.level).cap}칸까지 넓힐 수 있어요</li>
+                {perks(next.level).gear.length > 0 && (
+                  <li>
+                    👕 새로 살 수 있는 옷·탈것 {perks(next.level).gear.length}종
+                    <small> ({perks(next.level).gear.slice(0, 3).map((g) => g.label).join(', ')} 등)</small>
+                  </li>
+                )}
+                {perks(next.level).guns.map((f) => (
+                  <li key={f}>
+                    {FAMILY_EMOJI[f]} 새 무기 <b>{FAMILY_LABEL[f]}</b> 얻기
+                  </li>
+                ))}
+              </ul>
               <button
                 type="button"
                 className="primary"
@@ -81,13 +107,18 @@ export function HousePanel() {
               <span className="house-cost">🌰 {land.cost}</span>
             </div>
             <p>평당 도토리 1개예요.</p>
+            {landLocked && (
+              <p className="house-lock">
+                🔒 집이 <b>{houseNeededForLand(land.next)}단계</b>({houseLevel(houseNeededForLand(land.next)).label})가 되면 더 넓힐 수 있어요. 지금 집은 땅을 {landCapFor(cur) * 2} × {landCapFor(cur) * 2}칸까지 넓힐 수 있어요.
+              </p>
+            )}
             <button
               type="button"
               className="primary"
-              disabled={coins < land.cost}
+              disabled={landLocked || coins < land.cost}
               onClick={expandLand}
             >
-              🟩 땅 넓히기
+              {landLocked ? '🔒 집을 먼저 키워요' : '🟩 땅 넓히기'}
             </button>
           </div>
         ) : (

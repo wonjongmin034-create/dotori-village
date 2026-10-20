@@ -161,6 +161,16 @@ export const LAND_STEP = 1 // 한 번 넓히면 반쪽 +1 (가로세로 각 +2)
 export const LAND_PRICE_PER_TILE = 1 // 평당 도토리
 export const LAND_OLD = 17 // 예전(둥근) 마을 크기 — 기존 학생은 이걸로 유지
 
+// 땅은 집 단계에 따라 넓힐 수 있는 한계가 있다 (집 1~5단계 → 반쪽 7·9·11·14·18 = 14×14 ~ 36×36칸).
+// 이미 그보다 큰 땅을 가진 학생은 그대로 두고, 더 넓히는 것만 막는다.
+export const LAND_CAP_BY_HOUSE = [7, 9, 11, 14, 18]
+export const landCapFor = (houseLv: number | undefined) => LAND_CAP_BY_HOUSE[Math.max(1, Math.min(LAND_CAP_BY_HOUSE.length, houseLv ?? 1)) - 1]
+// 이 크기(반쪽)까지 넓히려면 필요한 가장 낮은 집 단계
+export const houseNeededForLand = (half: number) => {
+  const i = LAND_CAP_BY_HOUSE.findIndex((c) => c >= half)
+  return i < 0 ? LAND_CAP_BY_HOUSE.length : i + 1
+}
+
 export function landPyeong(half: number) {
   return (half * 2) * (half * 2)
 }

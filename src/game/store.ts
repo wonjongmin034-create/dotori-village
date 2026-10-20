@@ -17,6 +17,8 @@ import {
   LAND_START,
   LAND_OLD,
   landExpand,
+  landCapFor,
+  houseNeededForLand,
   farmLimit,
 } from './economy'
 import { dailySet, type Question } from './questions'
@@ -25,8 +27,8 @@ import { findFreeSpot, resolveFarmOverlaps } from './layout'
 import { dateKey, type ClassLunch } from './lunch'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
-import { findItem, ownsItem, type Slot } from './wardrobe'
-import { MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
+import { findItem, houseNeeded, ownsItem, type Slot } from './wardrobe'
+import { FAMILY_HOUSE, MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
 
 export type { Avatar }
 
@@ -468,6 +470,11 @@ export const useVillage = create<VillageState>((set, get) => {
     buyWeapon: (family) => {
       const { weapons, coins, items } = get()
       if (weapons[family]) return
+      const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
+      if (houseLv < FAMILY_HOUSE[family]) {
+        get().flash(`집이 ${FAMILY_HOUSE[family]}단계가 되면 얻을 수 있어요 🔒`)
+        return
+      }
       if (coins < NEW_WEAPON_COST) {
         get().flash(`도토리가 ${NEW_WEAPON_COST - coins}개 모자라요`)
         return
@@ -514,6 +521,14 @@ export const useVillage = create<VillageState>((set, get) => {
       const owned = wardrobeOf(items)
       const key = `${slot}:${id}`
       const has = ownsItem(item, owned)
+      if (!has) {
+        const need = houseNeeded(item)
+        const lv = items.find((i) => i.type === 'house')?.level ?? 1
+        if (lv < need) {
+          get().flash(`집이 ${need}단계가 되면 살 수 있어요 🔒`)
+          return
+        }
+      }
       if (!has && coins < item.cost) {
         get().flash(`${item.cost} 도토리가 필요해요`)
         return
@@ -718,6 +733,10 @@ export const useVillage = create<VillageState>((set, get) => {
       const info = landExpand(cur)
       if (!info) {
         get().flash('땅을 더 넓힐 수 없어요')
+        return
+      }
+      if (info.next > landCapFor(h?.level)) {
+        get().flash(`집이 ${houseNeededForLand(info.next)}단계가 되면 땅을 더 넓힐 수 있어요 🔒`)
         return
       }
       if (coins < info.cost) {

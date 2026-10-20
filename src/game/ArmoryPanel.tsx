@@ -6,6 +6,7 @@ import { sfxBig, sfxSuccess } from './sfx'
 import {
   EVOLVE_COST,
   FAMILY_EMOJI,
+  FAMILY_HOUSE,
   FAMILY_LABEL,
   MAX_TIER,
   NEW_WEAPON_COST,
@@ -41,6 +42,7 @@ export function ArmoryPanel() {
   const equip = useVillage((s) => s.equipWeapon)
   const buy = useVillage((s) => s.buyWeapon)
   const evolve = useVillage((s) => s.evolveWeapon)
+  const houseLv = useVillage((s) => s.items.find((i) => i.type === 'house')?.level ?? 1)
 
   const [fam, setFam] = useState<WeaponFamily>('sword')
   const [peek, setPeek] = useState(false)
@@ -114,7 +116,7 @@ export function ArmoryPanel() {
             <button key={f} type="button" className={`${fam === f ? 'on' : ''}${weapons[f] ? ' has' : ''}`} onClick={() => setFam(f)}>
               <span>{FAMILY_EMOJI[f]}</span>
               <small>{FAMILY_LABEL[f]}</small>
-              {weapons[f] ? <i>{weapons[f]}단계</i> : <i className="no">잠김</i>}
+              {weapons[f] ? <i>{weapons[f]}단계</i> : <i className="no">{houseLv < FAMILY_HOUSE[f] ? `🔒집${FAMILY_HOUSE[f]}` : '잠김'}</i>}
             </button>
           ))}
         </div>
@@ -175,8 +177,12 @@ export function ArmoryPanel() {
 
         <div className="armory-btns">
           {!owned ? (
-            <button type="button" className="primary" disabled={coins < NEW_WEAPON_COST} onClick={() => buy(fam)}>
-              {coins < NEW_WEAPON_COST ? `도토리 ${NEW_WEAPON_COST - coins}개 모자라요` : `🌰 ${NEW_WEAPON_COST} 으로 얻기`}
+            <button type="button" className="primary" disabled={houseLv < FAMILY_HOUSE[fam] || coins < NEW_WEAPON_COST} onClick={() => buy(fam)}>
+              {houseLv < FAMILY_HOUSE[fam]
+                ? `🔒 집이 ${FAMILY_HOUSE[fam]}단계가 되면 얻을 수 있어요`
+                : coins < NEW_WEAPON_COST
+                  ? `도토리 ${NEW_WEAPON_COST - coins}개 모자라요`
+                  : `🌰 ${NEW_WEAPON_COST} 으로 얻기`}
             </button>
           ) : (
             <>
