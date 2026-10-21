@@ -109,6 +109,10 @@ export const TOWER_TESTERS = ['원종민']
 export const isTowerTester = (name: string | null | undefined) => !!name && TOWER_TESTERS.includes(name.trim())
 export const INVULN_S = 2 // 맞은 뒤 무적 시간
 
+// 활·지팡이는 쏜 뒤 이 시간 동안 이동 속도가 절반이 된다 ("쏘면서 도망"을 막는다)
+export const RANGED_SLOW_S = 0.35
+export const RANGED_SLOW_MULT = 0.5
+
 export type WeaponStyle = {
   melee: boolean
   range: number // 가까이 때리는 무기의 사거리 / 날아가는 공격의 최대 거리
@@ -123,8 +127,8 @@ export const STYLE: Record<WeaponFamily, WeaponStyle> = {
   axe: { melee: true, range: 2.5, arc: (210 * Math.PI) / 180, cd: 0.72, mult: 1.8 },
   spear: { melee: true, range: 3.5, arc: (46 * Math.PI) / 180, cd: 0.56, mult: 1.4 },
   hammer: { melee: true, range: 2.3, arc: Math.PI * 2, cd: 0.92, mult: 2.2 },
-  bow: { melee: false, range: 13, arc: 0, cd: 0.56, mult: 0.85, speed: 15 },
-  staff: { melee: false, range: 11, arc: 0, cd: 0.82, mult: 1.2, speed: 10, splash: 1.5 },
+  bow: { melee: false, range: 10, arc: 0, cd: 0.52, mult: 1.4, speed: 15 },
+  staff: { melee: false, range: 8.5, arc: 0, cd: 0.82, mult: 1.9, speed: 10, splash: 1.5 },
 }
 
 // 한 번 맞혔을 때 주는 피해 = 무기 단계별 기본 공격력 × 무기 종류 배율 + 펫 보너스

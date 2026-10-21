@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { getMove, jumpInput } from './input'
 import { playerPos, playerMotion, towerAim } from './player-state'
 import { clampArena, sim } from './towerSim'
+import { RANGED_SLOW_MULT } from './towerData'
 import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 import { useLive } from './live'
@@ -63,7 +64,8 @@ export function Player() {
     const editing = useVillage.getState().mode === 'edit'
     const vs = useVillage.getState()
     const ride = rideOf(vs.rideOn ? vs.avatar.ride : null)
-    const speed = SPEED * (ride?.speed ?? 1)
+    // 탑에서 활·지팡이를 쏜 직후에는 느려진다
+    const speed = SPEED * (ride?.speed ?? 1) * (vs.towerOn && sim.running && sim.time < sim.slowUntil ? RANGED_SLOW_MULT : 1)
 
     state.camera.getWorldDirection(tmp.forward)
     tmp.forward.setY(0).normalize()

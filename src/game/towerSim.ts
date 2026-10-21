@@ -1,4 +1,4 @@
-import { ARENA_R, INVULN_S, KINDS, MAX_ALIVE, STYLE, hitDamage, towerStage, type MonsterKind } from './towerData'
+import { ARENA_R, INVULN_S, KINDS, MAX_ALIVE, RANGED_SLOW_S, STYLE, hitDamage, towerStage, type MonsterKind } from './towerData'
 import type { WeaponFamily } from './weapons'
 
 // 탑의 전투 계산 — React 와 따로, 매 프레임 한 번씩 sim 을 갱신한다 (몬스터가 많아도 화면 상태를 건드리지 않는다).
@@ -43,6 +43,7 @@ export const sim = {
   total: 0, // 처음 몬스터 체력 합계
   version: 0, // 몬스터 목록이 바뀔 때마다 1씩 늘어난다
   invulnUntil: 0,
+  slowUntil: 0, // 이 시각까지 내 이동 속도가 느려진다 (활·지팡이를 쏜 직후)
   nextSpawn: 0,
   attackCd: 0,
   lastAttack: -9,
@@ -73,6 +74,7 @@ export function simStart(stage: number) {
   sim.monsters = []
   sim.bolts = []
   sim.marks = []
+  sim.slowUntil = 0
   sim.invulnUntil = 2 // 시작 직후 잠깐은 안전
   sim.nextSpawn = 0.9
   sim.attackCd = 0
@@ -150,9 +152,10 @@ export function nearestAngle(px: number, pz: number, within = 15): number | null
 export function simAttack(fam: WeaponFamily, tier: number, pet: number, px: number, pz: number, facing: number): { ok: boolean; angle: number } {
   if (!sim.running || sim.time < sim.attackCd) return { ok: false, angle: facing }
   const style = STYLE[fam]
-  const aim = nearestAngle(px, pz, style.melee ? style.range + 3.5 : 15)
+  const aim = nearestAngle(px, pz, style.melee ? style.range + 3.5 : style.range + 3)
   const angle = aim ?? facing
   sim.attackCd = sim.time + style.cd
+  if (!style.melee) sim.slowUntil = sim.time + RANGED_SLOW_S
   sim.lastAttack = sim.time
   sim.fxAt = sim.time
   sim.fxFamily = fam
