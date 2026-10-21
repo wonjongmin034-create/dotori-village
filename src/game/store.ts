@@ -367,7 +367,7 @@ interface VillageState {
   closeArmory: () => void
   equipWeapon: (family: WeaponFamily | null) => void
   markBossCleared: (stage: number) => void
-  spendBossTry: (gid: number) => void
+  spendBossTry: (gid: number) => boolean
   spendTowerTry: () => void
   towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
   towerLog: (log: TowerLog) => void
@@ -535,12 +535,13 @@ export const useVillage = create<VillageState>((set, get) => {
     // 보스 전투를 시작할 때 오늘 도전 횟수를 1 쓴다 (같은 판은 한 번만)
     spendBossTry: (gid) => {
       const { items, bossTry } = get()
-      if (bossTry && bossTry.gid === gid) return
+      if (bossTry && bossTry.gid === gid) return false // 같은 판은 한 번만 센다
       const today = dateKey()
       const next: BossTry = { day: today, n: (bossTry && bossTry.day === today ? bossTry.n : 0) + 1, gid }
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, bossTry: next } : i))
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, bossTry: next })
+      return true
     },
 
     // 탑에 들어갈 때 오늘 입장권을 1장 쓴다

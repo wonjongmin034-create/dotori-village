@@ -476,8 +476,8 @@ export function BossHud() {
   // 전투가 시작되면 오늘 도전 횟수를 1 쓰고, 친구들에게도 남은 횟수를 알린다
   useEffect(() => {
     onBossStart((g) => {
-      const v = useVillage.getState()
-      v.spendBossTry(g.gid)
+      // 처음 센 판에서만 알린다. (판 상태가 바뀔 때마다 접속 정보를 다시 보내면, 친구들 화면에 "○○님이 돌아갔어요"가 계속 뜬다)
+      if (!useVillage.getState().spendBossTry(g.gid)) return
       setMyLeft(bossLeftOf(useVillage.getState().bossTry))
       refreshMyPresence()
     })

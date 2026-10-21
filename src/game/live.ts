@@ -277,6 +277,7 @@ function open(owner: string, key: string, me: string) {
   })
     .on('presence', { event: 'join' }, ({ key: who }) => {
       if (who === me) return
+      if (lastNames.includes(who)) return // 이미 있던 친구가 접속 정보만 바꾼 것 (옷·탑 단계 등) — 새로 온 게 아니다
       const st = ch.presenceState() as Record<string, Meta[]>
       if (who in st && !allowedOf(st, owner, key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM).includes(who)) return // 자리가 없어 곧 돌아갈 사람
       send() // 새로 온 친구가 내 위치를 알 수 있게
@@ -297,6 +298,8 @@ function open(owner: string, key: string, me: string) {
     })
     .on('presence', { event: 'leave' }, ({ key: who }) => {
       if (who === me || !lastNames.includes(who)) return
+      // 접속 정보를 새로 보내면 "옛 정보가 나갔다"는 알림이 같이 온다 — 지금도 방에 있으면 나간 게 아니다
+      if (who in (ch.presenceState() as Record<string, unknown>)) return
       useVillage.getState().flash(`${who}님이 돌아갔어요`)
     })
     .on('broadcast', { event: 'pos' }, ({ payload }) => {
