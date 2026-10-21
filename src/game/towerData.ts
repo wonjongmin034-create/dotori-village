@@ -45,48 +45,48 @@ export type TowerStage = {
 export const STAGE_COUNT = 8
 export const TOWER_DAILY = 3 // 하루 입장권
 export const QUIZ_MS = 30_000 // 상자 문제 하나당 제한 시간
-export const MAX_ALIVE = 5 // 한 번에 화면에 있는 몬스터 수 (태블릿 성능)
+export const MAX_ALIVE = 6 // 한 번에 화면에 있는 몬스터 수 (태블릿 성능)
 export const ARENA_R = 10
 
 export const TOWER: TowerStage[] = [
   {
     id: 1, name: '슬라임 언덕', intro: '말랑말랑 슬라임들을 모두 물리쳐요!',
-    spawns: [['slime', 4, 15]], rec: 1, house: 1, reward: 10, title: '슬라임 사냥꾼', color: '#8bd450',
+    spawns: [['slime', 6, 15]], rec: 1, house: 1, reward: 10, title: '슬라임 사냥꾼', color: '#8bd450',
     theme: { sky: '#bfe6ef', fog: '#cdeaf0', ground: '#86c46a', ring: '#c9c2ad', accent: '#8bd450' }, mathLv: 1, koLv: 1,
   },
   {
     id: 2, name: '버섯 숲', intro: '달려드는 버섯을 조심해요!',
-    spawns: [['slime', 2, 30], ['mushroom', 4, 35]], rec: 2, house: 1, reward: 15, title: '버섯 정복자', color: '#3fa34d',
+    spawns: [['slime', 3, 30], ['mushroom', 6, 35]], rec: 2, house: 1, reward: 15, title: '버섯 정복자', color: '#3fa34d',
     theme: { sky: '#c9e8c0', fog: '#d4ecc9', ground: '#5fa857', ring: '#b8c9a0', accent: '#e86a6a' }, mathLv: 2, koLv: 2,
   },
   {
     id: 3, name: '박쥐 동굴', intro: '빠르고 어지러운 박쥐 떼!',
-    spawns: [['bat', 3, 40], ['slime', 2, 40], ['mushroom', 2, 40]], rec: 2, house: 2, reward: 25, title: '박쥐 추격자', color: '#3aa7e6',
+    spawns: [['bat', 4, 40], ['slime', 3, 40], ['mushroom', 3, 40]], rec: 2, house: 2, reward: 25, title: '박쥐 추격자', color: '#3aa7e6',
     theme: { sky: '#8aa0c8', fog: '#97aacf', ground: '#6a7690', ring: '#9aa4b8', accent: '#7ab8ff' }, mathLv: 2, koLv: 2,
   },
   {
     id: 4, name: '불꽃 협곡', intro: '멀리서 쏘는 도깨비불을 피하며 싸워요!',
-    spawns: [['shooter', 2, 45], ['mushroom', 2, 50], ['bat', 2, 45], ['slime', 2, 50]], rec: 3, house: 2, reward: 35, title: '사격 명수', color: '#2b5fd9',
+    spawns: [['shooter', 3, 45], ['mushroom', 3, 50], ['bat', 3, 45], ['slime', 3, 50]], rec: 3, house: 2, reward: 35, title: '사격 명수', color: '#2b5fd9',
     theme: { sky: '#f3c9a0', fog: '#f1d2b4', ground: '#b9915a', ring: '#c9a878', accent: '#ff7a3d' }, mathLv: 3, koLv: 3,
   },
   {
     id: 5, name: '멧돼지 고개', intro: '돌진을 피하고, 우두머리를 쓰러뜨려요!',
-    spawns: [['boss', 1, 120], ['charger', 3, 60], ['shooter', 2, 50], ['mushroom', 2, 50]], rec: 3, house: 3, reward: 50, title: '돌진 막이', color: '#8e4fd8',
+    spawns: [['boss', 1, 120], ['charger', 4, 60], ['shooter', 3, 50], ['mushroom', 3, 50]], rec: 3, house: 3, reward: 50, title: '돌진 막이', color: '#8e4fd8',
     theme: { sky: '#d6c4ee', fog: '#ddd0f1', ground: '#8f7fb0', ring: '#b7aedc', accent: '#a98bff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 6, name: '용사의 성', intro: '온갖 몬스터가 한꺼번에 몰려와요!',
-    spawns: [['charger', 2, 70], ['shooter', 2, 55], ['bat', 3, 45], ['mushroom', 3, 55], ['slime', 1, 70]], rec: 4, house: 3, reward: 70, title: '탑의 용사', color: '#f08a1c',
+    spawns: [['charger', 3, 70], ['shooter', 3, 55], ['bat', 4, 45], ['mushroom', 4, 55], ['slime', 2, 70]], rec: 4, house: 3, reward: 70, title: '탑의 용사', color: '#f08a1c',
     theme: { sky: '#f0d9a8', fog: '#f1e0b8', ground: '#a8a58f', ring: '#c8c2a8', accent: '#f08a1c' }, mathLv: 3, koLv: 3,
   },
   {
     id: 7, name: '폭풍 정상', intro: '바람처럼 빠른 적들이 몰려와요!',
-    spawns: [['bat', 4, 50], ['shooter', 3, 60], ['charger', 3, 80], ['mushroom', 2, 60], ['slime', 1, 40]], rec: 4, house: 4, reward: 90, title: '폭풍 돌파자', color: '#e0392d',
+    spawns: [['bat', 5, 50], ['shooter', 3, 60], ['charger', 4, 80], ['mushroom', 3, 60], ['slime', 2, 40]], rec: 4, house: 4, reward: 90, title: '폭풍 돌파자', color: '#e0392d',
     theme: { sky: '#7a86a8', fog: '#8a94b4', ground: '#58607c', ring: '#8a94b4', accent: '#e0392d' }, mathLv: 3, koLv: 3,
   },
   {
     id: 8, name: '정복자의 왕좌', intro: '탑의 주인이 나타났다! 모든 힘을 다해 싸워요!',
-    spawns: [['boss', 1, 700], ['mushroom', 6, 50]], rec: 5, house: 4, reward: 120, title: '탑의 정복자', color: '#e8b317',
+    spawns: [['boss', 1, 700], ['mushroom', 10, 50]], rec: 5, house: 4, reward: 120, title: '탑의 정복자', color: '#e8b317',
     theme: { sky: '#1b1a44', fog: '#2a2860', ground: '#3b4080', ring: '#6c70c8', accent: '#ffd86b' }, mathLv: 3, koLv: 3,
   },
 ]
