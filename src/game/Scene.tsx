@@ -18,6 +18,9 @@ import { useGfx } from './gfx'
 import { useOmok } from './omokState'
 import { OmokThrottle } from './OmokThrottle'
 import { BossArena } from './BossArena'
+import { TowerArena } from './TowerArena'
+import { useTower } from './towerState'
+import { towerStage } from './towerData'
 import { useBoss } from './bossState'
 import { stageOf } from './bossData'
 
@@ -51,14 +54,16 @@ export function Scene() {
   const [lite, setLite] = useState(false) // 저사양: 구름·환경광·그림자 끔
   const omokSeated = useOmok((s) => s.me != null) // 오목 중엔 뒤 화면을 천천히 그리므로 fps 측정(저사양 판단)을 쉰다
   const inBoss = useVillage((s) => s.bossRoom != null)
+  const inTower = useVillage((s) => s.towerOn)
+  const towerTheme = useTower((s) => towerStage(s.stage).theme)
   const bossTheme = useBoss((s) => stageOf(s.game?.stage ?? s.lobbyStage).theme)
 
   return (
     <>
       {!omokSeated && <AdaptiveDpr onLow={() => setLite(true)} />}
       <OmokThrottle />
-      <color attach="background" args={[inBoss ? bossTheme.sky : '#bfe6ef']} />
-      <fog attach="fog" args={[inBoss ? bossTheme.fog : '#cdeaf0', 30, 110]} />
+      <color attach="background" args={[inTower ? towerTheme.sky : inBoss ? bossTheme.sky : '#bfe6ef']} />
+      <fog attach="fog" args={[inTower ? towerTheme.fog : inBoss ? bossTheme.fog : '#cdeaf0', 30, 110]} />
 
       {/* 조명 — 따뜻한 키 + 시원한 하늘/땅 */}
       <hemisphereLight args={['#eaf4ff', '#8fb877', 0.65]} />
@@ -73,9 +78,9 @@ export function Scene() {
         </Environment>
       )}
 
-      {!inBoss && <Sky sunPosition={[8, 12, 5]} turbidity={4} rayleigh={0.7} mieCoefficient={0.006} />}
+      {!inBoss && !inTower && <Sky sunPosition={[8, 12, 5]} turbidity={4} rayleigh={0.7} mieCoefficient={0.006} />}
 
-      {!editing && !lite && !inBoss && (
+      {!editing && !lite && !inBoss && !inTower && (
         <Clouds material={THREE.MeshBasicMaterial} limit={40}>
           <Cloud seed={2} segments={20} bounds={[14, 2, 14]} volume={7} position={[-10, 16, -12]} opacity={0.5} speed={0.12} color="#ffffff" />
           <Cloud seed={7} segments={16} bounds={[12, 2, 12]} volume={6} position={[14, 18, 8]} opacity={0.42} speed={0.1} color="#f2f8ff" />
@@ -99,7 +104,7 @@ export function Scene() {
         />
       )}
 
-      {!lite && !inBoss && (
+      {!lite && !inBoss && !inTower && (
         <ContactShadows
           key={itemCount}
           position={[0, 0.02, 0]}
@@ -113,7 +118,9 @@ export function Scene() {
         />
       )}
 
-      {inBoss ? (
+      {inTower ? (
+        <TowerArena />
+      ) : inBoss ? (
         <BossArena />
       ) : inPlaza ? (
         <Plaza />

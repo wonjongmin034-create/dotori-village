@@ -22,6 +22,7 @@ import {
   farmLimit,
 } from './economy'
 import { BOSS_DAILY } from './bossData'
+import { STAGE_COUNT, TOWER_DAILY, towerStage } from './towerData'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
 import { findFreeSpot, resolveFarmOverlaps } from './layout'
@@ -99,6 +100,7 @@ export type PlacedItem = {
   boss?: number // (집에만) 지금까지 클리어한 가장 높은 보스 단계 (0 = 아직 없음)
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
+  tower?: TowerData // (집에만) 도토리 탑 기록
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
@@ -109,6 +111,12 @@ export type PlacedItem = {
 export type BossTry = { day: string; n: number; gid: number }
 export const bossLeftOf = (t: BossTry | null | undefined): number =>
   Math.max(0, BOSS_DAILY - (t && t.day === dateKey() ? t.n : 0))
+
+// 도토리 탑 기록 — best: 깬 가장 높은 단계, day/n: 오늘 쓴 입장권, log: 최근 도전 기록 (선생님이 볼 수 있게)
+export type TowerLog = { t: number; s: number; r: 'dead' | 'quiz' | 'clear'; ok?: boolean[]; sec?: number[] }
+export type TowerData = { best: number; day: string; n: number; log: TowerLog[] }
+export const towerLeftOf = (t: TowerData | null | undefined): number =>
+  Math.max(0, TOWER_DAILY - (t && t.day === dateKey() ? t.n : 0))
 
 export type Mode = 'browse' | 'edit'
 
@@ -242,6 +250,15 @@ const bossTryOf = (items: PlacedItem[]): BossTry | null => {
   const t = items.find((i) => i.type === 'house')?.bossTry
   return t && typeof t.day === 'string' && Number.isFinite(t.n) ? { day: t.day, n: Math.max(0, Math.round(t.n)), gid: Number(t.gid) || 0 } : null
 }
+const towerOf = (items: PlacedItem[]): TowerData => {
+  const t = items.find((i) => i.type === 'house')?.tower
+  return {
+    best: t && Number.isFinite(t.best) ? Math.max(0, Math.min(STAGE_COUNT, Math.round(t.best))) : 0,
+    day: t && typeof t.day === 'string' ? t.day : '',
+    n: t && Number.isFinite(t.n) ? Math.max(0, Math.round(t.n)) : 0,
+    log: t && Array.isArray(t.log) ? (t.log as TowerLog[]).slice(0, 20) : [],
+  }
+}
 const petOf = (items: PlacedItem[]): PetState | null => normalizePet(items.find((i) => i.type === 'house')?.pet)
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
@@ -322,6 +339,8 @@ interface VillageState {
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
   bossTry: BossTry | null // 오늘 보스 도전 횟수
+  tower: TowerData // 도토리 탑 기록
+  towerOn: boolean // 탑 안에 있는지
   petOpen: boolean // 펫 창 열림
   petFx: { at: number; ok: boolean; st: number } | null // 방금 한 진화 결과 (반짝이는 화면용)
   friendsOpen: boolean // 친구 목록 패널
@@ -349,6 +368,9 @@ interface VillageState {
   equipWeapon: (family: WeaponFamily | null) => void
   markBossCleared: (stage: number) => void
   spendBossTry: (gid: number) => void
+  spendTowerTry: () => void
+  towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
+  towerLog: (log: TowerLog) => void
   buyWeapon: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
   openPet: () => void
@@ -452,6 +474,8 @@ export const useVillage = create<VillageState>((set, get) => {
     bossCleared: bossOf(initial.items),
     pet: petOf(initial.items),
     bossTry: bossTryOf(initial.items),
+    tower: towerOf(initial.items),
+    towerOn: false,
     petOpen: false,
     petFx: null,
     friendsOpen: false,
@@ -517,6 +541,38 @@ export const useVillage = create<VillageState>((set, get) => {
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, bossTry: next } : i))
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, bossTry: next })
+    },
+
+    // 탑에 들어갈 때 오늘 입장권을 1장 쓴다
+    spendTowerTry: () => {
+      const { items, tower } = get()
+      const today = dateKey()
+      const next: TowerData = { ...tower, day: today, n: (tower.day === today ? tower.n : 0) + 1 }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, tower: next } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, tower: next })
+    },
+
+    // 도전 기록 한 줄 남기기 (최근 20개)
+    towerLog: (log) => {
+      const { items, tower } = get()
+      const next: TowerData = { ...tower, log: [log, ...tower.log].slice(0, 20) }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, tower: next } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems, tower: next })
+    },
+
+    // 탑 단계 클리어 — 처음 깬 단계(바로 다음 단계)에만 도토리와 칭호
+    towerClear: (stage, log) => {
+      const { items, tower, coins } = get()
+      const first = stage === tower.best + 1
+      const reward = first ? towerStage(stage).reward : 0
+      const next: TowerData = { ...tower, best: first ? stage : tower.best, log: [log, ...tower.log].slice(0, 20) }
+      const nextCoins = coins + reward
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, tower: next } : i))
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, tower: next, coins: nextCoins })
+      return { first, reward }
     },
 
     // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
@@ -701,6 +757,7 @@ export const useVillage = create<VillageState>((set, get) => {
         bossCleared: bossOf(merged),
         pet: petOf(merged),
         bossTry: bossTryOf(merged),
+        tower: towerOf(merged),
         daily: dailyOf(merged),
       })
     },
@@ -710,7 +767,7 @@ export const useVillage = create<VillageState>((set, get) => {
       set({ homework: text })
     },
 
-    setSession: (session) => set({ session }),
+    setSession: (session) => set(session ? { session } : { session, towerOn: false }),
     setCloud: (cloud) => set({ cloud }),
     setClassConfig: (cfg) =>
       set((s) => ({

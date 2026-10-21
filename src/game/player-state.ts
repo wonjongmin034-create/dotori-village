@@ -9,3 +9,7 @@ export const playerMotion = { vx: 0, vz: 0, vy: 0, facing: Math.PI }
 
 // 친구 마을에 들어갈 때 겹치지 않게 조금씩 다른 곳에서 시작
 export const spawnAt = () => playerPos.set((Math.random() - 0.5) * 2.4, 0, 3 + Math.random() * 0.8)
+
+// 도토리 탑: 공격 버튼 입력(누르고 있으면 계속 공격)과, 공격할 때 캐릭터가 몬스터 쪽으로 몸을 돌리는 값
+export const towerInput = { tap: false, hold: false }
+export const towerAim = { angle: 0, until: 0 } // until: performance.now() 기준

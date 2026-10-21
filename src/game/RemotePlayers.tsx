@@ -12,6 +12,7 @@ import { rideOf, applyRidePose } from './rides'
 import { peers, useLive } from './live'
 import { swingPose } from './swing'
 import { useVillage } from './store'
+import { titleOf } from './towerData'
 
 const MAX_SHOWN = 10 // 한 번에 그리는 친구 수 (한 방 최대 10명)
 const DETAILED = 4 // 가까운 이만큼만 옷까지 자세히 그리고, 나머지는 단순하게 (크롬북 성능)
@@ -195,7 +196,17 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
         )}
       </group>
       <Html position={[0, 2.25, 0]} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-        <div className="name-tag">{name}</div>
+        <div className="name-tag">
+          {(() => {
+            const t = titleOf(Math.round(Number(peer?.avatar.tt) || 0))
+            return t ? (
+              <i className="tt" style={{ background: t.color }}>
+                {t.text}
+              </i>
+            ) : null
+          })()}
+          {name}
+        </div>
       </Html>
       {emote && (
         <Html position={[0, 2.8, 0]} center zIndexRange={[6, 0]} style={{ pointerEvents: 'none' }}>

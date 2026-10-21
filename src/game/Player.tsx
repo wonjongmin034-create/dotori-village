@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { getMove, jumpInput } from './input'
-import { playerPos, playerMotion } from './player-state'
+import { playerPos, playerMotion, towerAim } from './player-state'
+import { clampArena, sim } from './towerSim'
 import { useVillage, landHalf, viewItems } from './store'
 import { Character, type CharacterRefs } from './Character'
 import { useLive } from './live'
@@ -105,6 +106,7 @@ export function Player() {
       playerMotion.vz = tmp.dir.z * speed * mag
       if (vs.plaza != null) constrainToPlaza(playerPos)
       else if (vs.bossRoom != null) constrainToArena(playerPos)
+      else if (vs.towerOn) clampArena(playerPos)
       else {
         const b = landHalf(viewItems(vs)) - 0.4
         playerPos.x = Math.max(-b, Math.min(b, playerPos.x))
@@ -118,6 +120,8 @@ export function Player() {
       playerMotion.vx = 0
       playerMotion.vz = 0
     }
+    // 탑에서 공격할 때는 가장 가까운 몬스터 쪽으로 몸을 돌린다
+    if (vs.towerOn && towerAim.until > performance.now()) st.facing = dampAngle(st.facing, towerAim.angle, 20, dt)
     playerMotion.facing = st.facing
 
     // ── 점프 ──
@@ -144,6 +148,8 @@ export function Player() {
     }
 
     root.current?.position.copy(playerPos)
+    // 맞은 직후 무적 시간에는 깜빡인다
+    if (root.current) root.current.visible = !(vs.towerOn && sim.running && sim.time < sim.invulnUntil && Math.floor(t * 14) % 2 === 1)
     if (yawGroup.current) yawGroup.current.rotation.y = st.facing
 
     // ── 애니메이션 ──

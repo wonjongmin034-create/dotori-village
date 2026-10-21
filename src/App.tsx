@@ -23,6 +23,8 @@ import { requestJump } from './game/input'
 import { enterPlaza, leavePlaza } from './game/plaza'
 import { OmokHud } from './game/OmokHud'
 import { BossHud, BossPicker, BossEntryButton } from './game/BossHud'
+import { TowerHud, TowerPicker, TowerEntryButton } from './game/TowerHud'
+import { useTower, inTowerFight, exitTower } from './game/towerState'
 import { leaveBoss } from './game/boss'
 import { useBoss, isActive } from './game/bossState'
 import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
@@ -85,6 +87,9 @@ export default function App() {
   const visiting = useVillage((s) => s.visiting)
   const plaza = useVillage((s) => s.plaza)
   const bossRoom = useVillage((s) => s.bossRoom)
+  const towerOn = useVillage((s) => s.towerOn)
+  const towerPhase = useTower((s) => s.phase)
+  const towerBusy = towerOn && towerPhase !== 'fight' && towerPhase !== 'intro'
   const bossCount = useBoss((s) => s.roster.length)
   // 보스전이 진행 중이고 내가 그 팀이면: 이동 조작을 숨긴다 (자리에 고정되어 있다)
   const inFight = useBoss((s) => !!s.game && isActive(s.game) && s.game.members.some((m) => m.n === session?.name))
@@ -233,7 +238,9 @@ export default function App() {
         <div className="badge">
           <b>도토리 마을</b>
           <span>
-            {bossRoom != null
+            {towerOn
+              ? '도토리 탑'
+              : bossRoom != null
               ? `보스 방 ${bossRoom}번 · ${Math.max(bossCount, roomCount + 1)}/4명`
               : plaza != null
               ? `도토리 광장 ${plaza}번 · ${roomCount + 1}/${MAX_IN_ROOM}명`
@@ -251,8 +258,22 @@ export default function App() {
 
         {plaza != null && <OmokHud />}
         {bossRoom != null && <BossHud />}
+        {towerOn && <TowerHud />}
 
-        {bossRoom != null ? (
+        {towerOn ? (
+          towerPhase === 'clear' || towerPhase === 'fail' || towerPhase === 'quiz' ? null : (
+            <button
+              type="button"
+              className="mode-btn visit-back"
+              onClick={() => {
+                if (inTowerFight() && !window.confirm('지금 나가면 입장권을 돌려받지 못해요. 정말 나갈까요?')) return
+                exitTower()
+              }}
+            >
+              🏠 마을로 돌아가기
+            </button>
+          )
+        ) : bossRoom != null ? (
           <button
             type="button"
             className="mode-btn visit-back"
@@ -281,7 +302,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !visiting && plaza == null && bossRoom == null && (
+        {!editing && !visiting && plaza == null && bossRoom == null && !towerOn && (
           <div className="hud-stack">
             {daily &&
               (() => {
@@ -326,10 +347,11 @@ export default function App() {
               </button>
             )}
             <BossEntryButton />
+            <TowerEntryButton />
           </div>
         )}
 
-        {!editing && !visiting && bossRoom == null && avatar.ride && (
+        {!editing && !visiting && bossRoom == null && !towerOn && avatar.ride && (
           <button
             type="button"
             className="ride-btn"
@@ -343,7 +365,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !inFight && (
+        {!editing && !inFight && !towerBusy && (
           <button
             type="button"
             className="jump-btn"
@@ -359,7 +381,9 @@ export default function App() {
 
         {!editing && (
           <div className="hint">
-            {bossRoom != null
+            {towerOn
+              ? '몬스터를 모두 잡으면 보물상자가 나와요 · 상자 문제 3개를 모두 맞혀야 클리어!'
+              : bossRoom != null
               ? '친구 3~4명과 힘을 합쳐 보스를 쓰러뜨려요! 한 사람씩 차례로 문제를 풀어요'
               : plaza != null
               ? '친구들과 만나는 광장이에요 · 😊 이모티콘으로 인사해 보세요'
@@ -463,7 +487,7 @@ export default function App() {
         {msg && <div className="flash">{msg}</div>}
       </div>
 
-      {!editing && !inFight && <Joystick />}
+      {!editing && !inFight && !towerBusy && <Joystick />}
 
       <FarmPanel />
       <HousePanel />
@@ -473,6 +497,7 @@ export default function App() {
       <ArmoryPanel />
       <PetPanel />
       <BossPicker />
+      <TowerPicker />
       <DailyLearnPanel />
       <SheetPanel />
       <LiveHud />

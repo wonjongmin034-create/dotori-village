@@ -51,6 +51,11 @@ export function CameraRig() {
       tmp.focus.set(0, 0, 0.4)
       tmp.offset.set(0, 5.3, 10.8)
       tmp.lookTarget.set(0, 2.8, -3.0)
+    } else if (cs.towerOn) {
+      // 탑: 캐릭터를 따라가며 위에서 넓게 본다 (몬스터와 위험 표시가 잘 보이게)
+      tmp.focus.set(playerPos.x, 0, playerPos.z)
+      tmp.offset.set(0, 10.5, 8.6)
+      tmp.lookTarget.set(playerPos.x, 0.6, playerPos.z)
     } else if (editing) {
       tmp.focus.set(0, 0, 0)
       tmp.offset.copy(EDIT_OFFSET).multiplyScalar(zoomOut)
