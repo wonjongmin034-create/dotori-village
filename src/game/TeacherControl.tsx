@@ -27,6 +27,14 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
     flash(ok ? '전원 다시 접속 신호를 보냈어요 (10~20초 안에 다시 들어와요)' : '보내지 못했어요')
   }
 
+  const resetBoss = async () => {
+    if (!window.confirm('오늘 학생들이 쓴 보스 도전 횟수를 모두 0으로 되돌려요.\n(학생들은 오늘 5번을 다시 도전할 수 있어요) 계속할까요?')) return
+    setBusy(true)
+    const ok = await teacherSetControl(classCode, { bossReset: Date.now() })
+    setBusy(false)
+    flash(ok ? '오늘 보스 도전 횟수를 초기화했어요 (10초 안에 학생 화면에 반영)' : '초기화하지 못했어요')
+  }
+
   return (
     <section className="dash-card">
       <h3>🌐 수업 제어 (광장 · 친구 마을)</h3>
@@ -49,6 +57,12 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
           </button>
           <p className="dash-note" style={{ marginTop: 6 }}>
             화면이 이상하거나 연결이 꼬였을 때 눌러요. 학생들은 몇 초 안에 자기 마을로 돌아와 자동으로 다시 접속해요. (도토리·마을은 그대로 저장돼요)
+          </p>
+          <button type="button" className="primary wide" disabled={busy || ctl === null} onClick={() => void resetBoss()} style={{ marginTop: 10 }}>
+            ⚔️ 오늘 보스 도전 횟수 초기화
+          </button>
+          <p className="dash-note" style={{ marginTop: 6 }}>
+            학생들이 하루 5번을 다 썼을 때 눌러요. 지금까지 쓴 횟수가 0으로 돌아가서 오늘 5번을 다시 도전할 수 있어요. (이미 깬 보스의 도토리는 그대로예요)
           </p>
         </>
       )}

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { useVillage } from './store'
+import { useVillage, bossLeftOf } from './store'
+import { refreshMyPresence, setMyLeft } from './bossState'
 import { useCtl, CLOSED_TEXT } from './control'
 import { leavePlaza } from './plaza'
 import { endVisit } from './friends'
@@ -7,13 +8,17 @@ import { leaveBoss } from './boss'
 
 // 선생님 "수업 제어": 광장·친구 마을 닫기 / 학생 전원 다시 접속시키기.
 // classes.control (jsonb) 에 저장 — supabase/schema-8-control.sql 을 실행해야 쓸 수 있다. 없어도 게임은 그대로 돌아간다.
-//   { closed?: boolean, kick?: number }   kick = 선생님이 "다시 접속"을 누른 시각(ms)
+//   { closed?: boolean, kick?: number, bossReset?: number }   kick = 선생님이 "다시 접속"을 누른 시각(ms), bossReset = "보스 도전 횟수 초기화"를 누른 시각(ms)
 
-export type Control = { closed: boolean; kick: number }
+export type Control = { closed: boolean; kick: number; bossReset: number }
 
 function sanitize(raw: unknown): Control {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-  return { closed: o.closed === true, kick: typeof o.kick === 'number' && Number.isFinite(o.kick) ? o.kick : 0 }
+  return {
+    closed: o.closed === true,
+    kick: typeof o.kick === 'number' && Number.isFinite(o.kick) ? o.kick : 0,
+    bossReset: typeof o.bossReset === 'number' && Number.isFinite(o.bossReset) ? o.bossReset : 0,
+  }
 }
 
 /* ---------- 학생 쪽 ---------- */
@@ -33,6 +38,16 @@ function applyClosed(closed: boolean) {
   } else {
     s.flash('광장과 친구 마을이 다시 열렸어요 🎉')
   }
+}
+
+// 선생님이 보스 도전 횟수를 초기화했으면, 그 시각 이전에 센 횟수는 없는 걸로 한다 (같은 값을 여러 번 받아도 그대로)
+function applyBossReset(at: number) {
+  const s = useVillage.getState()
+  if (at <= s.bossResetAt) return
+  useVillage.setState({ bossResetAt: at })
+  setMyLeft(bossLeftOf(useVillage.getState().bossTry))
+  refreshMyPresence() // 보스 방에 있다면 친구들 화면의 남은 횟수도 바꾼다
+  if (at > Date.now() - 10 * 60_000) s.flash('선생님이 오늘 보스 도전 횟수를 다시 채워 줬어요 ⚔️')
 }
 
 function handleKick(classCode: string, kick: number) {
@@ -99,6 +114,7 @@ export async function pollControl() {
     if (error || !data) return // 컬럼이 없으면(schema-8 미실행) 아무것도 안 한다
     const c = sanitize(data.control)
     applyClosed(c.closed)
+    applyBossReset(c.bossReset)
     handleKick(s.classCode, c.kick)
   } catch {
     /* noop */

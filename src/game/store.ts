@@ -109,8 +109,11 @@ export type PlacedItem = {
 
 // 하루 보스 도전 기록 — day 가 오늘이 아니면 0번으로 본다. gid 는 마지막으로 센 전투 (다시 접속해도 같은 판을 두 번 세지 않게)
 export type BossTry = { day: string; n: number; gid: number }
+// 선생님이 "오늘 보스 도전 횟수 초기화"를 누른 시각(bossResetAt) 이전에 센 기록은 없는 걸로 본다 (gid 는 그 전투가 시작된 시각 ms)
+const bossUsedToday = (t: BossTry | null | undefined, resetAt: number): number =>
+  t && t.day === dateKey() && t.gid > resetAt ? t.n : 0
 export const bossLeftOf = (t: BossTry | null | undefined): number =>
-  Math.max(0, BOSS_DAILY - (t && t.day === dateKey() ? t.n : 0))
+  Math.max(0, BOSS_DAILY - bossUsedToday(t, useVillage.getState().bossResetAt))
 
 // 도토리 탑 기록 — best: 깬 가장 높은 단계, day/n: 오늘 쓴 입장권, log: 최근 도전 기록 (선생님이 볼 수 있게)
 export type TowerLog = { t: number; s: number; r: 'dead' | 'quiz' | 'clear'; ok?: boolean[]; sec?: number[] }
@@ -339,6 +342,7 @@ interface VillageState {
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
   bossTry: BossTry | null // 오늘 보스 도전 횟수
+  bossResetAt: number // 선생님이 보스 도전 횟수를 초기화한 시각 (반 설정에서 받아온다)
   tower: TowerData // 도토리 탑 기록
   towerOn: boolean // 탑 안에 있는지
   petOpen: boolean // 펫 창 열림
@@ -474,6 +478,7 @@ export const useVillage = create<VillageState>((set, get) => {
     bossCleared: bossOf(initial.items),
     pet: petOf(initial.items),
     bossTry: bossTryOf(initial.items),
+    bossResetAt: 0,
     tower: towerOf(initial.items),
     towerOn: false,
     petOpen: false,
@@ -537,7 +542,7 @@ export const useVillage = create<VillageState>((set, get) => {
       const { items, bossTry } = get()
       if (bossTry && bossTry.gid === gid) return false // 같은 판은 한 번만 센다
       const today = dateKey()
-      const next: BossTry = { day: today, n: (bossTry && bossTry.day === today ? bossTry.n : 0) + 1, gid }
+      const next: BossTry = { day: today, n: bossUsedToday(bossTry, get().bossResetAt) + 1, gid }
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, bossTry: next } : i))
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, bossTry: next })
