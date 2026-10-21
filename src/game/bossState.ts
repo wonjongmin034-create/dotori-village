@@ -8,7 +8,7 @@ import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, lifeFor,
 //   · 서버 메시지를 아끼려고 "문제가 나갈 때 / 답이 올 때 / 결과가 나올 때"만 보낸다. 시간은 매초 알리지 않고 제한 시간만 알린다.
 //   · 이 방은 최대 4명이라 메시지가 아주 적다.
 
-export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number; tl: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계, 오늘 남은 도전 횟수
+export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number; tl: number; pt: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계, 오늘 남은 도전 횟수, 펫 단계
 export type Phase = 'intro' | 'ask' | 'result' | 'won' | 'lost' | 'aborted'
 export type LastHit = {
   who: string
@@ -140,7 +140,7 @@ export const bossPresence = () => ({ bm: { cl: myCleared, hl: myHouse, tl: myLef
 
 /* ---------- 방(presence)이 바뀔 때 ---------- */
 
-type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number }; bm?: { cl?: number; hl?: number; tl?: number } }
+type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number; pet?: { st?: number } | null }; bm?: { cl?: number; hl?: number; tl?: number } }
 
 export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: string[]) {
   const roster: Member[] = allowed.map((n) => {
@@ -149,7 +149,9 @@ export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: s
     const wt = typeof m?.avatar?.wt === 'number' ? m.avatar.wt : 1
     const hl = typeof m?.bm?.hl === 'number' ? Math.max(1, Math.min(5, Math.round(m.bm.hl))) : 1
     const tl = typeof m?.bm?.tl === 'number' ? Math.max(0, Math.min(BOSS_DAILY, Math.round(m.bm.tl))) : BOSS_DAILY
-    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl, tl }
+    const ps = m?.avatar?.pet?.st
+    const pt = typeof ps === 'number' ? Math.max(0, Math.min(4, Math.round(ps))) : 0
+    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl, tl, pt }
   })
   const host = allowed[0] ?? null
   useBoss.setState({ roster, host })
@@ -348,7 +350,7 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
   const j = judge(q, pick, timeout)
   const cfg = stageOf(g.stage)
   const mult = q.k === 'rps' && j.ok ? RPS_WIN_MULT : 1
-  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage) * mult) : 0
+  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage, me?.pt ?? 0) * mult) : 0
   const heal = cfg.mixed && !j.ok && !j.draw ? Math.min(BOSS_HEAL_ON_MISS, g.maxHp - g.hp) : 0 // 틀리면 보스가 체력을 회복한다
   const hp = Math.max(0, g.hp - dmg) + heal
   let life = j.ok || j.draw ? g.life : Math.max(0, g.life - 1)

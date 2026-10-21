@@ -124,6 +124,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
   const picked = useBoss((s) => s.picked)
   const pending = useBoss((s) => s.pending)
   const avatar = useVillage((s) => s.avatar)
+  const myPet = useVillage((st) => st.pet?.st ?? 0)
   const cfg = stageOf(game.stage)
   const now = useNow(100, game.phase === 'ask')
   // 이 문제에서 내가 누르고 있는 것 (타일 번호 / 순서 / 숫자 글자). 문제가 바뀌면 비워진다.
@@ -203,8 +204,9 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         ) : null}
         <small>
           {q.cat && <span className="boss-cat">{q.cat}</span>}
-          {game.n}번째 · 내 공격력 {dmgOf(myTier, game.stage)}
+          {game.n}번째 · 내 공격력 {dmgOf(myTier, game.stage, myPet)}
           {avatar.weapon && isFamily(avatar.weapon) ? ` (${tierName(avatar.weapon, avatar.wt)})` : ''}
+          {myPet >= 2 ? ' 🐾펫 보너스' : ''}
         </small>
       </div>
 

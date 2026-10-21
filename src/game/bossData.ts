@@ -90,10 +90,17 @@ export const BASE_DMG = 10
 export const TIER_MULT = [1, 1.15, 1.3, 1.5, 1.75, 2]
 // 4단계(종합)는 무기 단계 차이가 훨씬 크다: 1단계 무기는 6, 6단계 무기는 30. (밸런스는 시뮬레이션으로 맞춤)
 export const STAGE_DMG: Record<number, number[]> = { 4: [6, 9, 13, 18, 24, 30] }
-export const dmgOf = (tier: number, stage = 1) => {
+// 펫 보너스 — 아동(2단계)부터 공격이 조금 세진다: 아동 +5% · 청소년 +10% · 성체 +15% (그래도 최소 +1)
+export const PET_DMG = [0, 0, 0.05, 0.1, 0.15]
+export const petDmgBonus = (base: number, petStage = 0) => {
+  const p = PET_DMG[Math.max(0, Math.min(PET_DMG.length - 1, Math.round(petStage || 0)))]
+  return p > 0 ? Math.max(1, Math.round(base * p)) : 0
+}
+export const dmgOf = (tier: number, stage = 1, petStage = 0) => {
   const t = Math.max(1, Math.min(6, Math.round(tier || 1)))
   const table = STAGE_DMG[stage]
-  return table ? table[t - 1] : Math.round(BASE_DMG * TIER_MULT[t - 1])
+  const base = table ? table[t - 1] : Math.round(BASE_DMG * TIER_MULT[t - 1])
+  return base + petDmgBonus(base, petStage)
 }
 
 // 종합 보스의 페이즈: 보스 체력이 66% 아래면 2, 33% 아래면 3. 페이즈가 오를 때마다 팀 생명이 조금 회복된다.
