@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 import { playerPos } from './player-state'
 import { camShake } from './bossFx'
 import { isClosed, CLOSED_TEXT } from './control'
-import { QUIZ_MS, canEnter, heartsFor, towerStage, STAGE_COUNT } from './towerData'
+import { QUIZ_MS, canEnter, heartsFor, isTowerTester, towerStage, STAGE_COUNT } from './towerData'
 import { judgeTower, towerQuiz, type TowerQ } from './towerQuestions'
 import { hooks, simStart, simStop } from './towerSim'
 
@@ -76,12 +76,13 @@ export function startStage(stage: number): string | null {
     v.setNotice(CLOSED_TEXT)
     return '지금은 들어갈 수 없어요'
   }
-  const chk = canEnter(stage, v.tower.best, houseLv(), towerLeftOf(v.tower))
+  const tester = isTowerTester(v.session.name)
+  const chk = canEnter(stage, v.tower.best, houseLv(), towerLeftOf(v.tower), tester)
   if (!chk.ok) return chk.why
-  v.spendTowerTry()
+  if (!tester) v.spendTowerTry()
   v.setVisiting(null)
   playerPos.set(0, 0, 5)
-  const maxHearts = heartsFor(houseLv())
+  const maxHearts = heartsFor(houseLv(), tester)
   useVillage.setState({ towerOn: true, plaza: null, bossRoom: null })
   useTower.setState({
     picker: false, phase: 'intro', stage, hearts: maxHearts, maxHearts, hpFrac: 1, left: 0, quiz: [], qi: 0, secs: [], failWhy: null, reveal: null, result: null,

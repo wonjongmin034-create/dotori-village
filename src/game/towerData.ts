@@ -101,7 +101,12 @@ export const titleOf = (best: number): { text: string; color: string } | null =>
 
 /* ---------- 내 하트와 공격 ---------- */
 export const HEARTS_BASE = 3
-export const heartsFor = (houseLv: number) => HEARTS_BASE + houseLife(houseLv) // 집 1~5단계 → 3·3·4·4·5
+export const heartsFor = (houseLv: number, tester = false) => (tester ? HEARTS_BASE : HEARTS_BASE + houseLife(houseLv)) // 집 1~5단계 → 3·3·4·4·5 (시험 계정은 항상 3)
+
+// 선생님 시험 계정: 입장권·단계 순서·집 단계 제한 없이 아무 단계나 들어갈 수 있다. 하트는 기본 3개로 고정 (학생이 처음 겪는 난이도 그대로 점검).
+// 이 계정은 앞 단계를 깨지 않은 단계는 클리어해도 기록·도토리·칭호가 바뀌지 않는다.
+export const TOWER_TESTERS = ['원종민']
+export const isTowerTester = (name: string | null | undefined) => !!name && TOWER_TESTERS.includes(name.trim())
 export const INVULN_S = 2 // 맞은 뒤 무적 시간
 
 export type WeaponStyle = {
@@ -128,7 +133,8 @@ export const hitDamage = (family: WeaponFamily, tier: number, petStage: number) 
 
 /* ---------- 입장 조건 ---------- */
 export type EnterCheck = { ok: boolean; why: string }
-export function canEnter(stageId: number, best: number, houseLv: number, left: number): EnterCheck {
+export function canEnter(stageId: number, best: number, houseLv: number, left: number, tester = false): EnterCheck {
+  if (tester) return { ok: true, why: '' }
   const st = towerStage(stageId)
   if (stageId > best + 1) return { ok: false, why: `${stageId - 1}단계를 먼저 깨야 해요` }
   if (houseLv < st.house) return { ok: false, why: `🔒 집이 ${st.house}단계가 되면 도전할 수 있어요` }

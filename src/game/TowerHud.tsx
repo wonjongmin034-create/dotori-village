@@ -11,7 +11,7 @@ import {
   startStage,
   useTower,
 } from './towerState'
-import { QUIZ_MS, STAGE_COUNT, TOWER, TOWER_DAILY, canEnter, heartsFor, stageMonsterCount, stageTotalHp, titleOf, towerStage } from './towerData'
+import { QUIZ_MS, STAGE_COUNT, TOWER, TOWER_DAILY, canEnter, heartsFor, isTowerTester, stageMonsterCount, stageTotalHp, titleOf, towerStage } from './towerData'
 import { answerText } from './towerQuestions'
 import { towerInput } from './player-state'
 import { FAMILY_EMOJI, isFamily, tierName } from './weapons'
@@ -54,11 +54,12 @@ export function TowerPicker() {
   }, [open])
   if (!open) return null
 
+  const tester = isTowerTester(session?.name)
   const left = towerLeftOf(tower)
   const next = Math.min(STAGE_COUNT, tower.best + 1)
   const cur = sel || next
   const st = towerStage(cur)
-  const chk = canEnter(cur, tower.best, houseLv, left)
+  const chk = canEnter(cur, tower.best, houseLv, left, tester)
   const weaponOk = avatar.weapon && isFamily(avatar.weapon) ? avatar.wt : 1
   const title = titleOf(tower.best)
 
@@ -81,7 +82,7 @@ export function TowerPicker() {
             )}
           </span>
           <span className="tickets">
-            🎟️ 입장권 {left}/{TOWER_DAILY}
+            {tester ? '🎟️ 시험 계정 · 제한 없음' : `🎟️ 입장권 ${left}/${TOWER_DAILY}`}
           </span>
         </div>
         <div className="tower-tabs">
@@ -130,7 +131,7 @@ export function TowerPicker() {
                   권장 무기 {st.rec}단계 이상 · 내 무기 {weaponOk}단계
                   {avatar.weapon && isFamily(avatar.weapon) ? ` (${FAMILY_EMOJI[avatar.weapon]} ${tierName(avatar.weapon, avatar.wt)})` : ''}
                 </li>
-                <li>하트 {heartsFor(houseLv)}개 (집이 좋을수록 늘어나요)</li>
+                <li>하트 {heartsFor(houseLv, tester)}개{tester ? ' (시험 계정은 3개 고정)' : ' (집이 좋을수록 늘어나요)'}</li>
                 <li>
                   🌰 처음 깨면 {st.reward}개 · 칭호 「<span style={{ color: st.color, fontWeight: 900 }}>{st.title}</span>」
                 </li>
@@ -412,6 +413,7 @@ function TowerResult() {
   const result = useTower((s) => s.result)
   const secs = useTower((s) => s.secs)
   const left = useVillage((s) => towerLeftOf(s.tower))
+  const tester = useVillage((s) => isTowerTester(s.session?.name))
   const st = towerStage(stage)
   const won = phase === 'clear'
 
@@ -454,7 +456,7 @@ function TowerResult() {
           )}
         </>
       )}
-      <small>오늘 남은 입장권 🎟️ {left}/{TOWER_DAILY}</small>
+      <small>{tester ? '시험 계정이라 입장권을 쓰지 않아요' : `오늘 남은 입장권 🎟️ ${left}/${TOWER_DAILY}`}</small>
       <div className="armory-btns">
         <button type="button" className="primary" onClick={exitTower}>
           🏠 마을로 돌아가기
