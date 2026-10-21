@@ -39,7 +39,7 @@ export const MAX_STAGE = 4
 // ── 규칙 값 (여기만 고치면 균형을 바꿀 수 있다) ──
 export const FEED_NEED_SCORE = 15 // 오늘의 학습에서 이만큼 이상 맞혀야 먹이를 줄 수 있다
 // 다음 단계로 가기 위해 필요한 먹이 횟수 [알→아기, 아기→아동, 아동→청소년, 청소년→성체]
-export const FEED_NEED = [1, 3, 5, 7]
+export const FEED_NEED = [1, 3, 8, 12]
 // 진화에 드는 도토리 (성공·실패와 상관없이 낸다)
 export const EVOLVE_COST_PET = [20, 60, 150, 350]
 // 진화 성공 확률 (실패하면 pity 한 번당 +10%p, 최대 100%)
