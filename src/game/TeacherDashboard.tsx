@@ -546,8 +546,10 @@ export function TeacherDashboard({ classCode, onExit }: { classCode: string; onE
                   className="stu-pin"
                   onClick={(e) => {
                     e.preventDefault()
-                    if (window.confirm(`${s.name}의 비밀번호를 초기화할까요? (다음 로그인 때 새로 정함)`)) {
-                      void teacherResetPin(classCode, s.name).then(() => flash('비번 초기화됨'))
+                    if (window.confirm(`${s.name}의 비밀번호를 초기화할까요?\n(학생이 다음에 로그인할 때 입력하는 번호가 새 비밀번호가 돼요)`)) {
+                      void teacherResetPin(classCode, s.name).then((ok) =>
+                        flash(ok ? `${s.name} 비번 초기화됨 — 다음 로그인 때 입력한 번호가 새 비번이에요` : '초기화하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요'),
+                      )
                     }
                   }}
                 >

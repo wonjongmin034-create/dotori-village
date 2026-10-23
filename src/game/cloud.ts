@@ -96,7 +96,19 @@ export async function login(
     if (error) return { ok: false, error: 'network' }
 
     if (existing) {
-      if ((existing.pin || '') !== pin) return { ok: false, error: 'pin' }
+      if ((existing.pin || '') === '' && pin !== '') {
+        // 선생님이 비밀번호를 초기화한 계정(비어 있음): 처음 입력한 번호가 새 비밀번호가 된다
+        // (.eq('pin', '') 로 "아직 비어 있을 때만" 바꾼다 — 동시에 두 명이 눌러도 먼저 한 쪽만 정해진다)
+        const { data: set, error: upErr } = await supabase
+          .from('villages')
+          .update({ pin })
+          .eq('class_code', code)
+          .eq('name', who)
+          .eq('pin', '')
+          .select('pin')
+        if (upErr) return { ok: false, error: 'network' }
+        if (!set || set.length === 0) return { ok: false, error: 'pin' } // 그 사이 다른 번호로 정해졌다
+      } else if ((existing.pin || '') !== pin) return { ok: false, error: 'pin' }
       quizCorrect = existing.quiz_correct ?? 0
       quizWrong = existing.quiz_wrong ?? 0
       useVillage.getState().hydrateFromCloud(
@@ -656,10 +668,17 @@ export async function teacherDeleteStudent(classCode: string, name: string): Pro
   }
 }
 
-export async function teacherResetPin(classCode: string, student: string) {
-  await supabase
-    .from('villages')
-    .update({ pin: '' })
-    .eq('class_code', classCode)
-    .eq('name', student)
+// 학생 비밀번호를 비운다 → 그 학생이 다음에 로그인할 때 입력한 번호가 새 비밀번호가 된다
+export async function teacherResetPin(classCode: string, student: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('villages')
+      .update({ pin: '' })
+      .eq('class_code', classCode)
+      .eq('name', student)
+      .select('name')
+    return !error && !!data && data.length > 0
+  } catch {
+    return false
+  }
 }
