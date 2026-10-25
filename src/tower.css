@@ -366,3 +366,15 @@
     font-size: 26px;
   }
 }
+
+/* --- 닉네임 바꾸기 --- */
+.name-edit-btn {
+  margin-left: 6px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: rgba(47, 122, 64, 0.12);
+  cursor: pointer;
+}

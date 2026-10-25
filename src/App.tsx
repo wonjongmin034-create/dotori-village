@@ -24,6 +24,7 @@ import { enterPlaza, leavePlaza } from './game/plaza'
 import { OmokHud } from './game/OmokHud'
 import { BossHud, BossPicker, BossEntryButton } from './game/BossHud'
 import { TowerHud, TowerPicker, TowerEntryButton } from './game/TowerHud'
+import { NameChangeButton, NameChangePanel } from './game/NameChange'
 import { useTower, inTowerFight, exitTower } from './game/towerState'
 import { leaveBoss } from './game/boss'
 import { useBoss, isActive } from './game/bossState'
@@ -251,6 +252,7 @@ export default function App() {
               : session
                 ? `${session.name}${cloud === 'offline' ? ' · 📴 오프라인' : ''}`
                 : '둘러보는 중'}
+            {session && !towerOn && bossRoom == null && plaza == null && !visiting && !editing && <NameChangeButton />}
           </span>
         </div>
 
@@ -498,6 +500,7 @@ export default function App() {
       <PetPanel />
       <BossPicker />
       <TowerPicker />
+      <NameChangePanel />
       <DailyLearnPanel />
       <SheetPanel />
       <LiveHud />

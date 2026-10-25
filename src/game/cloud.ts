@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { TOWER_TESTERS } from './towerData'
 import {
   useVillage,
   registerCloudHook,
@@ -623,8 +624,12 @@ async function replaceNameInLists(classCode: string, from: string, to: string | 
 
 export type RenameResult = 'ok' | 'invalid' | 'exists' | 'missing' | 'network'
 
-// 학생 닉네임 바꾸기: 마을·오목 기록·학습지 제출·도토리 지급 기록의 이름을 모두 새 이름으로
+// 학생 닉네임 바꾸기: 마을·오목 기록·탑 순위·학습지 제출·도토리 지급 기록의 이름을 모두 새 이름으로
 export async function teacherRenameStudent(classCode: string, oldName: string, newName: string): Promise<RenameResult> {
+  return renameAccount(classCode, oldName, newName)
+}
+
+async function renameAccount(classCode: string, oldName: string, newName: string): Promise<RenameResult> {
   const to = newName.trim()
   if (!to || to.length > 12 || to === '*' || to === oldName || /[\r\n]/.test(to)) return 'invalid'
   try {
@@ -641,6 +646,7 @@ export async function teacherRenameStudent(classCode: string, oldName: string, n
     // 계정 이름은 이미 바뀌었으니, 나머지 기록은 일부 실패해도 계속 진행
     await Promise.allSettled([
       supabase.from('omok_stats').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
+      supabase.from('tower_stats').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
       supabase.from('submissions').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
       supabase.from('grants').update({ student: to }).eq('class_code', classCode).eq('student', oldName),
       replaceNameInLists(classCode, oldName, to),
@@ -651,6 +657,34 @@ export async function teacherRenameStudent(classCode: string, oldName: string, n
   }
 }
 
+/* ---------- 학생이 스스로 닉네임 바꾸기 ---------- */
+export const NAME_COOLDOWN_MS = 24 * 3600_000 // 하루에 한 번
+export const RESERVED_NAMES = ['선생님', '관리자', ...TOWER_TESTERS]
+export type SelfRenameResult = RenameResult | 'cooldown' | 'reserved'
+
+// 다음에 바꿀 수 있는 시각 (지금 바꿀 수 있으면 0)
+export function nextNameChangeAt(): number {
+  const at = useVillage.getState().items.find((i) => i.type === 'house')?.nameAt ?? 0
+  return at && Date.now() - at < NAME_COOLDOWN_MS ? at + NAME_COOLDOWN_MS : 0
+}
+
+export async function renameSelf(newName: string): Promise<SelfRenameResult> {
+  const v = useVillage.getState()
+  const s = v.session
+  if (!s) return 'missing'
+  const to = newName.trim()
+  if (RESERVED_NAMES.includes(to)) return 'reserved'
+  if (nextNameChangeAt()) return 'cooldown'
+  const r = await renameAccount(s.classCode, s.name, to)
+  if (r !== 'ok') return r
+  // 서버의 이름이 바뀌었으니 이 기기의 로그인 정보도 새 이름으로 (실시간 방에는 새 이름으로 다시 들어간다)
+  const session: Session = { classCode: s.classCode, name: to }
+  saveLocalSession(session)
+  useVillage.getState().setSession(session)
+  useVillage.getState().markNameChanged()
+  return 'ok'
+}
+
 // 학생 계정 삭제: 마을과 그 학생의 오목 기록·학습지 제출·개인 지급 기록까지 모두 지운다 (되돌릴 수 없음)
 export async function teacherDeleteStudent(classCode: string, name: string): Promise<boolean> {
   try {
@@ -658,6 +692,7 @@ export async function teacherDeleteStudent(classCode: string, name: string): Pro
     if (error) return false
     await Promise.allSettled([
       supabase.from('omok_stats').delete().eq('class_code', classCode).eq('student', name),
+      supabase.from('tower_stats').delete().eq('class_code', classCode).eq('student', name),
       supabase.from('submissions').delete().eq('class_code', classCode).eq('student', name),
       supabase.from('grants').delete().eq('class_code', classCode).eq('student', name),
       replaceNameInLists(classCode, name, null),

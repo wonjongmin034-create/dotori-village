@@ -101,6 +101,7 @@ export type PlacedItem = {
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   tower?: TowerData // (집에만) 도토리 탑 기록
+  nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (하루에 한 번만)
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
@@ -373,6 +374,7 @@ interface VillageState {
   markBossCleared: (stage: number) => void
   spendBossTry: (gid: number) => boolean
   spendTowerTry: () => void
+  markNameChanged: () => void
   towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
   towerLog: (log: TowerLog) => void
   buyWeapon: (family: WeaponFamily) => void
@@ -547,6 +549,13 @@ export const useVillage = create<VillageState>((set, get) => {
       save(get().coins, nextItems, get().homework)
       set({ items: nextItems, bossTry: next })
       return true
+    },
+
+    // 학생이 닉네임을 바꿨다는 표시 (하루에 한 번만 바꿀 수 있게)
+    markNameChanged: () => {
+      const nextItems = get().items.map((i) => (i.type === 'house' ? { ...i, nameAt: Date.now() } : i))
+      save(get().coins, nextItems, get().homework)
+      set({ items: nextItems })
     },
 
     // 탑에 들어갈 때 오늘 입장권을 1장 쓴다
