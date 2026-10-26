@@ -101,7 +101,7 @@ export type PlacedItem = {
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   tower?: TowerData // (집에만) 도토리 탑 기록
-  nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (하루에 한 번만)
+  nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (한 달에 한 번만)
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)

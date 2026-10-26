@@ -658,14 +658,16 @@ async function renameAccount(classCode: string, oldName: string, newName: string
 }
 
 /* ---------- 학생이 스스로 닉네임 바꾸기 ---------- */
-export const NAME_COOLDOWN_MS = 24 * 3600_000 // 하루에 한 번
 export const RESERVED_NAMES = ['선생님', '관리자', ...TOWER_TESTERS]
 export type SelfRenameResult = RenameResult | 'cooldown' | 'reserved'
 
-// 다음에 바꿀 수 있는 시각 (지금 바꿀 수 있으면 0)
-export function nextNameChangeAt(): number {
+// 닉네임은 한 달(달력 기준)에 한 번만 바꿀 수 있다. 이번 달에 이미 바꿨으면 다음 달 1일 0시를 돌려주고, 바꿀 수 있으면 0.
+export function nextNameChangeAt(now = new Date()): number {
   const at = useVillage.getState().items.find((i) => i.type === 'house')?.nameAt ?? 0
-  return at && Date.now() - at < NAME_COOLDOWN_MS ? at + NAME_COOLDOWN_MS : 0
+  if (!at) return 0
+  const d = new Date(at)
+  const sameMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  return sameMonth ? new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime() : 0
 }
 
 export async function renameSelf(newName: string): Promise<SelfRenameResult> {
