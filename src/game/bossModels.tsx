@@ -777,7 +777,102 @@ function Owl() {
   )
 }
 
+/* ============================================================
+   5단계: 도형 거인 폴리곤 — 정육면체 몸, 팔면체 머리, 가슴의 노란 마름모 보석.
+   둘레에 정사면체·정육면체·원뿔·도넛이 돌고, 라운드가 오를수록 빨리 돈다.
+   ============================================================ */
+function Polygon() {
+  const head = useRef<THREE.Group>(null)
+  const orbit = useRef<THREE.Group>(null)
+  const gem = useRef<THREE.Mesh>(null)
+  const armL = useRef<THREE.Group>(null)
+  const armR = useRef<THREE.Group>(null)
+  const body = useRef<THREE.Group>(null)
+
+  useFrame(() => {
+    const t = nowSec()
+    const atk = clamp01((t - bossFx.atkAt) / 0.95)
+    const hit = clamp01((t - bossFx.hitAt) / 0.5)
+    const roar = atk > 0 && atk < 1 ? Math.sin(atk * Math.PI) : 0
+    if (orbit.current) orbit.current.rotation.y = t * (0.55 + bossFx.lv * 0.3)
+    if (body.current) body.current.position.y = Math.sin(t * 1.5) * 0.07
+    if (head.current) {
+      head.current.rotation.y = Math.sin(t * 0.8) * 0.3 + t * 0.25
+      head.current.rotation.x = -roar * 0.3 + Math.sin(hit * Math.PI) * 0.35
+    }
+    if (gem.current) {
+      gem.current.rotation.y = t * 1.6
+      gem.current.scale.setScalar(1 + Math.sin(t * 4) * 0.1 + roar * 0.5)
+    }
+    if (armL.current) armL.current.rotation.z = 0.25 + roar * 1.1 + Math.sin(t * 1.4) * 0.06
+    if (armR.current) armR.current.rotation.z = -0.25 - roar * 1.1 - Math.sin(t * 1.4) * 0.06
+  })
+
+  const teal = '#3f9bb5'
+  const dark = '#2a6f86'
+  const light = '#8fe3f5'
+  const gold = '#ffd34d'
+
+  return (
+    <group>
+      <group ref={body}>
+        {/* 발 */}
+        {[-0.95, 0.95].map((x) => (
+          <Bx key={x} p={[x, 0.55, 0.1]} s={[1.1, 1.1, 1.3]} c={dark} />
+        ))}
+        {/* 몸통: 큰 정육면체와 가슴 판 */}
+        <Bx p={[0, 2.2, 0]} s={[2.7, 2.3, 2.1]} c={teal} />
+        <Bx p={[0, 2.2, 1.07]} s={[1.5, 1.4, 0.1]} c={dark} />
+        <mesh ref={gem} position={[0, 2.25, 1.35]}>
+          <octahedronGeometry args={[0.55]} />
+          <Toon color={gold} emissive={gold} ei={0.7} />
+        </mesh>
+        {/* 팔 */}
+        <group ref={armL} position={[-1.55, 3.0, 0]}>
+          <Cyl p={[-0.3, -1.0, 0]} r={0.38} h={2.1} c={dark} />
+          <Bx p={[-0.3, -2.25, 0]} s={[0.95, 0.9, 0.95]} c={light} e={light} ei={0.2} />
+        </group>
+        <group ref={armR} position={[1.55, 3.0, 0]}>
+          <Cyl p={[0.3, -1.0, 0]} r={0.38} h={2.1} c={dark} />
+          <Bx p={[0.3, -2.25, 0]} s={[0.95, 0.9, 0.95]} c={light} e={light} ei={0.2} />
+        </group>
+        {/* 머리: 팔면체 + 원뿔 모자 */}
+        <group ref={head} position={[0, 4.2, 0]}>
+          <mesh>
+            <octahedronGeometry args={[1.0]} />
+            <Toon color={light} emissive={light} ei={0.15} />
+          </mesh>
+          {[-0.32, 0.32].map((x) => (
+            <Ball key={x} p={[x, 0.08, 0.72]} r={0.14} c="#16384a" e="#5ee6ff" ei={0.9} />
+          ))}
+          <Cone p={[0, 1.55, 0]} r={0.55} h={1.0} c={gold} e={gold} ei={0.3} />
+        </group>
+      </group>
+      {/* 둘레를 도는 도형들 */}
+      <group ref={orbit} position={[0, 3.2, 0]}>
+        {[0, 1, 2, 3].map((i) => {
+          const a = (i / 4) * Math.PI * 2
+          const p: V3 = [Math.sin(a) * 3.6, Math.sin(a * 2) * 0.5, Math.cos(a) * 3.6]
+          return (
+            <group key={i} position={p}>
+              {i === 0 && (
+                <mesh>
+                  <tetrahedronGeometry args={[0.6]} />
+                  <Toon color="#ff8a6a" emissive="#ff8a6a" ei={0.25} />
+                </mesh>
+              )}
+              {i === 1 && <Bx p={[0, 0, 0]} s={[0.8, 0.8, 0.8]} c="#7ad37a" e="#7ad37a" ei={0.25} rot={[0.5, 0.5, 0]} />}
+              {i === 2 && <Cone p={[0, 0, 0]} r={0.5} h={1.0} c="#b48aff" e="#b48aff" ei={0.25} />}
+              {i === 3 && <Ring p={[0, 0, 0]} r={0.5} t={0.16} c="#ffd34d" e="#ffd34d" ei={0.3} rot={[0.9, 0, 0]} />}
+            </group>
+          )
+        })}
+      </group>
+    </group>
+  )
+}
+
 export function BossModel({ stage }: { stage: number }) {
-  const body = useMemo(() => (stage === 4 ? <Owl /> : stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
+  const body = useMemo(() => (stage === 5 ? <Polygon /> : stage === 4 ? <Owl /> : stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
   return <Shell key={stage}>{body}</Shell>
 }

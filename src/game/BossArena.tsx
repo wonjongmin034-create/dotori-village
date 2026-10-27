@@ -162,7 +162,7 @@ function ArenaBase({ stage }: { stage: number }) {
             </mesh>
           ))}
       </Baked>
-      <Flames spots={flameSpots} color={stage === 4 ? '#8fd8ff' : stage === 2 ? '#b9a0ff' : '#ffb347'} />
+      <Flames spots={flameSpots} color={stage === 5 ? '#5ee6ff' : stage === 4 ? '#8fd8ff' : stage === 2 ? '#b9a0ff' : '#ffb347'} />
     </>
   )
 }
@@ -196,7 +196,9 @@ function Backdrop({ stage }: { stage: number }) {
         ? ['#9a86e8', '#7a68d0', '#b7a4f5']
         : stage === 4
           ? ['#2b2a6a', '#3a3a86', '#24235a']
-          : ['#5c8f86', '#4d7f7a', '#6aa095']
+          : stage === 5
+            ? ['#1f5f78', '#2a7a96', '#174d63']
+            : ['#5c8f86', '#4d7f7a', '#6aa095']
   return (
     <Baked>
       {hills.map((h, i) => (
@@ -528,13 +530,15 @@ function FxLayer() {
         const idx = Math.max(0, g.members.findIndex((m) => m.n === last.who))
         const [sx, sz] = slotPos(idx, g.members.length)
         if (last.ok) {
-          startSwing(last.who)
+          // 필살기: 팀원 모두가 한꺼번에 휘두른다
+          if (last.ult) g.members.forEach((m, i) => startSwing(m.n, i * 70))
+          else startSwing(last.who)
           const ranged = last.fam === 'bow' || last.fam === 'staff'
           // 칼을 내리치는 순간(약 0.19초 뒤)에 맞는다
           setTimeout(() => {
             bossFx.hitAt = nowSec() + (ranged ? 0.3 : 0)
             bossFx.dmg = last.dmg
-            camShake.amp = Math.max(camShake.amp, 0.25 + last.tier * 0.06)
+            camShake.amp = Math.max(camShake.amp, last.ult ? 1.1 : 0.25 + last.tier * 0.06)
           }, 190)
           setTimeout(() => add({ kind: 'hit', last, from: [sx, 0, sz], to: AIM }, 2400), 190)
         } else if (last.draw) {

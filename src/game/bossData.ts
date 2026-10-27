@@ -2,7 +2,7 @@
 //  팀은 생명(하트)을 같이 쓴다. 한 사람씩 차례로 문제를 푼다.
 //  맞히면 그 사람의 무기 단계만큼 보스 체력이 깎이고, 시간 안에 못 풀거나 틀리면 팀 생명이 1 깎인다.
 
-export type StageId = 1 | 2 | 3 | 4
+export type StageId = 1 | 2 | 3 | 4 | 5
 
 export type Stage = {
   id: StageId
@@ -14,6 +14,8 @@ export type Stage = {
   reward: number // 처음 클리어할 때 받는 도토리 (한 번만)
   intro: string // 보스가 나올 때 한마디
   mixed?: boolean // 종합 보스: 문제를 섞어 내고, 체력이 줄면 페이즈가 올라가 어려워진다
+  healOnMiss?: boolean // 틀리면 보스가 체력을 회복한다 (4단계)
+  rounds?: boolean // 라운드제: 페이즈마다 주제가 바뀌고, 연속 정답 콤보·필살기(전원 동시) 문제가 있다 (5단계)
   theme: { sky: string; fog: string; ground: string; ring: string; accent: string }
 }
 
@@ -60,8 +62,22 @@ export const STAGES: Stage[] = [
     life: 6, // 기본 생명 — 팀원의 집이 좋을수록 늘어난다 (lifeFor)
     reward: 200,
     mixed: true,
+    healOnMiss: true,
     intro: '지금까지 배운 모든 것으로 덤벼라! 내 체력이 줄수록 문제는 어려워진다!',
     theme: { sky: '#1b1a44', fog: '#2a2860', ground: '#3b4080', ring: '#6c70c8', accent: '#ffd86b' },
+  },
+  {
+    id: 5,
+    name: '도형 거인 폴리곤',
+    subject: '도형·영어·맞춤법',
+    ms: 30_000,
+    hp: 300,
+    life: 6,
+    reward: 250,
+    mixed: true,
+    rounds: true,
+    intro: '둘레와 넓이를 모르면 나를 못 이긴다! 라운드가 바뀔 때마다 문제가 달라지고, 5번째 문제는 필살기 — 모두 함께 풀어라!',
+    theme: { sky: '#0f2b3d', fog: '#17435c', ground: '#2d7787', ring: '#7fd0e0', accent: '#5ee6ff' },
   },
 ]
 
@@ -89,7 +105,7 @@ export const BOSS_ROOMS = 9 // 보스 방 번호는 1~9
 export const BASE_DMG = 10
 export const TIER_MULT = [1, 1.15, 1.3, 1.5, 1.75, 2]
 // 4단계(종합)는 무기 단계 차이가 훨씬 크다: 1단계 무기는 6, 6단계 무기는 30. (밸런스는 시뮬레이션으로 맞춤)
-export const STAGE_DMG: Record<number, number[]> = { 4: [6, 9, 13, 18, 24, 30] }
+export const STAGE_DMG: Record<number, number[]> = { 4: [6, 9, 13, 18, 24, 30], 5: [6, 9, 13, 18, 24, 30] }
 // 펫 보너스 — 아동(2단계)부터 공격이 조금 세진다: 아동 +5% · 청소년 +10% · 성체 +15% (그래도 최소 +1)
 export const PET_DMG = [0, 0, 0.05, 0.1, 0.15]
 export const petDmgBonus = (base: number, petStage = 0) => {
@@ -108,6 +124,16 @@ export const phaseOf = (hp: number, maxHp: number): 1 | 2 | 3 => (hp / maxHp > 0
 export const HEAL_ON_PHASE = 2
 // 종합(4단계) 보스는 학생이 틀리거나 시간이 넘으면 체력을 이만큼 회복한다 (가위바위보 비김은 제외, 최대 체력까지)
 export const BOSS_HEAL_ON_MISS = 8
+
+// 5단계(라운드제): 연속 정답 콤보와 필살기
+//  · 콤보: 팀이 연속으로 맞히면 공격이 점점 세진다 (×1 → ×1.25 → ×1.5 … 최대 ×2). 틀리거나 시간이 지나면 끊긴다.
+//  · 필살기: 5번째 문제마다 팀원 모두가 같은 문제를 동시에 푼다. 모두 맞히면 팀원 공격력의 합 × ULT_DMG_MULT 만큼 큰 피해,
+//            한 명이라도 틀리거나 못 풀면 팀 생명이 ULT_LIFE_LOSS 개 줄어든다.
+export const comboMult = (combo: number) => Math.min(2, 1 + 0.25 * Math.max(0, combo))
+export const ULT_EVERY = 5
+export const ULT_DMG_MULT = 1.5
+export const ULT_LIFE_LOSS = 2
+export const ROUND_NAMES = ['', '도형 라운드', '영어·맞춤법 라운드', '종합 라운드']
 export const RPS_WIN_MULT = 1.5 // 가위바위보에서 이기면 이만큼 센 공격
 
 export const RESULT_MS = 1900 // 문제 하나가 끝나고 정답·연출을 보여 주는 시간

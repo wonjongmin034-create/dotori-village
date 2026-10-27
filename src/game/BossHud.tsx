@@ -18,7 +18,9 @@ import {
   useBoss,
   type BossGame,
 } from './bossState'
-import { BOSS_ROOMS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, STAGES, dmgOf, soloTest, stageOf } from './bossData'
+import { BOSS_ROOMS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, ROUND_NAMES, STAGES, ULT_EVERY, ULT_LIFE_LOSS, comboMult, dmgOf, soloTest, stageOf } from './bossData'
+import { ShapeFig } from './ShapeFig'
+import '../boss5.css'
 import { enterBoss, leaveBoss, useBossUi } from './boss'
 import { tierName, isFamily } from './weapons'
 
@@ -96,7 +98,12 @@ function BossTop({ game }: { game: BossGame }) {
     <div className="boss-top">
       <div className="boss-name">
         {cfg.name} <small>{cfg.subject}</small>
-        {cfg.mixed && <span className={`boss-phase p${game.lv}`}>{game.lv}페이즈</span>}
+        {cfg.mixed && <span className={`boss-phase p${game.lv}`}>{cfg.rounds ? `${game.lv}라운드` : `${game.lv}페이즈`}</span>}
+        {cfg.rounds && (game.combo ?? 0) >= 1 && (
+          <span className="boss-combo" key={game.combo}>
+            🔥 {game.combo}연속{game.combo >= 2 ? ` · 공격 ×${comboMult(game.combo)}` : ''}
+          </span>
+        )}
       </div>
       <div className="boss-hp">
         <div className="boss-hp-fill" style={{ width: `${pct}%` }} />
@@ -142,7 +149,12 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
           팀 생명 {game.maxLife}개{cfg.mixed && game.maxLife > cfg.life ? ` (기본 ${cfg.life} + 집 보너스 ${game.maxLife - cfg.life})` : ''} · 한 사람씩 차례로 풀어요 · 제한 시간{' '}
           {cfg.mixed ? '문제마다 달라요' : `${Math.round(cfg.ms / 1000)}초`}
         </small>
-        {cfg.mixed && <small>⚠️ 틀리면 보스 체력이 {BOSS_HEAL_ON_MISS} 회복돼요!</small>}
+        {cfg.healOnMiss && <small>⚠️ 틀리면 보스 체력이 {BOSS_HEAL_ON_MISS} 회복돼요!</small>}
+        {cfg.rounds && (
+          <small>
+            🔥 연속으로 맞히면 공격이 점점 세져요 · ⚡ {ULT_EVERY}번째 문제는 필살기! 모두 맞히면 큰 피해, 한 명이라도 틀리면 팀 생명 −{ULT_LIFE_LOSS}
+          </small>
+        )}
       </div>
     )
   }
@@ -150,7 +162,10 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
   const q = game.q
   if (!q) return null
   const k = q.k ?? 'mc'
-  const mine = game.who === name
+  const ult = !!game.ult
+  const isMember = game.members.some((m) => m.n === name)
+  const myDone = ult && (game.done ?? []).includes(name)
+  const mine = ult ? isMember && !myDone : game.who === name
   const asking = game.phase === 'ask'
   const left = asking ? Math.max(0, game.ms - (now - rcv)) : 0
   const frac = asking ? left / game.ms : 0
@@ -186,17 +201,28 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
     <div className={`boss-sheet${mine && asking ? ' mine' : ''}`}>
       <div className="boss-turn">
         {asking ? (
-          mine ? (
+          ult ? (
+            <b className="boss-ult">{myDone ? '⚡ 필살기! 다른 친구를 기다려요…' : '⚡ 필살기 문제! 모두 함께 풀어요 (한 명이라도 틀리면 팀 생명 −' + ULT_LIFE_LOSS + ')'}</b>
+          ) : mine ? (
             <b>🫵 내 차례예요!</b>
           ) : (
             <b>{game.who}님 차례예요</b>
           )
         ) : showRes ? (
-          last.draw ? (
+          last.ult ? (
+            last.ok ? (
+              <b className="ok">⚡ 필살기 성공! 모두 정답 — 큰 피해 −{last.dmg}</b>
+            ) : (
+              <b className="bad">
+                💥 필살기 실패! {(last.ultBad ?? []).join(', ')}님이 {last.timeout ? '못 풀었어요' : '틀렸어요'} · 팀 생명 −{ULT_LIFE_LOSS}
+              </b>
+            )
+          ) : last.draw ? (
             <b>🤝 비겼어요! 한 번 더 도전</b>
           ) : last.ok ? (
             <b className="ok">
               ✅ {last.kind === 'rps' || last.kind === 'oe' ? '이겼다!' : '정답!'} {last.who}님의 공격 −{last.dmg}
+              {last.mult ? ` (콤보 ×${last.mult})` : ''}
             </b>
           ) : (
             <b className="bad">{last.timeout ? '⏰ 시간 초과!' : '❌ 아쉬워요!'} 보스의 반격 💥{last.heal ? ` · 보스 체력 +${last.heal} 회복` : ''}</b>
@@ -204,7 +230,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         ) : null}
         <small>
           {q.cat && <span className="boss-cat">{q.cat}</span>}
-          {game.n}번째 · 내 공격력 {dmgOf(myTier, game.stage, myPet)}
+          {ult ? '⚡ 필살기' : `${game.n}번째`} · 내 공격력 {dmgOf(myTier, game.stage, myPet)}
           {avatar.weapon && isFamily(avatar.weapon) ? ` (${tierName(avatar.weapon, avatar.wt)})` : ''}
           {myPet >= 2 ? ' 🐾펫 보너스' : ''}
         </small>
@@ -218,7 +244,8 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
       )}
 
       {q.sub && <div className="boss-sub">{q.sub}</div>}
-      <div className={`boss-q${q.t.length > 26 ? ' long' : ''}`}>{q.t}</div>
+      {q.fig && <ShapeFig fig={q.fig} />}
+      <div className={`boss-q${q.t.length > 26 || q.fig ? ' long' : ''}`}>{q.t}</div>
 
       {/* 보기 고르기 */}
       {k === 'mc' && (
@@ -330,7 +357,16 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
           )}
         </div>
       )}
-      {asking && !mine && <div className="boss-wait">{game.who}님이 푸는 중이에요… 응원해 주세요! 📣</div>}
+      {asking && ult && (
+        <div className="boss-wait">
+          {game.members.map((m) => (
+            <span key={m.n} className={(game.done ?? []).includes(m.n) ? 'done' : ''}>
+              {(game.done ?? []).includes(m.n) ? '✅' : '✏️'} {m.n}
+            </span>
+          ))}
+        </div>
+      )}
+      {asking && !ult && !mine && <div className="boss-wait">{game.who}님이 푸는 중이에요… 응원해 주세요! 📣</div>}
     </div>
   )
 }
@@ -524,7 +560,10 @@ export function BossHud() {
       lvRef.current = lv
       return
     }
-    if (lv > lvRef.current) notifyBoss(`🔥 보스가 화났다! ${lv}페이즈 — 문제가 어려워져요 (팀 생명 +${HEAL_ON_PHASE})`)
+    if (lv > lvRef.current) {
+      const rounds = stageOf(game.stage).rounds
+      notifyBoss(rounds ? `⚡ ${lv}라운드 시작! ${ROUND_NAMES[lv]} (팀 생명 +${HEAL_ON_PHASE})` : `🔥 보스가 화났다! ${lv}페이즈 — 문제가 어려워져요 (팀 생명 +${HEAL_ON_PHASE})`)
+    }
     lvRef.current = lv
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gid, lv, mine])

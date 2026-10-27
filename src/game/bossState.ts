@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Deck, publicOf, type Answer, type BossQ, type PublicQ, type QKind } from './bossQuestions'
-import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
+import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, ULT_DMG_MULT, ULT_EVERY, ULT_LIFE_LOSS, comboMult, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
 //   · 다른 사람이 고른 답은 방장에게 보내고, 방장이 맞는지 따져서 결과를 방 전체에 알린다.
@@ -25,6 +25,10 @@ export type LastHit = {
   pickText?: string // 내가 낸 답
   lvUp?: boolean // 이 일격으로 보스가 다음 페이즈로 올라갔다
   heal?: number // 틀려서 보스가 회복한 체력
+  mult?: number // 연속 정답 콤보로 늘어난 공격 배율 (5단계)
+  ult?: boolean // 필살기(전원 동시) 문제의 결과
+  ultOk?: string[] // 필살기에서 맞힌 사람
+  ultBad?: string[] // 필살기에서 틀리거나 못 푼 사람
 }
 
 export type BossGame = {
@@ -46,6 +50,9 @@ export type BossGame = {
   end: 'won' | 'lost' | null // 결과 연출이 끝나면 이렇게 끝난다
   last: LastHit | null
   seq: number // 연출이 바뀔 때마다 1씩 늘어난다 (화면이 한 번만 반응하게)
+  combo: number // 연속으로 맞힌 횟수 (5단계)
+  ult: boolean // 지금 문제가 필살기(팀원 모두가 동시에 푸는 문제)인지
+  done: string[] // (필살기) 이미 답을 낸 사람
 }
 
 export type BossPayload =
@@ -88,6 +95,7 @@ let tickTimer: ReturnType<typeof setInterval> | null = null
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
 let deck: Deck | null = null
 let curQ: BossQ | null = null // (방장만) 지금 문제 — 정답이 들어 있다
+let ultAns = new Map<string, Answer>() // (방장만) 필살기 문제에서 사람마다 낸 답
 let lastSent = 0
 let hostMissingSince = 0
 const processed = new Set<number>()
@@ -187,9 +195,18 @@ export function startBlockReason(roster: Member[]): string | null {
 
 /* ---------- 방장: 전투 시작·진행 ---------- */
 
+// 새 문제가 나온 것인지 (같은 문제의 "누가 답을 냈다" 같은 중간 갱신이 아닌지)
+const isFreshQuestion = (prev: BossGame | null, next: BossGame) =>
+  next.phase === 'ask' && !(prev && prev.gid === next.gid && prev.n === next.n && prev.phase === 'ask')
+
 function publish(g: BossGame) {
-  const rcv = Date.now()
-  useBoss.setState({ game: g, rcv, pending: false, ...(g.phase === 'ask' ? { picked: -1 } : {}) })
+  const fresh = isFreshQuestion(useBoss.getState().game, g)
+  useBoss.setState({
+    game: g,
+    ...(fresh || g.phase !== 'ask' ? { rcv: Date.now() } : {}),
+    pending: false,
+    ...(fresh ? { picked: -1 } : {}),
+  })
   io?.send({ k: 'st', g })
   lastSent = Date.now()
   maybeStart(g)
@@ -244,6 +261,9 @@ export function startFight(): string | null {
     end: null,
     last: null,
     seq: 1,
+    combo: 0,
+    ult: false,
+    done: [],
   })
   return null
 }
@@ -270,8 +290,11 @@ function askNext(g: BossGame) {
       break
     }
   }
-  const q = deck!.next(g.lv)
+  const cfgN = stageOf(g.stage)
+  const isUlt = !!cfgN.rounds && (g.n + 1) % ULT_EVERY === 0
+  const q = isUlt ? deck!.ult() : deck!.next(g.lv, g.n + 1)
   curQ = q
+  ultAns = new Map()
   if (import.meta.env.DEV) {
     // 개발용: 시험 도구가 정답을 읽을 수 있게 (운영 빌드에는 없다)
     try {
@@ -289,6 +312,8 @@ function askNext(g: BossGame) {
     qa: Date.now(),
     phase: 'ask',
     seq: g.seq + 1,
+    ult: isUlt,
+    done: [],
   })
 }
 
@@ -343,6 +368,76 @@ function validAnswer(q: BossQ, p: unknown): boolean {
   return false
 }
 
+/* ---------- 필살기: 팀원 모두가 같은 문제를 동시에 푼다 ---------- */
+const presentMembers = (g: BossGame) => {
+  const here = presentNames()
+  return g.members.filter((m) => here.has(m.n))
+}
+const allPresentAnswered = (g: BossGame) => {
+  const need = presentMembers(g)
+  return need.length > 0 && need.every((m) => ultAns.has(m.n))
+}
+
+// 누가 답을 냈다 → 모두 냈으면 결과, 아니면 "냈어요" 표시만 갱신
+function registerUlt(g: BossGame) {
+  if (allPresentAnswered(g)) resolveUlt(g)
+  else publish({ ...g, done: [...ultAns.keys()], seq: g.seq + 1 })
+}
+
+function resolveUlt(g: BossGame) {
+  const q = curQ
+  if (!q || !g.ult) return
+  const cfg = stageOf(g.stage)
+  const present = presentMembers(g)
+  const results = present.map((m) => ({ m, j: judge(q, ultAns.get(m.n), !ultAns.has(m.n)) }))
+  const allOk = results.length > 0 && results.every((r) => r.j.ok)
+  const sum = present.reduce((a, m) => a + dmgOf(m.wt ?? 1, g.stage, m.pt ?? 0), 0)
+  const dmg = allOk ? Math.round(sum * ULT_DMG_MULT) : 0
+  const hp = Math.max(0, g.hp - dmg)
+  let life = allOk ? g.life : Math.max(0, g.life - ULT_LIFE_LOSS)
+  let lv = g.lv
+  let lvUp = false
+  if (cfg.mixed && hp > 0) {
+    const nl = phaseOf(hp, g.maxHp)
+    if (nl > lv) {
+      lv = nl
+      lvUp = true
+      life = Math.min(g.maxLife, life + HEAL_ON_PHASE)
+    }
+  }
+  const end: BossGame['end'] = hp <= 0 ? 'won' : life <= 0 ? 'lost' : null
+  const first = results[0]?.j
+  publish({
+    ...g,
+    hp,
+    life,
+    lv,
+    combo: allOk ? (g.combo ?? 0) + 1 : 0,
+    ult: false,
+    done: [],
+    phase: 'result',
+    qa: Date.now(),
+    end,
+    last: {
+      who: '팀 전체',
+      ok: allOk,
+      dmg,
+      pick: -1,
+      a: first?.aIdx ?? -1,
+      fam: null,
+      tier: Math.max(1, ...present.map((m) => m.wt ?? 1)),
+      timeout: !allOk && results.some((r) => !ultAns.has(r.m.n)),
+      kind: q.k ?? 'mc',
+      ansText: first?.ansText,
+      ult: true,
+      ultOk: results.filter((r) => r.j.ok).map((r) => r.m.n),
+      ultBad: results.filter((r) => !r.j.ok).map((r) => r.m.n),
+      lvUp: lvUp || undefined,
+    },
+    seq: g.seq + 1,
+  })
+}
+
 function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
   const q = curQ
   if (!q) return
@@ -350,8 +445,9 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
   const j = judge(q, pick, timeout)
   const cfg = stageOf(g.stage)
   const mult = q.k === 'rps' && j.ok ? RPS_WIN_MULT : 1
-  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage, me?.pt ?? 0) * mult) : 0
-  const heal = cfg.mixed && !j.ok && !j.draw ? Math.min(BOSS_HEAL_ON_MISS, g.maxHp - g.hp) : 0 // 틀리면 보스가 체력을 회복한다
+  const cm = cfg.rounds && j.ok ? comboMult(g.combo ?? 0) : 1 // 연속 정답 콤보 (5단계)
+  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage, me?.pt ?? 0) * mult * cm) : 0
+  const heal = cfg.healOnMiss && !j.ok && !j.draw ? Math.min(BOSS_HEAL_ON_MISS, g.maxHp - g.hp) : 0 // 틀리면 보스가 체력을 회복한다 (4단계)
   const hp = Math.max(0, g.hp - dmg) + heal
   let life = j.ok || j.draw ? g.life : Math.max(0, g.life - 1)
   // 종합 보스: 체력이 다음 구간으로 내려가면 보스가 화나서 다음 페이즈 — 팀 생명이 조금 회복된다
@@ -371,12 +467,16 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
     hp,
     life,
     lv,
+    combo: j.ok ? (g.combo ?? 0) + 1 : j.draw ? (g.combo ?? 0) : 0,
+    ult: false,
+    done: [],
     phase: 'result',
     qa: Date.now(),
     end,
     last: {
       who: g.who,
       ok: j.ok,
+      mult: cm > 1 ? cm : undefined,
       dmg,
       pick: j.pickIdx,
       a: j.aIdx,
@@ -414,7 +514,10 @@ function hostTick() {
   }
   const now = Date.now()
   if (g.phase === 'intro' && now >= g.qa) askNext(g)
-  else if (g.phase === 'ask' && now > g.qa + g.ms + ANSWER_GRACE_MS) resolve(g, -1, true)
+  else if (g.phase === 'ask' && (g.ult ? now > g.qa + g.ms + ANSWER_GRACE_MS || allPresentAnswered(g) : now > g.qa + g.ms + ANSWER_GRACE_MS)) {
+    if (g.ult) resolveUlt(g)
+    else resolve(g, -1, true)
+  }
   else if (g.phase === 'result' && now - g.qa >= RESULT_MS) {
     if (g.end) publish({ ...g, phase: g.end, seq: g.seq + 1 })
     else askNext(g)
@@ -442,15 +545,30 @@ export function bossOnEvent(p: BossPayload) {
     if (st.host === myName) return // 방장은 자기가 쓴 판이 정답
     const cur = st.game
     if (cur && (p.g.gid < cur.gid || (p.g.gid === cur.gid && p.g.seq <= cur.seq))) return
-    useBoss.setState({ game: p.g, rcv: Date.now(), pending: false, picked: p.g.phase === 'ask' ? -1 : st.picked })
+    const fresh = isFreshQuestion(cur, p.g)
+    useBoss.setState({
+      game: p.g,
+      rcv: fresh || p.g.phase !== 'ask' ? Date.now() : st.rcv,
+      pending: false,
+      picked: fresh ? -1 : st.picked,
+    })
     maybeStart(p.g)
     maybeFinish(p.g)
     return
   }
   if (p.k === 'ans') {
     const g = st.game
-    if (st.host !== myName || !g || g.gid !== p.gid || g.phase !== 'ask' || g.n !== p.i || g.who !== p.n) return
+    if (st.host !== myName || !g || g.gid !== p.gid || g.phase !== 'ask' || g.n !== p.i) return
     if (Date.now() > g.qa + g.ms + ANSWER_GRACE_MS) return
+    if (g.ult) {
+      // 필살기: 팀원 누구나 한 번씩 답을 낼 수 있다
+      if (!g.members.some((m) => m.n === p.n) || ultAns.has(p.n)) return
+      if (!curQ || !validAnswer(curQ, p.p)) return
+      ultAns.set(p.n, p.p)
+      registerUlt(g)
+      return
+    }
+    if (g.who !== p.n) return
     if (!curQ || !validAnswer(curQ, p.p)) return
     resolve(g, p.p, false)
   }
@@ -489,11 +607,18 @@ export const setBossResult = (r: BossResult | null) => useBoss.setState({ result
 export function answer(pick: number | string | number[]) {
   const st = useBoss.getState()
   const g = st.game
-  if (!g || g.phase !== 'ask' || g.who !== myName || st.pending || st.picked >= 0) return
+  if (!g || g.phase !== 'ask' || st.pending || st.picked >= 0) return
+  if (g.ult) {
+    if (!g.members.some((m) => m.n === myName) || (g.done ?? []).includes(myName)) return // 필살기: 팀원 모두가 푼다
+  } else if (g.who !== myName) return
   const flag = typeof pick === 'number' ? pick : 0 // 보기 고르기는 고른 번호를 표시하고, 나머지는 "냈다"는 표시만
   if (st.host === myName) {
     useBoss.setState({ picked: flag })
-    resolve(g, pick, false)
+    if (g.ult) {
+      if (!curQ || !validAnswer(curQ, pick) || ultAns.has(myName)) return
+      ultAns.set(myName, pick)
+      registerUlt(g)
+    } else resolve(g, pick, false)
     return
   }
   io?.send({ k: 'ans', gid: g.gid, i: g.n, n: myName, p: pick })

@@ -3,6 +3,9 @@ import { HISTORY } from './historyBank'
 import { GRADE_BANK } from './gradeBank'
 import { mathQ5 } from './mathGrade5'
 import { orderQ } from './orderBank'
+import { formulaQ, shapeQ, ultShapeQ, type Figure } from './bossShapes'
+import { SPELLING } from './spellingBank'
+import { DAILY_ENGLISH } from './dailyEnglish'
 
 // 보스가 내는 문제.
 //  1단계: 계산 — 매번 새로 만든 4지선다
@@ -25,6 +28,7 @@ export type BossQ = {
   ms?: number // 이 문제의 제한 시간 (없으면 단계 기본값)
   cat?: string // 과목 이름표 (종합 보스에서 보인다)
   len?: number // (tiles) 만들어야 하는 단어의 글자 수
+  fig?: Figure // 문제 위에 그려 주는 도형 그림 (5단계)
 }
 export type PublicQ = Omit<BossQ, 'a'>
 export const publicOf = (q: BossQ): PublicQ => {
@@ -263,15 +267,99 @@ export function timeFor(q: BossQ, lv: 1 | 2 | 3): number {
   return base + longText + longOpt
 }
 
+/* ---------- 5단계: 도형 · 영어 · 맞춤법 (라운드제) ---------- */
+class RoundDeck {
+  private words = {
+    1: new Cycler(idxs((w) => w.en.length <= 7)),
+    2: new Cycler(idxs((w) => w.en.length >= 5 && w.en.length <= 9)),
+    3: new Cycler(idxs((w) => w.en.length >= 7)),
+  }
+  private tileWords = {
+    mid: new Cycler(idxs((w) => isWord(w.en) && w.en.length >= 4 && w.en.length <= 6)),
+    long: new Cycler(idxs((w) => isWord(w.en) && w.en.length >= 7 && w.en.length <= 10)),
+  }
+  private spell = new Cycler(SPELLING.map((_, i) => i))
+  private daily = new Cycler(DAILY_ENGLISH.map((_, i) => i))
+
+  private spelling(lv: 1 | 2 | 3): BossQ {
+    const s = SPELLING[this.spell.next()]
+    const q = build(s.a, [...s.w], '맞춤법 문제', s.q, '맞춤법')
+    q.ms = [10_000, 9_000, 8_000][lv - 1]
+    return q
+  }
+  private everyday(lv: 1 | 2 | 3): BossQ {
+    const d = DAILY_ENGLISH[this.daily.next()]
+    const q = build(d.a, [...d.w], '영어 일상표현', d.q, '영어 표현')
+    q.ms = [14_000, 12_000, 10_000][lv - 1]
+    return q
+  }
+  private word(lv: 1 | 2 | 3): BossQ {
+    const q = englishQ(this.words[lv].next())
+    q.ms = [9_000, 7_000, 6_000][lv - 1]
+    return q
+  }
+  private tiles(kind: 'mid' | 'long', decoys: number): BossQ {
+    const q = tilesQ(WORDS[this.tileWords[kind].next()], decoys)
+    q.ms = 14_000 + Math.max(0, (q.len ?? 6) - 6) * 800
+    return q
+  }
+  private mini(lv: 1 | 2 | 3): BossQ {
+    const m = Math.random() < 0.5 ? rpsQ() : oeQ()
+    m.ms = [6_000, 5_000, 4_000][lv - 1]
+    return m
+  }
+
+  // n = 몇 번째 문제인지 (3번째마다 가위바위보·홀짝)
+  next(lv: 1 | 2 | 3, n: number): BossQ {
+    if (n > 0 && n % 3 === 0) return this.mini(lv)
+    const table: [number, () => BossQ][] =
+      lv === 1
+        ? [
+            [0.45, () => shapeQ(1)],
+            [0.25, () => formulaQ(14_000)],
+            [0.15, () => this.word(1)],
+            [0.15, () => this.spelling(1)],
+          ]
+        : lv === 2
+          ? [
+              [0.25, () => this.word(2)],
+              [0.15, () => this.tiles('mid', 0)],
+              [0.28, () => this.spelling(2)],
+              [0.2, () => shapeQ(2)],
+              [0.12, () => this.everyday(2)],
+            ]
+          : [
+              [0.25, () => this.everyday(3)],
+              [0.25, () => shapeQ(3)],
+              [0.1, () => formulaQ(10_000)],
+              [0.15, () => this.spelling(3)],
+              [0.15, () => this.tiles('long', 2)],
+              [0.1, () => this.word(3)],
+            ]
+    let r = Math.random()
+    for (const [w, fn] of table) {
+      if (r < w) return fn()
+      r -= w
+    }
+    return table[table.length - 1][1]()
+  }
+
+  ult(): BossQ {
+    return ultShapeQ()
+  }
+}
+
 /* ---------- 한 판 동안 쓰는 "카드 더미" (같은 문제가 다시 나오지 않게) ---------- */
 export class Deck {
+  private rounds: RoundDeck | null = null
   private order: number[] = []
   private pos = 0
   private stage: number
   private mixed: MixedDeck | null = null
   constructor(stage: number) {
     this.stage = stage
-    if (stage >= 4) this.mixed = new MixedDeck()
+    if (stage >= 5) this.rounds = new RoundDeck()
+    else if (stage >= 4) this.mixed = new MixedDeck()
     else this.refill()
   }
   private refill() {
@@ -279,7 +367,12 @@ export class Deck {
     this.order = shuffle([...Array(n).keys()])
     this.pos = 0
   }
-  next(lv: 1 | 2 | 3 = 1): BossQ {
+  // 필살기(전원 동시) 문제 — 5단계만
+  ult(): BossQ {
+    return this.rounds ? this.rounds.ult() : this.next(3)
+  }
+  next(lv: 1 | 2 | 3 = 1, n = 0): BossQ {
+    if (this.rounds) return this.rounds.next(lv, n)
     if (this.mixed) return this.mixed.next(lv)
     if (this.stage === 1) return mathQ()
     if (this.pos >= this.order.length) this.refill()
