@@ -159,10 +159,11 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
     )
   }
 
-  const q = game.q
+  const ult = !!game.ult
+  // 필살기에서는 사람마다 서로 다른 문제를 받는다 (결과가 나온 뒤에도 내 문제가 계속 보인다)
+  const q = game.uq?.[name] ?? game.q
   if (!q) return null
   const k = q.k ?? 'mc'
-  const ult = !!game.ult
   const isMember = game.members.some((m) => m.n === name)
   const myDone = ult && (game.done ?? []).includes(name)
   const mine = ult ? isMember && !myDone : game.who === name
@@ -202,7 +203,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
       <div className="boss-turn">
         {asking ? (
           ult ? (
-            <b className="boss-ult">{myDone ? '⚡ 필살기! 다른 친구를 기다려요…' : '⚡ 필살기 문제! 모두 함께 풀어요 (한 명이라도 틀리면 팀 생명 −' + ULT_LIFE_LOSS + ')'}</b>
+            <b className="boss-ult">{myDone ? '⚡ 필살기! 다른 친구를 기다려요…' : '⚡ 필살기! 각자 다른 문제를 풀어요 · 모두 맞혀야 해요 (한 명이라도 틀리면 팀 생명 −' + ULT_LIFE_LOSS + ')'}</b>
           ) : mine ? (
             <b>🫵 내 차례예요!</b>
           ) : (
@@ -351,8 +352,12 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
             </>
           ) : (
             <>
-              정답: <b>{last.ansText}</b>
-              {!last.ok && last.pickText ? <small> (내 답: {last.pickText})</small> : null}
+              정답: <b>{last.ult ? (last.ultAns?.[name] ?? '') : last.ansText}</b>
+              {last.ult ? (
+                (last.ultBad ?? []).includes(name) ? <small> (내 답이 틀렸거나 못 풀었어요)</small> : <small> ✅ 맞혔어요</small>
+              ) : !last.ok && last.pickText ? (
+                <small> (내 답: {last.pickText})</small>
+              ) : null}
             </>
           )}
         </div>

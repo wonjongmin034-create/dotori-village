@@ -167,12 +167,17 @@ export function shapeQ(lv: 1 | 2 | 3): BossQ {
   return q
 }
 
-// 필살기 문제: 팀원 모두가 같은 문제를 동시에 푼다. 가장 어려운 도형 문제만 나온다.
-export function ultShapeQ(): BossQ {
-  const q = pick([lArea, lPerimeter, frameArea, trapFindHeight, rhombusFindDiagonal])()
-  q.ms = 50_000
-  q.sub = '⚡ 필살기! ' + (q.sub ?? '')
-  return q
+// 필살기 문제: 팀원이 동시에 풀되, 사람마다 서로 다른 문제를 받는다 (옆 친구가 답을 알려 줄 수 없게).
+// 가장 어려운 도형 문제만 나오고, 문제 종류가 겹치지 않게 사람 수만큼 서로 다른 생성기를 쓴다.
+const ULT_GENS = [lArea, lPerimeter, frameArea, trapFindHeight, rhombusFindDiagonal]
+export function ultShapeQs(n: number): BossQ[] {
+  const gens = [...ULT_GENS].sort(() => Math.random() - 0.5)
+  return Array.from({ length: n }, (_, i) => {
+    const q = gens[i % gens.length]()
+    q.ms = 50_000
+    q.sub = '⚡ 필살기! 내 문제는 친구와 달라요 · ' + (q.sub ?? '')
+    return q
+  })
 }
 
 // 시험·점검용

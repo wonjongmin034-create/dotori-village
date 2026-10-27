@@ -29,6 +29,7 @@ export type LastHit = {
   ult?: boolean // 필살기(전원 동시) 문제의 결과
   ultOk?: string[] // 필살기에서 맞힌 사람
   ultBad?: string[] // 필살기에서 틀리거나 못 푼 사람
+  ultAns?: Record<string, string> // 필살기가 끝난 뒤 공개하는 사람별 정답 (이름 → 정답)
 }
 
 export type BossGame = {
@@ -53,6 +54,7 @@ export type BossGame = {
   combo: number // 연속으로 맞힌 횟수 (5단계)
   ult: boolean // 지금 문제가 필살기(팀원 모두가 동시에 푸는 문제)인지
   done: string[] // (필살기) 이미 답을 낸 사람
+  uq?: Record<string, PublicQ> // (필살기) 사람마다 받은 서로 다른 문제 — 이름 → 문제
 }
 
 export type BossPayload =
@@ -96,6 +98,7 @@ let pendingTimer: ReturnType<typeof setTimeout> | null = null
 let deck: Deck | null = null
 let curQ: BossQ | null = null // (방장만) 지금 문제 — 정답이 들어 있다
 let ultAns = new Map<string, Answer>() // (방장만) 필살기 문제에서 사람마다 낸 답
+let ultQs = new Map<string, BossQ>() // (방장만) 필살기 문제 — 사람마다 다른 문제 (정답이 들어 있다)
 let lastSent = 0
 let hostMissingSince = 0
 const processed = new Set<number>()
@@ -292,13 +295,25 @@ function askNext(g: BossGame) {
   }
   const cfgN = stageOf(g.stage)
   const isUlt = !!cfgN.rounds && (g.n + 1) % ULT_EVERY === 0
-  const q = isUlt ? deck!.ult() : deck!.next(g.lv, g.n + 1)
-  curQ = q
+  // 필살기는 팀원마다 서로 다른 문제를 받는다. 일반 문제는 지금 차례인 한 사람만 푼다.
+  let uq: Record<string, PublicQ> | undefined
   ultAns = new Map()
+  ultQs = new Map()
+  let q: BossQ
+  if (isUlt) {
+    const qs = deck!.ult(g.members.length)
+    g.members.forEach((m, i) => ultQs.set(m.n, qs[i]))
+    uq = Object.fromEntries(g.members.map((m, i) => [m.n, publicOf(qs[i])]))
+    q = qs[0]
+  } else q = deck!.next(g.lv, g.n + 1)
+  curQ = q
   if (import.meta.env.DEV) {
     // 개발용: 시험 도구가 정답을 읽을 수 있게 (운영 빌드에는 없다)
     try {
-      localStorage.setItem('__bossA', JSON.stringify({ gid: g.gid, n: g.n + 1, a: q.a, k: q.k ?? 'mc' }))
+      localStorage.setItem(
+        '__bossA',
+        JSON.stringify({ gid: g.gid, n: g.n + 1, a: q.a, k: q.k ?? 'mc', ult: isUlt ? Object.fromEntries([...ultQs].map(([n, x]) => [n, { a: x.a, k: x.k ?? 'mc' }])) : undefined }),
+      )
     } catch {
       /* noop */
     }
@@ -314,6 +329,7 @@ function askNext(g: BossGame) {
     seq: g.seq + 1,
     ult: isUlt,
     done: [],
+    uq,
   })
 }
 
@@ -389,7 +405,7 @@ function resolveUlt(g: BossGame) {
   if (!q || !g.ult) return
   const cfg = stageOf(g.stage)
   const present = presentMembers(g)
-  const results = present.map((m) => ({ m, j: judge(q, ultAns.get(m.n), !ultAns.has(m.n)) }))
+  const results = present.map((m) => ({ m, j: judge(ultQs.get(m.n) ?? q, ultAns.get(m.n), !ultAns.has(m.n)) }))
   const allOk = results.length > 0 && results.every((r) => r.j.ok)
   const sum = present.reduce((a, m) => a + dmgOf(m.wt ?? 1, g.stage, m.pt ?? 0), 0)
   const dmg = allOk ? Math.round(sum * ULT_DMG_MULT) : 0
@@ -429,6 +445,7 @@ function resolveUlt(g: BossGame) {
       timeout: !allOk && results.some((r) => !ultAns.has(r.m.n)),
       kind: q.k ?? 'mc',
       ansText: first?.ansText,
+      ultAns: Object.fromEntries(results.map((r) => [r.m.n, r.j.ansText ?? ''])),
       ult: true,
       ultOk: results.filter((r) => r.j.ok).map((r) => r.m.n),
       ultBad: results.filter((r) => !r.j.ok).map((r) => r.m.n),
@@ -563,7 +580,8 @@ export function bossOnEvent(p: BossPayload) {
     if (g.ult) {
       // 필살기: 팀원 누구나 한 번씩 답을 낼 수 있다
       if (!g.members.some((m) => m.n === p.n) || ultAns.has(p.n)) return
-      if (!curQ || !validAnswer(curQ, p.p)) return
+      const mq = ultQs.get(p.n)
+      if (!mq || !validAnswer(mq, p.p)) return
       ultAns.set(p.n, p.p)
       registerUlt(g)
       return
@@ -615,7 +633,8 @@ export function answer(pick: number | string | number[]) {
   if (st.host === myName) {
     useBoss.setState({ picked: flag })
     if (g.ult) {
-      if (!curQ || !validAnswer(curQ, pick) || ultAns.has(myName)) return
+      const mq = ultQs.get(myName)
+      if (!mq || !validAnswer(mq, pick) || ultAns.has(myName)) return
       ultAns.set(myName, pick)
       registerUlt(g)
     } else resolve(g, pick, false)

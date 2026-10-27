@@ -3,7 +3,7 @@ import { HISTORY } from './historyBank'
 import { GRADE_BANK } from './gradeBank'
 import { mathQ5 } from './mathGrade5'
 import { orderQ } from './orderBank'
-import { formulaQ, shapeQ, ultShapeQ, type Figure } from './bossShapes'
+import { formulaQ, shapeQ, ultShapeQs, type Figure } from './bossShapes'
 import { SPELLING } from './spellingBank'
 import { DAILY_ENGLISH } from './dailyEnglish'
 
@@ -344,8 +344,8 @@ class RoundDeck {
     return table[table.length - 1][1]()
   }
 
-  ult(): BossQ {
-    return ultShapeQ()
+  ult(n: number): BossQ[] {
+    return ultShapeQs(n)
   }
 }
 
@@ -368,8 +368,9 @@ export class Deck {
     this.pos = 0
   }
   // 필살기(전원 동시) 문제 — 5단계만
-  ult(): BossQ {
-    return this.rounds ? this.rounds.ult() : this.next(3)
+  // 사람 수만큼 서로 다른 문제를 만든다
+  ult(n: number): BossQ[] {
+    return this.rounds ? this.rounds.ult(n) : Array.from({ length: n }, () => this.next(3))
   }
   next(lv: 1 | 2 | 3 = 1, n = 0): BossQ {
     if (this.rounds) return this.rounds.next(lv, n)
