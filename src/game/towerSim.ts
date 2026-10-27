@@ -233,6 +233,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
   sim.time += dt
   const T = sim.time
   const grounded = py < 0.7 // 점프 중에는 바닥 공격에 안 맞는다
+  const pace = towerStage(sim.stage).pace ?? 1
 
   // 내 공격이 맞는 순간
   if (sim.pendingHit && T >= sim.pendingHit.at) {
@@ -249,6 +250,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
   for (const m of sim.monsters) {
     if (m.deadAt !== 0) continue
     const def = KINDS[m.kind]
+    const spd = def.speed * pace // 높은 단계일수록 빠르다
     const born = T - m.bornAt
     const d = dist(m.x, m.z, px, pz)
     const toX = d > 1e-4 ? (px - m.x) / d : 0
@@ -260,7 +262,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
     if (born < 0.6) {
       // 나타나는 중
     } else if (m.kind === 'slime' || m.kind === 'mushroom') {
-      const sp = def.speed * (m.kind === 'slime' ? 0.55 + 0.45 * Math.abs(Math.sin(T * 3 + m.seed)) * 1.8 : 1)
+      const sp = spd * (m.kind === 'slime' ? 0.55 + 0.45 * Math.abs(Math.sin(T * 3 + m.seed)) * 1.8 : 1)
       vx = toX * sp
       vz = toZ * sp
       m.facing = Math.atan2(toX, toZ)
@@ -269,8 +271,8 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
       const px2 = -toZ
       const pz2 = toX
       const w = Math.sin(T * 3.2 + m.seed) * 0.9
-      vx = (toX + px2 * w) * def.speed
-      vz = (toZ + pz2 * w) * def.speed
+      vx = (toX + px2 * w) * spd
+      vz = (toZ + pz2 * w) * spd
       m.facing = Math.atan2(vx, vz)
     } else if (m.kind === 'shooter') {
       m.facing = Math.atan2(toX, toZ)
@@ -278,14 +280,14 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
         if (T - m.t > 0.75) {
           addBolt(m, m.facing, 5)
           m.st = 'idle'
-          m.cd = rnd(2.8, 3.8)
+          m.cd = rnd(2.8, 3.8) / pace
         }
       } else {
         const want = 6
         const k = d > want + 1.5 ? 1 : d < want - 1.5 ? -1 : 0
         const side = Math.sin(T * 0.9 + m.seed) > 0 ? 1 : -1
-        vx = toX * def.speed * k + -toZ * def.speed * 0.6 * side * (k === 0 ? 1 : 0.3)
-        vz = toZ * def.speed * k + toX * def.speed * 0.6 * side * (k === 0 ? 1 : 0.3)
+        vx = toX * spd * k + -toZ * spd * 0.6 * side * (k === 0 ? 1 : 0.3)
+        vz = toZ * spd * k + toX * spd * 0.6 * side * (k === 0 ? 1 : 0.3)
         if (m.cd <= 0) {
           m.st = 'wind'
           m.t = T
@@ -293,8 +295,8 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
       }
     } else if (m.kind === 'charger') {
       if (m.st === 'idle') {
-        vx = toX * def.speed
-        vz = toZ * def.speed
+        vx = toX * spd
+        vz = toZ * spd
         m.facing = Math.atan2(toX, toZ)
         if (m.cd <= 0 && d < 10) {
           m.st = 'wind'
@@ -319,15 +321,15 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
       } else {
         if (T - m.t > 0.8) {
           m.st = 'idle'
-          m.cd = rnd(2.2, 3.2)
+          m.cd = rnd(2.2, 3.2) / pace
         }
       }
     } else {
       // 우두머리: 따라가다가 땅 내리치기·사방으로 쏘기·돌진 중에 하나를 한다
       const angry = m.hp < m.max * 0.5
       if (m.st === 'idle') {
-        vx = toX * def.speed * (angry ? 1.25 : 1)
-        vz = toZ * def.speed * (angry ? 1.25 : 1)
+        vx = toX * spd * (angry ? 1.25 : 1)
+        vz = toZ * spd * (angry ? 1.25 : 1)
         m.facing = Math.atan2(toX, toZ)
         if (m.cd <= 0) {
           const r = Math.random()
@@ -368,7 +370,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
         }
       } else if (T - m.t > 0.9) {
         m.st = 'idle'
-        m.cd = angry ? 1.4 : 2.2
+        m.cd = (angry ? 1.4 : 2.2) / pace
       }
     }
 

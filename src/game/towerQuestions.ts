@@ -29,7 +29,7 @@ function math(stage: number): TowerQ {
   else if (stage === 2) q = mathQ5(2, 'mc')
   else if (stage === 3) q = mathQ5(2, Math.random() < 0.5 ? 'mc' : 'num')
   else if (stage === 4) q = mathQ5(3, 'mc')
-  else q = mathQ5(3, Math.random() < 0.6 ? 'num' : 'mc') // 5단계 이후엔 직접 입력이 더 많다
+  else q = mathQ5(3, Math.random() < (stage >= 12 ? 0.85 : 0.6) ? 'num' : 'mc') // 5단계 이후엔 직접 입력이 더 많다 (12단계부터는 거의 직접 입력)
   void lv
   return { ...q, cat: '수학', ms: QUIZ_MS }
 }
