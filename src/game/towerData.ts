@@ -52,83 +52,83 @@ export const ARENA_R = 10
 export const TOWER: TowerStage[] = [
   {
     id: 1, name: '슬라임 언덕', intro: '말랑말랑 슬라임들을 모두 물리쳐요!',
-    spawns: [['slime', 6, 15]], rec: 1, house: 1, reward: 10, title: '슬라임 사냥꾼', color: '#8bd450',
+    spawns: [['slime', 6, 15]], rec: 1, house: 1, reward: 5, title: '슬라임 사냥꾼', color: '#8bd450',
     theme: { sky: '#bfe6ef', fog: '#cdeaf0', ground: '#86c46a', ring: '#c9c2ad', accent: '#8bd450' }, mathLv: 1, koLv: 1,
   },
   {
     id: 2, name: '버섯 숲', intro: '달려드는 버섯을 조심해요!',
-    spawns: [['slime', 3, 30], ['mushroom', 6, 35]], rec: 2, house: 1, reward: 15, title: '버섯 정복자', color: '#3fa34d',
+    spawns: [['slime', 3, 30], ['mushroom', 6, 35]], rec: 2, house: 1, reward: 8, title: '버섯 정복자', color: '#3fa34d',
     theme: { sky: '#c9e8c0', fog: '#d4ecc9', ground: '#5fa857', ring: '#b8c9a0', accent: '#e86a6a' }, mathLv: 2, koLv: 2,
   },
   {
     id: 3, name: '박쥐 동굴', intro: '빠르고 어지러운 박쥐 떼!',
-    spawns: [['bat', 4, 40], ['slime', 3, 40], ['mushroom', 3, 40]], rec: 2, house: 2, reward: 25, title: '박쥐 추격자', color: '#3aa7e6',
+    spawns: [['bat', 4, 40], ['slime', 3, 40], ['mushroom', 3, 40]], rec: 2, house: 2, reward: 12, title: '박쥐 추격자', color: '#3aa7e6',
     theme: { sky: '#8aa0c8', fog: '#97aacf', ground: '#6a7690', ring: '#9aa4b8', accent: '#7ab8ff' }, mathLv: 2, koLv: 2,
   },
   {
     id: 4, name: '불꽃 협곡', intro: '멀리서 쏘는 도깨비불을 피하며 싸워요!',
-    spawns: [['shooter', 3, 45], ['mushroom', 3, 50], ['bat', 3, 45], ['slime', 3, 50]], rec: 3, house: 2, reward: 35, title: '사격 명수', color: '#2b5fd9',
+    spawns: [['shooter', 3, 45], ['mushroom', 3, 50], ['bat', 3, 45], ['slime', 3, 50]], rec: 3, house: 2, reward: 18, title: '사격 명수', color: '#2b5fd9',
     theme: { sky: '#f3c9a0', fog: '#f1d2b4', ground: '#b9915a', ring: '#c9a878', accent: '#ff7a3d' }, mathLv: 3, koLv: 3,
   },
   {
     id: 5, name: '멧돼지 고개', intro: '돌진을 피하고, 우두머리를 쓰러뜨려요!',
-    spawns: [['boss', 1, 120], ['charger', 4, 60], ['shooter', 3, 50], ['mushroom', 3, 50]], rec: 3, house: 3, reward: 50, title: '돌진 막이', color: '#8e4fd8',
+    spawns: [['boss', 1, 120], ['charger', 4, 60], ['shooter', 3, 50], ['mushroom', 3, 50]], rec: 3, house: 3, reward: 25, title: '돌진 막이', color: '#8e4fd8',
     theme: { sky: '#d6c4ee', fog: '#ddd0f1', ground: '#8f7fb0', ring: '#b7aedc', accent: '#a98bff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 6, name: '용사의 성', intro: '온갖 몬스터가 한꺼번에 몰려와요!',
-    spawns: [['charger', 3, 70], ['shooter', 3, 55], ['bat', 4, 45], ['mushroom', 4, 55], ['slime', 2, 70]], rec: 4, house: 3, reward: 70, title: '탑의 용사', color: '#f08a1c',
+    spawns: [['charger', 3, 70], ['shooter', 3, 55], ['bat', 4, 45], ['mushroom', 4, 55], ['slime', 2, 70]], rec: 4, house: 3, reward: 35, title: '탑의 용사', color: '#f08a1c',
     theme: { sky: '#f0d9a8', fog: '#f1e0b8', ground: '#a8a58f', ring: '#c8c2a8', accent: '#f08a1c' }, mathLv: 3, koLv: 3,
   },
   {
     id: 7, name: '폭풍 정상', intro: '바람처럼 빠른 적들이 몰려와요!',
-    spawns: [['bat', 5, 50], ['shooter', 3, 60], ['charger', 4, 80], ['mushroom', 3, 60], ['slime', 2, 40]], rec: 4, house: 4, reward: 90, title: '폭풍 돌파자', color: '#e0392d',
+    spawns: [['bat', 5, 50], ['shooter', 3, 60], ['charger', 4, 80], ['mushroom', 3, 60], ['slime', 2, 40]], rec: 4, house: 4, reward: 45, title: '폭풍 돌파자', color: '#e0392d',
     theme: { sky: '#7a86a8', fog: '#8a94b4', ground: '#58607c', ring: '#8a94b4', accent: '#e0392d' }, mathLv: 3, koLv: 3,
   },
   {
     id: 8, name: '정복자의 왕좌', intro: '탑의 주인이 나타났다! 모든 힘을 다해 싸워요!',
-    spawns: [['boss', 1, 700], ['mushroom', 10, 50]], rec: 5, house: 4, reward: 120, title: '탑의 정복자', color: '#e8b317',
+    spawns: [['boss', 1, 700], ['mushroom', 10, 50]], rec: 5, house: 4, reward: 60, title: '탑의 정복자', color: '#e8b317',
     theme: { sky: '#1b1a44', fog: '#2a2860', ground: '#3b4080', ring: '#6c70c8', accent: '#ffd86b' }, mathLv: 3, koLv: 3,
   },
   /* ───────── 9~16단계: 모든 단계를 깬 친구들을 위한 2부 (몬스터가 점점 빨라진다) ───────── */
   {
     id: 9, name: '얼음 동굴', intro: '미끄러운 얼음 위에서 몬스터가 더 많이 몰려와요!',
-    spawns: [['bat', 5, 55], ['shooter', 3, 65], ['charger', 3, 85], ['mushroom', 4, 65], ['slime', 3, 45]], rec: 5, house: 4, reward: 130, title: '빙하 정복자', color: '#4fd0e8', pace: 1,
+    spawns: [['bat', 5, 55], ['shooter', 3, 65], ['charger', 3, 85], ['mushroom', 4, 65], ['slime', 3, 45]], rec: 5, house: 4, reward: 65, title: '빙하 정복자', color: '#4fd0e8', pace: 1,
     theme: { sky: '#cfeaf5', fog: '#dff2fa', ground: '#9fd4e4', ring: '#d8f1f8', accent: '#4fd0e8' }, mathLv: 3, koLv: 3,
   },
   {
     id: 10, name: '독 늪', intro: '끈적한 늪에서 버섯 군단이 쏟아져요!',
-    spawns: [['mushroom', 7, 65], ['shooter', 4, 65], ['charger', 3, 90], ['bat', 4, 60]], rec: 5, house: 4, reward: 140, title: '늪의 생존자', color: '#7a9b2e', pace: 1,
+    spawns: [['mushroom', 7, 65], ['shooter', 4, 65], ['charger', 3, 90], ['bat', 4, 60]], rec: 5, house: 4, reward: 70, title: '늪의 생존자', color: '#7a9b2e', pace: 1,
     theme: { sky: '#c4d49a', fog: '#cfdca8', ground: '#6f8a3c', ring: '#a4b57a', accent: '#7a9b2e' }, mathLv: 3, koLv: 3,
   },
   {
     id: 11, name: '번개 탑', intro: '번개처럼 빠른 박쥐와 멧돼지를 조심해요!',
-    spawns: [['bat', 6, 60], ['charger', 5, 90], ['shooter', 4, 70]], rec: 6, house: 5, reward: 150, title: '번개 사냥꾼', color: '#e6b800', pace: 1.03,
+    spawns: [['bat', 6, 60], ['charger', 5, 90], ['shooter', 4, 70]], rec: 6, house: 5, reward: 75, title: '번개 사냥꾼', color: '#e6b800', pace: 1.03,
     theme: { sky: '#59607f', fog: '#6b7291', ground: '#434a66', ring: '#7a82a6', accent: '#ffd400' }, mathLv: 3, koLv: 3,
   },
   {
     id: 12, name: '용암 성', intro: '용암 성의 문지기! 땅 내리치기와 돌진을 피해요!',
-    spawns: [['boss', 1, 700], ['shooter', 3, 70], ['charger', 3, 90], ['bat', 4, 60]], rec: 6, house: 5, reward: 200, title: '불꽃 지배자', color: '#ff6a1a', pace: 1.05,
+    spawns: [['boss', 1, 700], ['shooter', 3, 70], ['charger', 3, 90], ['bat', 4, 60]], rec: 6, house: 5, reward: 100, title: '불꽃 지배자', color: '#ff6a1a', pace: 1.05,
     theme: { sky: '#4a2220', fog: '#6a302a', ground: '#5a3a34', ring: '#8a5a4a', accent: '#ff6a1a' }, mathLv: 3, koLv: 3,
   },
   {
     id: 13, name: '하늘 정원', intro: '구름 위 정원에 몬스터가 가득해요!',
-    spawns: [['charger', 5, 95], ['shooter', 4, 75], ['bat', 6, 65], ['mushroom', 5, 75]], rec: 6, house: 5, reward: 160, title: '구름 산책자', color: '#5f9be8', pace: 1.08,
+    spawns: [['charger', 5, 95], ['shooter', 4, 75], ['bat', 6, 65], ['mushroom', 5, 75]], rec: 6, house: 5, reward: 80, title: '구름 산책자', color: '#5f9be8', pace: 1.08,
     theme: { sky: '#bfe0ff', fog: '#d3eaff', ground: '#8fd08a', ring: '#e8f4ff', accent: '#7fb6ff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 14, name: '그림자 숲', intro: '어둠 속에서 빠른 그림자들이 덮쳐요!',
-    spawns: [['bat', 7, 65], ['shooter', 5, 75], ['charger', 4, 100]], rec: 6, house: 5, reward: 170, title: '그림자 사냥꾼', color: '#8a6bd8', pace: 1.1,
+    spawns: [['bat', 7, 65], ['shooter', 5, 75], ['charger', 4, 100]], rec: 6, house: 5, reward: 85, title: '그림자 사냥꾼', color: '#8a6bd8', pace: 1.1,
     theme: { sky: '#2a2a44', fog: '#3a3a58', ground: '#2f3f3a', ring: '#566a62', accent: '#8a6bd8' }, mathLv: 3, koLv: 3,
   },
   {
     id: 15, name: '별빛 신전', intro: '별빛 신전의 수호 몬스터들이 한꺼번에 나와요!',
-    spawns: [['mushroom', 10, 80], ['charger', 4, 110], ['shooter', 4, 80], ['bat', 5, 70]], rec: 6, house: 5, reward: 180, title: '별을 품은 자', color: '#b86bff', pace: 1.12,
+    spawns: [['mushroom', 10, 80], ['charger', 4, 110], ['shooter', 4, 80], ['bat', 5, 70]], rec: 6, house: 5, reward: 90, title: '별을 품은 자', color: '#b86bff', pace: 1.12,
     theme: { sky: '#1b1450', fog: '#2d2278', ground: '#40308c', ring: '#8a78e8', accent: '#b86bff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 16, name: '탑의 끝', intro: '탑의 진짜 주인이 나타났다! 마지막 싸움이에요!',
-    spawns: [['boss', 1, 900], ['shooter', 2, 80], ['charger', 2, 110], ['bat', 4, 70], ['mushroom', 4, 80]], rec: 6, house: 5, reward: 300, title: '전설의 탑 마스터', color: '#ff4d9d', pace: 1.12,
+    spawns: [['boss', 1, 900], ['shooter', 2, 80], ['charger', 2, 110], ['bat', 4, 70], ['mushroom', 4, 80]], rec: 6, house: 5, reward: 150, title: '전설의 탑 마스터', color: '#ff4d9d', pace: 1.12,
     theme: { sky: '#2a0f2f', fog: '#43183f', ground: '#5a2a56', ring: '#c07ad0', accent: '#ff4d9d' }, mathLv: 3, koLv: 3,
   },
 ]
