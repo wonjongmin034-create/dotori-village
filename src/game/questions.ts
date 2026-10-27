@@ -1,3 +1,5 @@
+import { NEW_DAILY_FROM, newDailySet } from './dailyPool'
+
 export type Subject = '국어' | '수학' | '사회' | '과학' | '영어'
 
 export type Question = {
@@ -588,6 +590,11 @@ function byDayHash(dayKey: string, pool: Question[]): Question[] {
 // dayKey: "YYYY-MM-DD". 과목마다 perSubject개씩. 선생님 문제(extra)를 먼저 채우고
 // 모자라는 만큼 기본 문제로 채운다 → 문제를 많이 넣을수록 우리 반 문제가 자주 나온다.
 export function dailySet(dayKey: string, perSubject = 4, extra: Question[] = []): Question[] {
+  // 2026-10-29부터는 큰 새 은행에서 차례대로 뽑는다 (안 겹치게, 정답 번호 골고루) — dailyPool.ts
+  if (dayKey >= NEW_DAILY_FROM) {
+    const custom = Object.fromEntries(SUBJECTS.map((sub) => [sub, byDayHash(dayKey, extra.filter((q) => q.subject === sub))])) as Record<Subject, Question[]>
+    return newDailySet(dayKey, perSubject, custom)
+  }
   const out: Question[] = []
   for (const sub of SUBJECTS) {
     const custom = byDayHash(
