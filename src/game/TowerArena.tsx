@@ -121,7 +121,7 @@ function MonsterView({ id, kind, color }: { id: number; kind: MonsterKind; color
 
   const w = kind === 'boss' ? 2.2 : 0.95
   return (
-    <group ref={g} visible={false}>
+    <group ref={g} visible={false} userData={{ outline: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.025, 0]}>
         <circleGeometry args={[kind === 'boss' ? 1.7 : 0.7, 16]} />
         <meshBasicMaterial color="#000" transparent opacity={0.16} depthWrite={false} />

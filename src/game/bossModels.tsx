@@ -167,7 +167,7 @@ function Shell({ children }: { children: ReactNode }) {
   })
 
   return (
-    <group ref={root}>
+    <group ref={root} userData={{ outline: true }}>
       <group ref={inner}>{children}</group>
     </group>
   )

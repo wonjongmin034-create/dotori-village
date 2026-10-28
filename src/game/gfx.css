@@ -1,0 +1,83 @@
+.gfx-btn {
+  position: absolute;
+  top: 72px;
+  left: 14px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 17px;
+  cursor: pointer;
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.gfx-back {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 40, 40, 0.38);
+  pointer-events: auto;
+}
+.gfx-card {
+  width: min(380px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: #fffdf6;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+.gfx-card h3 {
+  margin: 0 0 4px;
+  color: #2f7a40;
+}
+.gfx-now {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #58655c;
+}
+.gfx-list {
+  display: grid;
+  gap: 7px;
+}
+.gfx-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  text-align: left;
+  border: 2px solid #e3dcc5;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.gfx-opt b {
+  font-size: 15px;
+  color: #3b4a3f;
+}
+.gfx-opt span {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #6b7a70;
+}
+.gfx-opt.on {
+  border-color: #5bb36b;
+  background: #eaf8ec;
+}
+.gfx-close {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: #5bb36b;
+  cursor: pointer;
+}

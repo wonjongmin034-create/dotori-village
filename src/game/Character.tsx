@@ -1153,12 +1153,12 @@ function CostumeHeadBase({ id }: { id: string }) {
 export function Character({ avatar, refs }: { avatar: Avatar; refs: CharacterRefs }) {
   const ride = rideOf(avatar.ride)
   return (
-    <>
+    <group userData={{ outline: true }}>
       {ride && <RideModel id={ride.id} />}
       <group position={[0, ride ? ride.seat : 0, ride && ride.pose === 'horse' ? -0.05 : 0]}>
         <CharacterBody avatar={avatar} refs={refs} />
       </group>
-    </>
+    </group>
   )
 }
 

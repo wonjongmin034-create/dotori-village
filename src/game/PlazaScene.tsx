@@ -7,6 +7,7 @@ import { useOmok, seatPos } from './omokState'
 import { useOmokStats } from './omokStats'
 import { Toon } from './wearKit'
 import { Baked } from './Baked'
+import { Water } from './Water'
 import { BEDS, BENCHES, BOARD_SIGN, FEATURES, OMOK_TABLES, FOUNTAIN, GATE_Z, GAZEBO_POSTS, HIDEOUTS, LAMPS, PAVING_R, PLAZA_RADIUS, STAGE, TREES } from './plaza'
 
 // 도토리 광장의 모습 — 가운데 분수, 둘레의 돌바닥·벤치·가로등·꽃밭, 가장자리의 나무, 북쪽 무대,
@@ -25,17 +26,10 @@ function mulberry32(seed: number) {
 
 /* ---------- 땅·물 ---------- */
 function Ground() {
-  const water = useRef<THREE.MeshBasicMaterial>(null)
-  useFrame((s) => {
-    if (water.current) water.current.color.setHSL(0.52, 0.44, 0.52 + Math.sin(s.clock.elapsedTime * 0.5) * 0.03)
-  })
   const R = PLAZA_RADIUS + 1.4
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-        <planeGeometry args={[600, 600]} />
-        <meshBasicMaterial ref={water} color="#4fb4c6" />
-      </mesh>
+      <Water half={R + 0.15} round />
       {/* 섬 옆면 (모래) */}
       <mesh position={[0, -0.34, 0]}>
         <cylinderGeometry args={[R + 0.15, R - 0.35, 0.6, 56]} />

@@ -31,6 +31,8 @@ import { useBoss, isActive } from './game/bossState'
 import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
 import { PetButton, PetPanel } from './game/PetPanel'
 import { refreshTitles } from './game/omokStats'
+import { DPR, useGfx } from './game/gfx'
+import { GfxButton } from './game/GfxSettings'
 import { MAX_IN_ROOM, useLive } from './game/live'
 import { LiveHud } from './game/LiveHud'
 import { NoticeModal } from './game/NoticeModal'
@@ -66,6 +68,7 @@ export default function App() {
   const lastDragX = useRef<number | null>(null)
   const pinchDist = useRef<number | null>(null)
 
+  const gfxLevel = useGfx((s) => s.level)
   const mode = useVillage((s) => s.mode)
   const coins = useVillage((s) => s.coins)
   const cloud = useVillage((s) => s.cloud)
@@ -214,7 +217,8 @@ export default function App() {
       onWheel={onWheel}
     >
       <Canvas
-        dpr={[1, 1.5]}
+        dpr={DPR[gfxLevel]}
+        shadows="soft"
         camera={{ fov: 60, position: [0, 8, 14], near: 0.1, far: 240 }}
         onCreated={({ gl }) => {
           // 그래픽 장치 연결이 끊겼을 때(화면이 까맣게/깨져 보임): 잠깐 기다려도 안 돌아오면 새로고침
@@ -256,6 +260,7 @@ export default function App() {
           </span>
         </div>
 
+        <GfxButton />
         <div className="coinbar">🌰 {coins}</div>
 
         {plaza != null && <OmokHud />}

@@ -94,7 +94,7 @@ function PetActor({ sp, st, owner, slot = 0 }: { sp: string; st: number; owner: 
 
   if (!SPECIES_MAP[sp]) return null
   return (
-    <group ref={root} visible={false}>
+    <group ref={root} visible={false} userData={{ outline: true }}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <circleGeometry args={[0.3, 16]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.16} depthWrite={false} />
