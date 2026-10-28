@@ -11,7 +11,7 @@ import {
   startStage,
   useTower,
 } from './towerState'
-import { QUIZ_MS, STAGE_COUNT, TOWER, TOWER_DAILY, canEnter, heartsFor, isTowerTester, stageMonsterCount, stageTotalHp, titleOf, towerStage } from './towerData'
+import { QUIZ_MS, STAGE_COUNT, TOWER, TOWER_DAILY, canEnter, heartsFor, hpScaleOf, isTowerTester, quizMsFor, stageMonsterCount, stageNotes, stageTotalHp, titleOf, towerStage } from './towerData'
 import { answerText } from './towerQuestions'
 import { towerInput } from './player-state'
 import { FAMILY_EMOJI, isFamily, tierName } from './weapons'
@@ -126,7 +126,7 @@ export function TowerPicker() {
               </b>
               <p>{st.intro}</p>
               <ul>
-                <li>몬스터 {stageMonsterCount(st)}마리 (체력 합계 {stageTotalHp(st).toLocaleString()})</li>
+                <li>몬스터 {stageMonsterCount(st)}마리 (체력 합계 {Math.round(stageTotalHp(st) * hpScaleOf(cur)).toLocaleString()})</li>
                 <li>
                   권장 무기 {st.rec}단계 이상 · 내 무기 {weaponOk}단계
                   {avatar.weapon && isFamily(avatar.weapon) ? ` (${FAMILY_EMOJI[avatar.weapon]} ${tierName(avatar.weapon, avatar.wt)})` : ''}
@@ -136,8 +136,13 @@ export function TowerPicker() {
                   🌰 처음 깨면 {st.reward}개 · 칭호 「<span style={{ color: st.color, fontWeight: 900 }}>{st.title}</span>」
                 </li>
                 {st.house > 1 && <li>집 {st.house}단계 이상 필요</li>}
+                {stageNotes(cur).map((n) => (
+                  <li key={n} className="tower-danger">
+                    ⚠️ {n}
+                  </li>
+                ))}
               </ul>
-              <p className="tower-rule">몬스터를 모두 잡으면 보물상자가 나와요. 상자의 문제 3개(수학·영어·국어)를 문제당 30초 안에 모두 맞혀야 클리어예요. 하나라도 틀리면 몬스터부터 다시 싸워요!</p>
+              <p className="tower-rule">몬스터를 모두 잡으면 보물상자가 나와요. 상자의 문제 3개(수학·영어·국어)를 문제당 {Math.round(quizMsFor(cur) / 1000)}초 안에 모두 맞혀야 클리어예요. 하나라도 틀리면 몬스터부터 다시 싸워요!</p>
             </div>
             {err && <p className="boss-err">{err}</p>}
             <div className="armory-btns">
@@ -307,7 +312,8 @@ function TowerQuiz() {
     return () => clearInterval(t)
   }, [])
 
-  const leftMs = Math.max(0, QUIZ_MS - (now - qStart))
+  const totalMs = q?.ms ?? QUIZ_MS
+  const leftMs = Math.max(0, totalMs - (now - qStart))
   useEffect(() => {
     if (leftMs <= 0 && doneRef.current !== qStart) {
       doneRef.current = qStart
@@ -344,7 +350,7 @@ function TowerQuiz() {
         </small>
       </div>
       <div className="boss-timer">
-        <div className={leftMs < 8000 ? 'low' : ''} style={{ width: `${(leftMs / QUIZ_MS) * 100}%` }} />
+        <div className={leftMs < 8000 ? 'low' : ''} style={{ width: `${(leftMs / totalMs) * 100}%` }} />
         <span>{Math.ceil(leftMs / 1000)}초</span>
       </div>
       {q.sub && <div className="boss-sub">{q.sub}</div>}

@@ -98,37 +98,37 @@ export const TOWER: TowerStage[] = [
   },
   {
     id: 10, name: '독 늪', intro: '끈적한 늪에서 버섯 군단이 쏟아져요!',
-    spawns: [['mushroom', 7, 65], ['shooter', 4, 65], ['charger', 3, 90], ['bat', 4, 60]], rec: 5, house: 4, reward: 70, title: '늪의 생존자', color: '#7a9b2e', pace: 1,
+    spawns: [['mushroom', 5, 65], ['shooter', 3, 65], ['charger', 2, 90], ['bat', 4, 60]], rec: 5, house: 4, reward: 70, title: '늪의 생존자', color: '#7a9b2e', pace: 1,
     theme: { sky: '#c4d49a', fog: '#cfdca8', ground: '#6f8a3c', ring: '#a4b57a', accent: '#7a9b2e' }, mathLv: 3, koLv: 3,
   },
   {
     id: 11, name: '번개 탑', intro: '번개처럼 빠른 박쥐와 멧돼지를 조심해요!',
-    spawns: [['bat', 6, 60], ['charger', 5, 90], ['shooter', 4, 70]], rec: 6, house: 5, reward: 75, title: '번개 사냥꾼', color: '#e6b800', pace: 1.03,
+    spawns: [['bat', 6, 60], ['charger', 6, 90], ['shooter', 4, 70]], rec: 6, house: 5, reward: 75, title: '번개 사냥꾼', color: '#e6b800', pace: 1.03,
     theme: { sky: '#59607f', fog: '#6b7291', ground: '#434a66', ring: '#7a82a6', accent: '#ffd400' }, mathLv: 3, koLv: 3,
   },
   {
     id: 12, name: '용암 성', intro: '용암 성의 문지기! 땅 내리치기와 돌진을 피해요!',
-    spawns: [['boss', 1, 700], ['shooter', 3, 70], ['charger', 3, 90], ['bat', 4, 60]], rec: 6, house: 5, reward: 100, title: '불꽃 지배자', color: '#ff6a1a', pace: 1.05,
+    spawns: [['boss', 1, 700], ['shooter', 3, 70], ['charger', 2, 90], ['bat', 3, 60]], rec: 6, house: 5, reward: 100, title: '불꽃 지배자', color: '#ff6a1a', pace: 1.05,
     theme: { sky: '#4a2220', fog: '#6a302a', ground: '#5a3a34', ring: '#8a5a4a', accent: '#ff6a1a' }, mathLv: 3, koLv: 3,
   },
   {
     id: 13, name: '하늘 정원', intro: '구름 위 정원에 몬스터가 가득해요!',
-    spawns: [['charger', 5, 95], ['shooter', 4, 75], ['bat', 6, 65], ['mushroom', 5, 75]], rec: 6, house: 5, reward: 80, title: '구름 산책자', color: '#5f9be8', pace: 1.08,
+    spawns: [['charger', 4, 95], ['shooter', 3, 75], ['bat', 4, 65], ['mushroom', 3, 75]], rec: 6, house: 5, reward: 80, title: '구름 산책자', color: '#5f9be8', pace: 1.08,
     theme: { sky: '#bfe0ff', fog: '#d3eaff', ground: '#8fd08a', ring: '#e8f4ff', accent: '#7fb6ff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 14, name: '그림자 숲', intro: '어둠 속에서 빠른 그림자들이 덮쳐요!',
-    spawns: [['bat', 7, 65], ['shooter', 5, 75], ['charger', 4, 100]], rec: 6, house: 5, reward: 85, title: '그림자 사냥꾼', color: '#8a6bd8', pace: 1.1,
+    spawns: [['bat', 5, 65], ['shooter', 3, 75], ['charger', 4, 100], ['mushroom', 3, 75]], rec: 6, house: 5, reward: 85, title: '그림자 사냥꾼', color: '#8a6bd8', pace: 1.1,
     theme: { sky: '#2a2a44', fog: '#3a3a58', ground: '#2f3f3a', ring: '#566a62', accent: '#8a6bd8' }, mathLv: 3, koLv: 3,
   },
   {
     id: 15, name: '별빛 신전', intro: '별빛 신전의 수호 몬스터들이 한꺼번에 나와요!',
-    spawns: [['mushroom', 10, 80], ['charger', 4, 110], ['shooter', 4, 80], ['bat', 5, 70]], rec: 6, house: 5, reward: 90, title: '별을 품은 자', color: '#b86bff', pace: 1.12,
+    spawns: [['mushroom', 4, 80], ['charger', 3, 110], ['shooter', 2, 80], ['bat', 3, 70]], rec: 6, house: 5, reward: 90, title: '별을 품은 자', color: '#b86bff', pace: 1.12,
     theme: { sky: '#1b1450', fog: '#2d2278', ground: '#40308c', ring: '#8a78e8', accent: '#b86bff' }, mathLv: 3, koLv: 3,
   },
   {
     id: 16, name: '탑의 끝', intro: '탑의 진짜 주인이 나타났다! 마지막 싸움이에요!',
-    spawns: [['boss', 1, 900], ['shooter', 2, 80], ['charger', 2, 110], ['bat', 4, 70], ['mushroom', 4, 80]], rec: 6, house: 5, reward: 150, title: '전설의 탑 마스터', color: '#ff4d9d', pace: 1.12,
+    spawns: [['boss', 1, 520], ['shooter', 2, 80], ['charger', 2, 110], ['bat', 1, 70], ['mushroom', 2, 80]], rec: 6, house: 5, reward: 150, title: '전설의 탑 마스터', color: '#ff4d9d', pace: 1.12,
     theme: { sky: '#2a0f2f', fog: '#43183f', ground: '#5a2a56', ring: '#c07ad0', accent: '#ff4d9d' }, mathLv: 3, koLv: 3,
   },
 ]
@@ -136,6 +136,37 @@ export const TOWER: TowerStage[] = [
 export const towerStage = (id: number): TowerStage => TOWER[Math.max(1, Math.min(STAGE_COUNT, id)) - 1]
 export const stageTotalHp = (s: TowerStage) => s.spawns.reduce((a, [, n, hp]) => a + n * hp, 0)
 export const stageMonsterCount = (s: TowerStage) => s.spawns.reduce((a, [, n]) => a + n, 0)
+
+/* ---------- 9단계부터: 올라갈수록 확실히 어려워진다 ----------
+ * 단계 번호가 8을 넘은 만큼(t = 1~8)을 "난이도 단계"로 보고, 아래 값들이 단계마다 한 칸씩 어려워진다.
+ *  · 몬스터 속도·공격 빠르기: 9단계 +5%에서 시작해 단계마다 +3%씩 (16단계는 +26%)
+ *  · 몬스터 체력: 9단계 +8%에서 시작해 단계마다 +5%씩 (16단계는 +43%) — 싸움이 길어진다
+ *  · 도깨비불: 15단계부터 3발, 16단계에서 5발을 부채꼴로 쏜다 / 불덩이도 빨라지고 쏘기 전 예고 시간이 짧아진다
+ *  · 멧돼지: 16단계에서 연속으로 두 번 돌진한다 / 돌진 예고 시간이 짧아진다
+ *  · 상자 문제: 제한 시간이 단계마다 1초씩 줄어든다 (16단계는 22초), 직접 쓰는 문제와 어려운 영어가 늘어난다
+ */
+export const tierOf = (stage: number) => Math.max(0, stage - 8)
+export const paceOf = (stage: number) => (stage > 8 ? 1.05 + 0.03 * (tierOf(stage) - 1) : (towerStage(stage).pace ?? 1))
+export const hpScaleOf = (stage: number) => 1.08 + 0.05 * (tierOf(stage) - 1)
+export const quizMsFor = (stage: number) => QUIZ_MS - tierOf(stage) * 1000
+export const volleyOf = (stage: number) => (stage >= 16 ? 5 : stage >= 15 ? 3 : 1) // 도깨비불이 한 번에 쏘는 불덩이 수
+export const dashChainOf = (stage: number) => (stage >= 16 ? 2 : 1) // 멧돼지가 연달아 돌진하는 횟수
+export const boltSpeedOf = (stage: number) => 5 * (1 + 0.03 * tierOf(stage))
+export const windScaleOf = (stage: number) => Math.max(0.7, 1 - 0.04 * tierOf(stage)) // 공격 예고 시간 배율
+
+// 단계 소개 화면에 보여 줄 "이 단계의 위험" 목록 (9단계부터)
+export function stageNotes(stage: number): string[] {
+  if (stage <= 8) return []
+  const notes = [
+    `몬스터가 ${Math.round((paceOf(stage) - 1) * 100)}% 더 빨라요`,
+    `몬스터 체력이 ${Math.round((hpScaleOf(stage) - 1) * 100)}% 더 많아요`,
+    `상자 문제 제한 시간 ${Math.round(quizMsFor(stage) / 1000)}초`,
+  ]
+  if (volleyOf(stage) > 1) notes.push(`도깨비불이 불덩이를 ${volleyOf(stage)}발씩 부채꼴로 쏴요`)
+  if (dashChainOf(stage) > 1) notes.push('멧돼지가 연달아 두 번 돌진해요')
+  if (windScaleOf(stage) < 1) notes.push(`공격 예고가 ${Math.round((1 - windScaleOf(stage)) * 100)}% 더 짧아요`)
+  return notes
+}
 
 // 가장 높게 깬 단계의 칭호 (0 이면 없음)
 export const titleOf = (best: number): { text: string; color: string } | null =>

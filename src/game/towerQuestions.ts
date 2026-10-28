@@ -3,7 +3,7 @@ import { GRADE_BANK } from './gradeBank'
 import { mathQ5 } from './mathGrade5'
 import { englishQ, shuffle, type BossQ } from './bossQuestions'
 import { TOWER_EN, TOWER_KO } from './towerBank'
-import { QUIZ_MS, towerStage } from './towerData'
+import { QUIZ_MS, quizMsFor, towerStage } from './towerData'
 
 // 보물상자 문제 3개: 수학 1 + 영어 1 + 국어 1 (순서는 섞는다). 단계가 오를수록 어려워진다.
 //  · 수학: 5학년 문제 생성기 (숫자가 매번 새로 만들어져서, 친구에게 답을 물어봐도 소용없다)
@@ -29,7 +29,7 @@ function math(stage: number): TowerQ {
   else if (stage === 2) q = mathQ5(2, 'mc')
   else if (stage === 3) q = mathQ5(2, Math.random() < 0.5 ? 'mc' : 'num')
   else if (stage === 4) q = mathQ5(3, 'mc')
-  else q = mathQ5(3, Math.random() < (stage >= 12 ? 0.85 : 0.6) ? 'num' : 'mc') // 5단계 이후엔 직접 입력이 더 많다 (12단계부터는 거의 직접 입력)
+  else q = mathQ5(3, Math.random() < (stage >= 9 ? 0.9 : 0.6) ? 'num' : 'mc') // 5단계 이후엔 직접 입력이 더 많다 (9단계부터는 거의 직접 입력)
   void lv
   return { ...q, cat: '수학', ms: QUIZ_MS }
 }
@@ -83,12 +83,16 @@ function english(stage: number): TowerQ {
     case 5:
       return r < 0.5 ? sentence(3) : tiles(6, 9, 2)
     default:
+      // 9단계부터는 짧은 글 읽기와 긴 단어 철자가 더 자주 나온다
+      if (stage >= 9) return r < 0.45 ? sentence(3, true) : r < 0.8 ? tiles(8, 12, 3) : sentence(3)
       return r < 0.4 ? sentence(3, true) : r < 0.7 ? tiles(7, 10, 3) : sentence(3)
   }
 }
 
 export function towerQuiz(stage: number): TowerQ[] {
-  return shuffle([math(stage), english(stage), korean(stage)])
+  // 9단계부터는 제한 시간이 단계마다 1초씩 줄어든다
+  const ms = quizMsFor(stage)
+  return shuffle([math(stage), english(stage), korean(stage)]).map((q) => ({ ...q, ms }))
 }
 
 // 답이 맞는지

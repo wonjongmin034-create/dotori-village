@@ -144,7 +144,7 @@ export function answerTower(pick: number | string | null) {
   const q = s.quiz[s.qi]
   if (!q) return
   const elapsed = Date.now() - s.qStart
-  const timeout = pick == null || elapsed > QUIZ_MS + 2500
+  const timeout = pick == null || elapsed > (q.ms ?? QUIZ_MS) + 2500
   const ok = !timeout && judgeTower(q, pick)
   const secs = [...s.secs, Math.min(99, Math.round(elapsed / 100) / 10)]
   if (!ok) {

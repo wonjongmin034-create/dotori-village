@@ -1,4 +1,4 @@
-import { ARENA_R, INVULN_S, KINDS, MAX_ALIVE, RANGED_SLOW_S, STYLE, hitDamage, towerStage, type MonsterKind } from './towerData'
+import { ARENA_R, INVULN_S, KINDS, MAX_ALIVE, RANGED_SLOW_S, STYLE, boltSpeedOf, dashChainOf, hitDamage, hpScaleOf, paceOf, towerStage, volleyOf, windScaleOf, type MonsterKind } from './towerData'
 import type { WeaponFamily } from './weapons'
 
 // 탑의 전투 계산 — React 와 따로, 매 프레임 한 번씩 sim 을 갱신한다 (몬스터가 많아도 화면 상태를 건드리지 않는다).
@@ -27,6 +27,7 @@ export type Mon = {
   hitAt: number
   deadAt: number // 0 이면 살아 있음
   nextHit: number // 이 시각이 지나야 다시 닿아서 아프게 할 수 있다
+  chain: number // (멧돼지) 앞으로 더 이어서 돌진할 횟수
   seed: number
 }
 export type Bolt = { id: number; x: number; z: number; vx: number; vz: number; life: number; mine: boolean; dmg: number; splash: number; big: boolean }
@@ -83,7 +84,8 @@ export function simStart(stage: number) {
   sim.killed = 0
   sim.hurtBy = { contact: 0, bolt: 0, slam: 0, dash: 0 }
   const list: { kind: MonsterKind; hp: number }[] = []
-  for (const [kind, n, hp] of st.spawns) for (let i = 0; i < n; i++) list.push({ kind, hp })
+  const hs = hpScaleOf(stage)
+  for (const [kind, n, hp] of st.spawns) for (let i = 0; i < n; i++) list.push({ kind, hp: Math.round(hp * hs) })
   // 우두머리는 맨 먼저, 나머지는 섞어서 나온다
   const boss = list.filter((l) => l.kind === 'boss')
   const rest = list.filter((l) => l.kind !== 'boss').sort(() => Math.random() - 0.5)
@@ -126,7 +128,7 @@ function spawnOne(px: number, pz: number) {
   sim.monsters.push({
     id: sim.uid++, kind: q.kind, x, z, hp: q.hp, max: q.hp, r: def.r * (boss && q.hp < 300 ? 0.7 : 1), sc: def.scale * (boss && q.hp < 300 ? 0.7 : 1),
     kx: 0, kz: 0, facing: 0, st: 'idle', t: sim.time, cd: boss ? 2.2 : rnd(1.2, 2.8), dx: 0, dz: 1, pat: null,
-    bornAt: sim.time, hitAt: -9, deadAt: 0, nextHit: 0, seed: Math.random() * 100,
+    bornAt: sim.time, hitAt: -9, deadAt: 0, nextHit: 0, chain: 0, seed: Math.random() * 100,
   })
   sim.version++
 }
@@ -233,7 +235,9 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
   sim.time += dt
   const T = sim.time
   const grounded = py < 0.7 // 점프 중에는 바닥 공격에 안 맞는다
-  const pace = towerStage(sim.stage).pace ?? 1
+  const pace = paceOf(sim.stage)
+  const wscale = windScaleOf(sim.stage)
+  const dashMul = 1 + 0.4 * (pace - 1) // 돌진 속도도 조금 빨라진다
 
   // 내 공격이 맞는 순간
   if (sim.pendingHit && T >= sim.pendingHit.at) {
@@ -277,8 +281,9 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
     } else if (m.kind === 'shooter') {
       m.facing = Math.atan2(toX, toZ)
       if (m.st === 'wind') {
-        if (T - m.t > 0.75) {
-          addBolt(m, m.facing, 5)
+        if (T - m.t > 0.75 * wscale) {
+          const n = volleyOf(sim.stage)
+          for (let i = 0; i < n; i++) addBolt(m, m.facing + (i - (n - 1) / 2) * 0.42, boltSpeedOf(sim.stage))
           m.st = 'idle'
           m.cd = rnd(2.8, 3.8) / pace
         }
@@ -303,20 +308,31 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
           m.t = T
           m.dx = toX
           m.dz = toZ
-          addMark(m, { dur: 0.9, line: true, ang: Math.atan2(toX, toZ), len: 9 })
+          m.chain = dashChainOf(sim.stage) - 1
+          addMark(m, { dur: 0.9 * wscale, line: true, ang: Math.atan2(toX, toZ), len: 9 })
         }
       } else if (m.st === 'wind') {
         m.facing = Math.atan2(m.dx, m.dz)
-        if (T - m.t > 0.9) {
+        if (T - m.t > (m.chain < dashChainOf(sim.stage) - 1 ? 0.5 : 0.9) * wscale) {
           m.st = 'dash'
           m.t = T
         }
       } else if (m.st === 'dash') {
-        vx = m.dx * 11
-        vz = m.dz * 11
+        vx = m.dx * 11 * dashMul
+        vz = m.dz * 11 * dashMul
         if (T - m.t > 0.6) {
-          m.st = 'rest'
-          m.t = T
+          if (m.chain > 0) {
+            // 방향을 다시 잡고 곧바로 한 번 더 돌진한다
+            m.chain--
+            m.st = 'wind'
+            m.t = T
+            m.dx = toX
+            m.dz = toZ
+            addMark(m, { dur: 0.5 * wscale, line: true, ang: Math.atan2(toX, toZ), len: 9 })
+          } else {
+            m.st = 'rest'
+            m.t = T
+          }
         }
       } else {
         if (T - m.t > 0.8) {
@@ -342,7 +358,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
           else if (m.pat === 'charge') addMark(m, { dur: 0.9, line: true, ang: Math.atan2(toX, toZ), len: 11 })
         }
       } else if (m.st === 'wind') {
-        const need = m.pat === 'slam' ? 1.0 : m.pat === 'charge' ? 0.9 : 0.6
+        const need = (m.pat === 'slam' ? 1.0 : m.pat === 'charge' ? 0.9 : 0.6) * Math.max(wscale, 0.7)
         if (T - m.t > need) {
           if (m.pat === 'slam') {
             if (dist(m.x, m.z, px, pz) < 3.6 + 0.4 && grounded) hurtPlayer('slam')
@@ -352,7 +368,7 @@ export function simStep(dtRaw: number, px: number, pz: number, py: number) {
           } else if (m.pat === 'radial') {
             const n = angry ? 14 : 10
             const off = Math.random() * Math.PI
-            for (let i = 0; i < n; i++) addBolt(m, off + (i / n) * Math.PI * 2, 4.2, 3.4, true)
+            for (let i = 0; i < n; i++) addBolt(m, off + (i / n) * Math.PI * 2, 4.2 * (boltSpeedOf(sim.stage) / 5), 3.4, true)
             m.st = 'rest'
             m.t = T
           } else {
