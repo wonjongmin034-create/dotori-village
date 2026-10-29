@@ -71,7 +71,7 @@ export function Sun({
 
 /* ---------- 윤곽선 ---------- */
 const OUTLINE_COLOR = '#2a2230'
-const OUTLINE_PX = 0.022 // 세계 단위 두께 (몸집이 달라도 비슷하게 보이도록 크기로 나눠 쓴다)
+const OUTLINE_PX = 0.05 // 세계 단위 두께 (몸집이 달라도 비슷하게 보이도록 크기로 나눠 쓴다)
 const outlineMats = new Map<number, THREE.MeshBasicMaterial>()
 
 function outlineMat(thick: number) {

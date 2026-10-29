@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { skyLive } from './SkyDome'
@@ -70,7 +70,7 @@ void main() {
     col += vec3(1.0, 0.98, 0.9) * spark * 0.55 * uLight * (1.0 - smoothstep(14.0, 34.0, d));
   }
 
-  col *= mix(0.45, 1.0, uLight);
+  col *= mix(0.16, 1.0, uLight);
 
   // 멀리는 안개색으로
   float dist = length(cameraPosition - vWorld);
@@ -80,32 +80,39 @@ void main() {
 
 export function Water({ half, round = false, rounded = 0.4 }: { half: number; round?: boolean; rounded?: number }) {
   const sparkle = useGfx((s) => s.level === 'high')
-  const uniforms = useMemo(
-    () => ({
-      uTime: { value: 0 },
-      uHalf: { value: half },
-      uMode: { value: round ? 1 : 0 },
-      uRound: { value: rounded },
-      uSparkle: { value: 0 },
-      uFog: { value: new THREE.Color('#cdeaf3') },
-      uLight: { value: 1 },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // 재질을 직접 만들어 끼운다 — JSX로 uniforms를 넘기면 갱신이 재질에 닿지 않는 경우가 있었다
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: vert,
+        fragmentShader: frag,
+        uniforms: {
+          uTime: { value: 0 },
+          uHalf: { value: 0 },
+          uMode: { value: 0 },
+          uRound: { value: 0 },
+          uSparkle: { value: 0 },
+          uFog: { value: new THREE.Color('#cdeaf3') },
+          uLight: { value: 1 },
+        },
+      }),
     [],
   )
-  uniforms.uHalf.value = half
-  uniforms.uMode.value = round ? 1 : 0
-  uniforms.uRound.value = rounded
-  uniforms.uSparkle.value = sparkle ? 1 : 0
+  useEffect(() => {
+    material.uniforms.uHalf.value = half
+    material.uniforms.uMode.value = round ? 1 : 0
+    material.uniforms.uRound.value = rounded
+    material.uniforms.uSparkle.value = sparkle ? 1 : 0
+  }, [material, half, round, rounded, sparkle])
   useFrame((s) => {
-    uniforms.uTime.value = s.clock.elapsedTime
-    uniforms.uFog.value.copy(skyLive.fog)
-    uniforms.uLight.value = skyLive.light
+    material.uniforms.uTime.value = s.clock.elapsedTime
+    material.uniforms.uFog.value.copy(skyLive.fog)
+    material.uniforms.uLight.value = skyLive.light
   })
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} userData={{ noShadow: true }}>
       <planeGeometry args={[600, 600]} />
-      <shaderMaterial vertexShader={vert} fragmentShader={frag} uniforms={uniforms} />
+      <primitive object={material} attach="material" />
     </mesh>
   )
 }

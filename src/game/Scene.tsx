@@ -54,7 +54,7 @@ export function Scene() {
   const sunDir = useMemo(() => sunDirAt(sky), [sky])
   useEffect(() => {
     skyLive.fog.copy(sky.fog)
-    skyLive.light = 1 - sky.night * 0.45
+    skyLive.light = 1 - sky.night * 0.75 // 밤에는 바다도 어둡게
     skyLive.night = sky.night
   }, [sky])
 
