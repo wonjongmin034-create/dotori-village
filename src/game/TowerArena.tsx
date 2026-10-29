@@ -10,6 +10,7 @@ import { ARENA_R, STYLE, towerStage, type MonsterKind } from './towerData'
 import { markProgress, sim, simAttack, simStep } from './towerSim'
 import { playerMotion, playerPos, towerAim, towerInput } from './player-state'
 import { startSwing } from './swing'
+import { ArrowModel } from './ArrowModel'
 import { isFamily, GRADES, type WeaponFamily } from './weapons'
 
 // 탑의 싸움터 — 둥근 바닥 위에서 몬스터와 싸운다. 몬스터·날아가는 공격은 sim(towerSim.ts)이 계산하고, 여기서는 그리기만 한다.
@@ -154,6 +155,8 @@ function MonsterView({ id, kind, color }: { id: number; kind: MonsterKind; color
 }
 
 const BOLTS = 28
+const ARROWS = 8
+const GLOWS = 6
 const RINGS = 4
 const LINES = 4
 
@@ -162,11 +165,16 @@ function Projectiles() {
   const bolts = useRef<(THREE.Mesh | null)[]>([])
   const rings = useRef<(THREE.Group | null)[]>([])
   const lines = useRef<(THREE.Mesh | null)[]>([])
+  const arrows = useRef<(THREE.Group | null)[]>([])
+  const glows = useRef<(THREE.Mesh | null)[]>([])
   const mineMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#7fe9ff' }), [])
   const foeMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ff7a3d' }), [])
   const bigMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffd24a' }), [])
 
-  useFrame(() => {
+  useFrame((st) => {
+    let ai = 0
+    let gi = 0
+    const tt = st.clock.elapsedTime
     for (let i = 0; i < BOLTS; i++) {
       const m = bolts.current[i]
       if (!m) continue
@@ -175,11 +183,33 @@ function Projectiles() {
         m.visible = false
         continue
       }
+      // 활: 진짜 화살이 날아간다 (날아가는 방향을 향해)
+      if (b.mine && !b.big) {
+        m.visible = false
+        const a = arrows.current[ai++]
+        if (a) {
+          a.visible = true
+          a.position.set(b.x, 0.85, b.z)
+          a.rotation.y = Math.atan2(b.vx, b.vz)
+        }
+        continue
+      }
       m.visible = true
       m.position.set(b.x, 0.7, b.z)
       m.material = b.mine ? (b.big ? bigMat : mineMat) : foeMat
       m.scale.setScalar(b.big ? 1.5 : 1)
+      // 지팡이: 마법 구슬 둘레에 빛무리가 일렁인다
+      if (b.mine && b.big) {
+        const gl = glows.current[gi++]
+        if (gl) {
+          gl.visible = true
+          gl.position.set(b.x, 0.7, b.z)
+          gl.scale.setScalar(2.3 + Math.sin(tt * 18 + i) * 0.35)
+        }
+      }
     }
+    for (let j = ai; j < ARROWS; j++) if (arrows.current[j]) arrows.current[j]!.visible = false
+    for (let j = gi; j < GLOWS; j++) if (glows.current[j]) glows.current[j]!.visible = false
     let ri = 0
     let li = 0
     for (const k of sim.marks) {
@@ -213,6 +243,17 @@ function Projectiles() {
       {Array.from({ length: BOLTS }, (_, i) => (
         <mesh key={i} ref={(el) => void (bolts.current[i] = el)} visible={false} material={foeMat}>
           <sphereGeometry args={[0.24, 8, 6]} />
+        </mesh>
+      ))}
+      {Array.from({ length: ARROWS }, (_, i) => (
+        <group key={`ar${i}`} ref={(el) => void (arrows.current[i] = el)} visible={false}>
+          <ArrowModel feather="#7fe9ff" len={1.7} scale={1.2} />
+        </group>
+      ))}
+      {Array.from({ length: GLOWS }, (_, i) => (
+        <mesh key={`gl${i}`} ref={(el) => void (glows.current[i] = el)} visible={false}>
+          <sphereGeometry args={[0.24, 10, 8]} />
+          <meshBasicMaterial color="#ffb347" transparent opacity={0.32} blending={THREE.AdditiveBlending} depthWrite={false} />
         </mesh>
       ))}
       {Array.from({ length: RINGS }, (_, i) => (
@@ -340,7 +381,7 @@ export function TowerArena() {
         const tier = v.avatar.weapon && isFamily(v.avatar.weapon) ? v.avatar.wt : 1
         const res = simAttack(fam, tier, v.pet?.st ?? 0, playerPos.x, playerPos.z, playerMotion.facing)
         if (res.ok) {
-          if (v.session) startSwing(v.session.name)
+          if (v.session) startSwing(v.session.name, 0, fam)
           towerAim.angle = res.angle
           towerAim.until = performance.now() + 420
         }

@@ -10,6 +10,7 @@ import { stageOf } from './bossData'
 import { ARENA_R, BOSS_POS, BOSS_SCALE, slotPos } from './bossLayout'
 import { bossFx, camShake, clamp01, nowSec, resetBossFx } from './bossFx'
 import { startSwing } from './swing'
+import { ArrowModel } from './ArrowModel'
 import { GRADES } from './weapons'
 
 // 보스 방 — 보스와 팀이 있는 둥근 싸움터. 단계마다 분위기가 다르다.
@@ -359,19 +360,28 @@ function Wave({ at, color, to = 6, ms = 600 }: { at: V3; color: string; to?: num
   )
 }
 
-// 활·지팡이: 빛나는 구슬이 날아가 맞는다
-function Bolt({ from, to, color, onArrive }: { from: V3; to: V3; color: string; onArrive: () => void }) {
+// 활: 화살이 포물선으로 날아가 보스에 꽂힌다.  지팡이: 빛나는 마법 구슬이 날아가 맞는다.
+function Bolt({ from, to, color, fam, onArrive }: { from: V3; to: V3; color: string; fam: string; onArrive: () => void }) {
   const orb = useRef<THREE.Mesh>(null)
+  const arrow = useRef<THREE.Group>(null)
   const trail = useRef<(THREE.Mesh | null)[]>([])
   const t0 = useRef(performance.now())
   const done = useRef(false)
+  const isArrow = fam === 'bow'
   useFrame(() => {
-    const t = clamp01((performance.now() - t0.current) / 300)
-    const pos = (k: number): V3 => [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k + Math.sin(k * Math.PI) * 0.8, from[2] + (to[2] - from[2]) * k]
+    const t = clamp01((performance.now() - t0.current) / (isArrow ? 260 : 300))
+    const pos = (k: number): V3 => [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k + Math.sin(k * Math.PI) * (isArrow ? 0.55 : 0.8), from[2] + (to[2] - from[2]) * k]
     if (orb.current) {
       const p = pos(t)
       orb.current.position.set(p[0], p[1], p[2])
-      orb.current.visible = t < 1
+      orb.current.visible = !isArrow && t < 1
+    }
+    if (arrow.current) {
+      const p = pos(t)
+      const q = pos(Math.min(1, t + 0.03))
+      arrow.current.position.set(p[0], p[1], p[2])
+      arrow.current.lookAt(q[0], q[1], q[2]) // 날아가는 방향으로 화살촉이 향한다
+      arrow.current.visible = t < 1
     }
     trail.current.forEach((m, i) => {
       if (!m) return
@@ -391,6 +401,9 @@ function Bolt({ from, to, color, onArrive }: { from: V3; to: V3; color: string; 
         <sphereGeometry args={[1, 12, 10]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
+      <group ref={arrow} visible={false}>
+        <ArrowModel feather={color} len={1.5} scale={1.1} />
+      </group>
       {[0, 1, 2, 3].map((i) => (
         <mesh key={i} ref={(el) => void (trail.current[i] = el)}>
           <sphereGeometry args={[1, 8, 6]} />
@@ -419,7 +432,7 @@ function HitFx({ last, from }: { last: LastHit; from: V3 }) {
 
   return (
     <>
-      {ranged && !landed && <Bolt from={[from[0], 1.7, from[2] - 0.5]} to={AIM} color={color} onArrive={() => setLanded(true)} />}
+      {ranged && !landed && <Bolt from={[from[0], 1.7, from[2] - 0.5]} to={AIM} color={color} fam={fam} onArrive={() => setLanded(true)} />}
       {landed && (
         <>
           {burst}
@@ -531,8 +544,8 @@ function FxLayer() {
         const [sx, sz] = slotPos(idx, g.members.length)
         if (last.ok) {
           // 필살기: 팀원 모두가 한꺼번에 휘두른다
-          if (last.ult) g.members.forEach((m, i) => startSwing(m.n, i * 70))
-          else startSwing(last.who)
+          if (last.ult) g.members.forEach((m, i) => startSwing(m.n, i * 70, m.wf))
+          else startSwing(last.who, 0, last.fam)
           const ranged = last.fam === 'bow' || last.fam === 'staff'
           // 칼을 내리치는 순간(약 0.19초 뒤)에 맞는다
           setTimeout(() => {
