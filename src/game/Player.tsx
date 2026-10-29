@@ -16,6 +16,7 @@ import { rideOf, applyRidePose } from './rides'
 import { useBoss, isActive } from './bossState'
 import { slotPos, slotFacing, constrainToArena } from './bossLayout'
 import { swingPose } from './swing'
+import { myRaidSlot } from './raid'
 import { pushPosNow } from './live'
 
 const SPEED = 5 // m/s
@@ -94,7 +95,16 @@ export function Player() {
       if (!st.bossLock) pushPosNow() // 자리로 옮겨졌으니 친구들 화면에도 바로 알린다
     }
     st.bossLock = bossLocked
-    const m = editing || sit || bossLocked ? { x: 0, y: 0 } : getMove()
+    // 레이드 대기실에서는 내 자리에 서서 보스를 바라본다 (친구들과 위치를 주고받지 않으려고 걸어 다니지 않는다)
+    const raidLocked = vs.raidRoom
+    if (raidLocked) {
+      const rs = myRaidSlot()
+      playerPos.set(rs.x, 0, rs.z)
+      st.facing = rs.f
+      st.vy = 0
+      jumpInput.requested = false
+    }
+    const m = editing || sit || bossLocked || raidLocked ? { x: 0, y: 0 } : getMove()
     let mag = Math.hypot(m.x, m.y)
     const moving = mag > 0.02
 

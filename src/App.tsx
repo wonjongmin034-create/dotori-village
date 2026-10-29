@@ -24,6 +24,8 @@ import { enterPlaza, leavePlaza } from './game/plaza'
 import { OmokHud } from './game/OmokHud'
 import { BossHud, BossPicker, BossEntryButton } from './game/BossHud'
 import { TowerHud, TowerPicker, TowerEntryButton } from './game/TowerHud'
+import { RaidHud, RaidEntryButton } from './game/RaidHud'
+import { leaveRaid } from './game/raid'
 import { NameChangeButton, NameChangePanel } from './game/NameChange'
 import { useTower, inTowerFight, exitTower } from './game/towerState'
 import { leaveBoss } from './game/boss'
@@ -91,6 +93,7 @@ export default function App() {
   const visiting = useVillage((s) => s.visiting)
   const plaza = useVillage((s) => s.plaza)
   const bossRoom = useVillage((s) => s.bossRoom)
+  const raidRoom = useVillage((s) => s.raidRoom)
   const towerOn = useVillage((s) => s.towerOn)
   const towerPhase = useTower((s) => s.phase)
   const towerBusy = towerOn && towerPhase !== 'fight' && towerPhase !== 'intro'
@@ -245,6 +248,8 @@ export default function App() {
           <span>
             {towerOn
               ? '도토리 탑'
+              : raidRoom
+              ? '학급 레이드 · 금요일의 거인'
               : bossRoom != null
               ? `보스 방 ${bossRoom}번 · ${Math.max(bossCount, roomCount + 1)}/4명`
               : plaza != null
@@ -256,7 +261,7 @@ export default function App() {
               : session
                 ? `${session.name}${cloud === 'offline' ? ' · 📴 오프라인' : ''}`
                 : '둘러보는 중'}
-            {session && !towerOn && bossRoom == null && plaza == null && !visiting && !editing && <NameChangeButton />}
+            {session && !towerOn && !raidRoom && bossRoom == null && plaza == null && !visiting && !editing && <NameChangeButton />}
           </span>
         </div>
 
@@ -265,6 +270,7 @@ export default function App() {
 
         {plaza != null && <OmokHud />}
         {bossRoom != null && <BossHud />}
+        {raidRoom && <RaidHud />}
         {towerOn && <TowerHud />}
 
         {towerOn ? (
@@ -280,6 +286,10 @@ export default function App() {
               🏠 마을로 돌아가기
             </button>
           )
+        ) : raidRoom ? (
+          <button type="button" className="mode-btn visit-back" onClick={leaveRaid}>
+            🏠 마을로 돌아가기
+          </button>
         ) : bossRoom != null ? (
           <button
             type="button"
@@ -309,7 +319,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !visiting && plaza == null && bossRoom == null && !towerOn && (
+        {!editing && !visiting && plaza == null && bossRoom == null && !raidRoom && !towerOn && (
           <div className="hud-stack">
             {daily &&
               (() => {
@@ -355,6 +365,7 @@ export default function App() {
             )}
             <BossEntryButton />
             <TowerEntryButton />
+            <RaidEntryButton />
           </div>
         )}
 
@@ -390,6 +401,8 @@ export default function App() {
           <div className="hint">
             {towerOn
               ? '몬스터를 모두 잡으면 보물상자가 나와요 · 상자 문제 3개를 모두 맞혀야 클리어!'
+              : raidRoom
+              ? '반 친구들이 모이면 대장이 출발을 눌러요 · 대장은 가장 먼저 들어온 사람이에요'
               : bossRoom != null
               ? '친구 3~4명과 힘을 합쳐 보스를 쓰러뜨려요! 한 사람씩 차례로 문제를 풀어요'
               : plaza != null

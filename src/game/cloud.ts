@@ -191,7 +191,7 @@ export function logout() {
   clearRejoinFlag()
   resetSheets()
   useVillage.getState().setVisiting(null)
-  useVillage.setState({ session: null, cloud: 'local', plaza: null, bossRoom: null })
+  useVillage.setState({ session: null, cloud: 'local', plaza: null, bossRoom: null, raidRoom: false })
 }
 
 /* ---------- 마을 상태 밀어올리기 ---------- */

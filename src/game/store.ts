@@ -340,6 +340,7 @@ interface VillageState {
   visiting: Visiting | null // 놀러 간 친구 마을
   plaza: number | null // 광장 번호 (null = 내 마을에 있음)
   bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
+  raidRoom: boolean // 금요일 학급 레이드 대기실에 있는지
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
   bossTry: BossTry | null // 오늘 보스 도전 횟수
@@ -477,6 +478,7 @@ export const useVillage = create<VillageState>((set, get) => {
     visiting: null,
     plaza: null,
     bossRoom: null,
+    raidRoom: false,
     bossCleared: bossOf(initial.items),
     pet: petOf(initial.items),
     bossTry: bossTryOf(initial.items),

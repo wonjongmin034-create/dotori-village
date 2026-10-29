@@ -5,12 +5,13 @@ import { useCtl, CLOSED_TEXT } from './control'
 import { leavePlaza } from './plaza'
 import { endVisit } from './friends'
 import { leaveBoss } from './boss'
+import { leaveRaid } from './raid'
 
 // 선생님 "수업 제어": 광장·친구 마을 닫기 / 학생 전원 다시 접속시키기.
 // classes.control (jsonb) 에 저장 — supabase/schema-8-control.sql 을 실행해야 쓸 수 있다. 없어도 게임은 그대로 돌아간다.
 //   { closed?: boolean, kick?: number, bossReset?: number }   kick = 선생님이 "다시 접속"을 누른 시각(ms), bossReset = "보스 도전 횟수 초기화"를 누른 시각(ms)
 
-export type Control = { closed: boolean; kick: number; bossReset: number }
+export type Control = { closed: boolean; kick: number; bossReset: number; raidPractice: boolean }
 
 function sanitize(raw: unknown): Control {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
@@ -18,6 +19,7 @@ function sanitize(raw: unknown): Control {
     closed: o.closed === true,
     kick: typeof o.kick === 'number' && Number.isFinite(o.kick) ? o.kick : 0,
     bossReset: typeof o.bossReset === 'number' && Number.isFinite(o.bossReset) ? o.bossReset : 0,
+    raidPractice: o.raidPractice === true,
   }
 }
 
@@ -33,6 +35,7 @@ function applyClosed(closed: boolean) {
     // 광장·친구 마을에 있었다면 내 마을로 돌아온다 (실시간 연결은 live.ts 가 알아서 닫는다)
     if (s.plaza != null) leavePlaza()
     if (s.bossRoom != null) leaveBoss()
+    if (s.raidRoom) leaveRaid()
     if (s.visiting) endVisit()
     s.setNotice(CLOSED_TEXT)
   } else {
@@ -79,6 +82,7 @@ function handleKick(classCode: string, kick: number) {
   const s = useVillage.getState()
   if (s.plaza != null) leavePlaza()
   if (s.bossRoom != null) leaveBoss()
+  if (s.raidRoom) leaveRaid()
   if (s.visiting) endVisit()
   s.setNotice('선생님이 모두 다시 접속하게 했어요.\n잠깐 뒤에 자동으로 다시 들어가요 🔄')
   try {

@@ -8,6 +8,9 @@ import { playerPos, playerMotion } from './player-state'
 import { endVisit } from './friends'
 import { nextPlazaRoom } from './plaza'
 import { nextBossRoom } from './boss'
+import { nextRaidFull } from './raid'
+import { bindRaidIO, raidOnEvent, raidOnPresence, raidResend, raidReset, type RaidPayload } from './raidState'
+import { RAID_MAX, raidFacing, raidSlot } from './raidData'
 import { bindBossIO, bossOnEvent, bossOnPresence, bossPresence, bossResend, bossReset, type BossPayload } from './bossState'
 import { MAX_PARTY } from './bossData'
 import { bindOmokIO, omokOnEvent, omokResend, omokOnPresence, omokPresence, omokReset, type OmokPayload, type SeatMeta, type GameState } from './omokState'
@@ -98,6 +101,9 @@ function allowedOf(state: Record<string, Meta[]>, owner: string, cap = MAX_IN_RO
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
+// 방 종류별 최대 인원
+const capOf = (key: string) => (key.startsWith('raid:') ? RAID_MAX : key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM)
+
 function setEmote(key: string, e: string) {
   useLive.setState((s) => ({ emotes: { ...s.emotes, [key]: e } }))
   const old = emoteTimers.get(key)
@@ -116,7 +122,7 @@ function setEmote(key: string, e: string) {
 
 function send() {
   const s = useVillage.getState()
-  if (!ready || !channel || channel.state !== 'joined' || !s.session) return
+  if (!ready || !channel || channel.state !== 'joined' || !s.session || roomKey.startsWith('raid:')) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   void channel.send({
     type: 'broadcast',
@@ -154,7 +160,7 @@ export function pushPosNow() {
   send()
 }
 function tick() {
-  if (!ready || lastNames.length === 0) return
+  if (!ready || lastNames.length === 0 || roomKey.startsWith('raid:')) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   const air = playerPos.y > 0.01
   const now = performance.now()
@@ -200,6 +206,7 @@ let removedAt = 0
 function leave() {
   omokReset()
   bossReset()
+  raidReset()
   if (timer) clearInterval(timer)
   timer = null
   // 먼저 비운 다음에 닫는다: 닫는 순간 "CLOSED"가 동기로 오는데, 그때 내가 스스로 나간 것을 "끊겼다"로 착각하면 안 된다
@@ -245,13 +252,14 @@ function open(owner: string, key: string, me: string) {
     const state = ch.presenceState() as Record<string, Meta[]>
     // 내 입장 기록이 아직 안 올라온 첫 sync는 건너뛴다 (그때 판단하면 멀쩡한 나를 내보내게 됨)
     if (!(me in state)) return
-    const allowed = allowedOf(state, owner, key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM)
+    const allowed = allowedOf(state, owner, capOf(key))
     if (!allowed.includes(me)) {
       // 자리가 없다 → 내 마을로 돌아가고 안내
       if (!kicked) {
         kicked = true
         if (key.startsWith('plaza:')) nextPlazaRoom() // 광장이 꽉 찼으면 다음 번호 광장으로
         else if (key.startsWith('boss:')) nextBossRoom() // 보스 방이 꽉 찼으면 돌려보낸다
+        else if (key.startsWith('raid:')) nextRaidFull() // 레이드 대기실이 꽉 찼으면 돌려보낸다
         else {
           endVisit()
           useVillage
@@ -268,19 +276,31 @@ function open(owner: string, key: string, me: string) {
       const p = peers.get(k)
       if (p) p.avatar = avatar
       else peers.set(k, { name: k, avatar, x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, facing: 0, at: 0 })
+      if (key.startsWith('raid:')) {
+        const q = peers.get(k)!
+        const [rx, rz] = raidSlot(allowed.indexOf(k))
+        q.x = rx
+        q.z = rz
+        q.vx = 0
+        q.vz = 0
+        q.facing = raidFacing(rx, rz)
+        q.at = performance.now()
+      }
     }
     for (const k of [...peers.keys()]) if (!names.includes(k)) peers.delete(k)
     lastNames = names
     useLive.setState({ names, room: owner })
     if (key.startsWith('plaza:')) omokOnPresence(state, allowed)
     if (key.startsWith('boss:')) bossOnPresence(state, allowed)
+    if (key.startsWith('raid:')) raidOnPresence(allowed)
   })
     .on('presence', { event: 'join' }, ({ key: who }) => {
       if (who === me) return
       if (lastNames.includes(who)) return // 이미 있던 친구가 접속 정보만 바꾼 것 (옷·탑 단계 등) — 새로 온 게 아니다
       const st = ch.presenceState() as Record<string, Meta[]>
-      if (who in st && !allowedOf(st, owner, key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM).includes(who)) return // 자리가 없어 곧 돌아갈 사람
+      if (who in st && !allowedOf(st, owner, capOf(key)).includes(who)) return // 자리가 없어 곧 돌아갈 사람
       send() // 새로 온 친구가 내 위치를 알 수 있게
+      if (key.startsWith('raid:')) setTimeout(raidResend, 600) // 지금 출발 준비 상황도 알려 준다
       if (key.startsWith('plaza:')) setTimeout(omokResend, 600) // 오목 판도 알려 준다
       if (key.startsWith('boss:')) setTimeout(bossResend, 600) // 보스방 상태도 알려 준다
       if (performance.now() < quietUntil) return
@@ -291,7 +311,9 @@ function open(owner: string, key: string, me: string) {
             ? `${who}님이 광장에 왔어요 👋`
             : key.startsWith('boss:')
               ? `${who}님이 보스 방에 왔어요 ⚔️`
-              : owner === me
+              : key.startsWith('raid:')
+                ? `${who}님이 레이드에 왔어요 🐲`
+                : owner === me
               ? `${who}님이 놀러 왔어요! 👋`
               : `${who}님도 여기 왔어요 👋`,
         )
@@ -328,6 +350,10 @@ function open(owner: string, key: string, me: string) {
       cntRecv++
       if (key.startsWith('boss:')) bossOnEvent(payload as BossPayload)
     })
+    .on('broadcast', { event: 'raid' }, ({ payload }) => {
+      cntRecv++
+      if (key.startsWith('raid:')) raidOnEvent(payload as RaidPayload)
+    })
     .on('broadcast', { event: 'emote' }, ({ payload }) => {
       const m = payload as { n: string; e: string }
       if (m && m.n !== me && EMOTES.includes(m.e)) setEmote(m.n, m.e)
@@ -357,6 +383,18 @@ function open(owner: string, key: string, me: string) {
           me,
         )
       }
+      if (key.startsWith('raid:')) {
+        bindRaidIO(
+          {
+            send: (p) => {
+              cntSent++
+              void ch.send({ type: 'broadcast', event: 'raid', payload: p })
+            },
+          },
+          me,
+          useVillage.getState().session?.classCode ?? '',
+        )
+      }
       if (key.startsWith('plaza:')) {
         bindOmokIO(
           {
@@ -382,10 +420,12 @@ function syncRoom() {
     if (channel) leave()
     return
   }
-  const inRoom = s.bossRoom != null || s.plaza != null
+  const inRoom = s.bossRoom != null || s.plaza != null || s.raidRoom
   const owner = inRoom ? '' : s.visiting ? s.visiting.name : s.session.name
   const key =
-    s.bossRoom != null
+    s.raidRoom
+      ? `raid:${s.session.classCode}`
+      : s.bossRoom != null
       ? `boss:${s.session.classCode}:${s.bossRoom}`
       : s.plaza != null
         ? `plaza:${s.session.classCode}:${s.plaza}`
@@ -417,7 +457,7 @@ useCtl.subscribe((s, prev) => {
 })
 
 useVillage.subscribe((s, prev) => {
-  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom || s.towerOn !== prev.towerOn) syncRoom()
+  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom || s.raidRoom !== prev.raidRoom || s.towerOn !== prev.towerOn) syncRoom()
   else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn || s.pet?.sp !== prev.pet?.sp || s.pet?.st !== prev.pet?.st || s.tower.best !== prev.tower.best) && ready && channel)
     pushPresence()
 })

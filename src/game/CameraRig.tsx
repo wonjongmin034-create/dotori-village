@@ -46,7 +46,12 @@ export function CameraRig() {
     const half = cs.plaza != null ? 14 : landHalf(viewItems(cs))
     const zoomOut = 1 + Math.max(0, half - LAND_START) * 0.06
 
-    if (cs.bossRoom != null) {
+    if (cs.raidRoom) {
+      // 레이드 대기실: 반 친구들이 늘어선 모습과 뒤쪽의 거대한 보스가 한 화면에 보이게 고정
+      tmp.focus.set(0, 0, 2)
+      tmp.offset.set(0, 7.5, 13.5)
+      tmp.lookTarget.set(0, 3.4, -8.5)
+    } else if (cs.bossRoom != null) {
       // 보스 방: 싸움터 가운데를 고정해서 본다 (보스와 팀이 한 화면에)
       tmp.focus.set(0, 0, 0.4)
       tmp.offset.set(0, 5.3, 10.8)

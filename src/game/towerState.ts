@@ -83,7 +83,7 @@ export function startStage(stage: number): string | null {
   v.setVisiting(null)
   playerPos.set(0, 0, 5)
   const maxHearts = heartsFor(houseLv(), tester)
-  useVillage.setState({ towerOn: true, plaza: null, bossRoom: null })
+  useVillage.setState({ towerOn: true, plaza: null, bossRoom: null, raidRoom: false })
   useTower.setState({
     picker: false, phase: 'intro', stage, hearts: maxHearts, maxHearts, hpFrac: 1, left: 0, quiz: [], qi: 0, secs: [], failWhy: null, reveal: null, result: null,
   })

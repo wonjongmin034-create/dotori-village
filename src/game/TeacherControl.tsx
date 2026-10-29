@@ -19,6 +19,14 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
     void load()
   }
 
+  const setPractice = async (on: boolean) => {
+    setBusy(true)
+    const ok = await teacherSetControl(classCode, { raidPractice: on })
+    setBusy(false)
+    flash(ok ? (on ? '레이드 연습을 열었어요 (아무 때나 들어올 수 있어요)' : '레이드 연습을 닫았어요 (금요일 8시~2시에만 열려요)') : '저장하지 못했어요')
+    void load()
+  }
+
   const kickAll = async () => {
     if (!window.confirm('학생 전원이 잠깐 나갔다가 다시 접속해요.\n(진행 중인 오목은 중단돼요) 계속할까요?')) return
     setBusy(true)
@@ -58,6 +66,10 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
           <p className="dash-note" style={{ marginTop: 6 }}>
             화면이 이상하거나 연결이 꼬였을 때 눌러요. 학생들은 몇 초 안에 자기 마을로 돌아와 자동으로 다시 접속해요. (도토리·마을은 그대로 저장돼요)
           </p>
+          <label className="dash-switch" style={{ marginTop: 12 }}>
+            <input type="checkbox" disabled={busy || ctl === null} checked={ctl !== null && ctl.raidPractice} onChange={(e) => void setPractice(e.target.checked)} />
+            <span>{ctl !== null && ctl.raidPractice ? '🐲 레이드 연습 열림 (금요일이 아니어도 가능)' : '🐲 레이드 연습 닫힘 (금요일 8시~2시에만 열려요)'}</span>
+          </label>
           <button type="button" className="primary wide" disabled={busy || ctl === null} onClick={() => void resetBoss()} style={{ marginTop: 10 }}>
             ⚔️ 오늘 보스 도전 횟수 초기화
           </button>

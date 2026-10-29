@@ -15,6 +15,7 @@ import { useVillage } from './store'
 import { titleOf } from './towerData'
 
 const MAX_SHOWN = 10 // 한 번에 그리는 친구 수 (한 방 최대 10명)
+const RAID_SHOWN = 30 // 레이드 대기실은 반 전체
 const DETAILED = 4 // 가까운 이만큼만 옷까지 자세히 그리고, 나머지는 단순하게 (크롬북 성능)
 const DETAIL_DIST = 16
 
@@ -28,31 +29,33 @@ function dampAngle(current: number, target: number, lambda: number, dt: number) 
 // 같은 마을에 있는 친구들 — 받은 위치를 부드럽게 따라가며 걷는 모션을 보여 준다.
 export function RemotePlayers() {
   const names = useLive((s) => s.names)
+  const inRaid = useVillage((s) => s.raidRoom)
+  const shown = inRaid ? RAID_SHOWN : MAX_SHOWN
   const [detail, setDetail] = useState<Set<string>>(() => new Set(names.slice(0, DETAILED)))
 
   // 0.5초마다: 나와 가까운 친구 몇 명만 자세히 그린다
   useEffect(() => {
     const pick = () => {
       const ranked = names
-        .slice(0, MAX_SHOWN)
+        .slice(0, shown)
         .map((n) => {
           const p = peers.get(n)
           return { n, d: p && p.at ? Math.hypot(p.x - playerPos.x, p.z - playerPos.z) : 99 }
         })
         .sort((a, b) => a.d - b.d)
       const inBoss = useVillage.getState().bossRoom != null // 보스 방은 최대 4명이라 모두 자세히 (휘두르는 동작이 보여야 한다)
-      const keep = inBoss ? 4 : useGfx.getState().lite ? 2 : DETAILED // 느릴 때는 자세히 그리는 친구를 줄인다
+      const keep = inRaid ? 6 : inBoss ? 4 : useGfx.getState().lite ? 2 : DETAILED // 느릴 때는 자세히 그리는 친구를 줄인다
       const next = new Set(ranked.filter((r, i) => i < keep && r.d < DETAIL_DIST).map((r) => r.n))
       setDetail((prev) => (prev.size === next.size && [...next].every((n) => prev.has(n)) ? prev : next))
     }
     pick()
     const t = setInterval(pick, 500)
     return () => clearInterval(t)
-  }, [names])
+  }, [names, shown, inRaid])
 
   return (
     <>
-      {names.slice(0, MAX_SHOWN).map((n) => (
+      {names.slice(0, shown).map((n) => (
         <RemoteFigure key={n} name={n} simple={!detail.has(n)} />
       ))}
     </>

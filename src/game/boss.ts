@@ -29,7 +29,7 @@ export function enterBoss(room = 1) {
   setMyCleared(s.bossCleared)
   setMyHouse(s.items.find((i) => i.type === 'house')?.level ?? 1)
   playerPos.set((Math.random() - 0.5) * 5, 0, LOBBY_SPAWN_Z + Math.random())
-  useVillage.setState({ bossRoom: room, plaza: null })
+  useVillage.setState({ bossRoom: room, plaza: null, raidRoom: false })
 }
 
 export function leaveBoss() {

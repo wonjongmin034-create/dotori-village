@@ -20,6 +20,7 @@ import { useOmok } from './omokState'
 import { OmokThrottle } from './OmokThrottle'
 import { BossArena } from './BossArena'
 import { TowerArena } from './TowerArena'
+import { RaidArena } from './RaidArena'
 import { useTower } from './towerState'
 import { towerStage } from './towerData'
 import { useBoss } from './bossState'
@@ -41,6 +42,7 @@ export function Scene() {
   const omokSeated = useOmok((s) => s.me != null) // 오목 중엔 뒤 화면을 천천히 그리므로 fps 측정(저사양 판단)을 쉰다
   const inBoss = useVillage((s) => s.bossRoom != null)
   const inTower = useVillage((s) => s.towerOn)
+  const inRaid = useVillage((s) => s.raidRoom)
   const towerTheme = useTower((s) => towerStage(s.stage).theme)
   const bossTheme = useBoss((s) => stageOf(s.game?.stage ?? s.lobbyStage).theme)
 
@@ -58,7 +60,7 @@ export function Scene() {
     skyLive.night = sky.night
   }, [sky])
 
-  const open = !inBoss && !inTower // 하늘이 보이는 장면
+  const open = !inBoss && !inTower && !inRaid // 하늘이 보이는 장면
   const lite = level === 'low'
   const hemiSky = useMemo(() => sky.mid.clone().lerp(new THREE.Color('#ffffff'), 0.65), [sky])
 
@@ -67,8 +69,8 @@ export function Scene() {
       {!omokSeated && <AdaptiveQuality />}
       <OmokThrottle />
       <GfxRig />
-      <color attach="background" args={[inTower ? towerTheme.sky : inBoss ? bossTheme.sky : '#' + sky.hor.getHexString()]} />
-      <fog attach="fog" args={[inTower ? towerTheme.fog : inBoss ? bossTheme.fog : '#' + sky.fog.getHexString(), 30, 110]} />
+      <color attach="background" args={[inRaid ? '#1d1533' : inTower ? towerTheme.sky : inBoss ? bossTheme.sky : '#' + sky.hor.getHexString()]} />
+      <fog attach="fog" args={[inRaid ? '#241a3d' : inTower ? towerTheme.fog : inBoss ? bossTheme.fog : '#' + sky.fog.getHexString(), 30, 110]} />
 
       {/* 조명 — 마을은 시각에 따라 해 방향·색이 바뀌고, 보스방·탑은 고정 */}
       <hemisphereLight args={[open ? hemiSky : '#eaf4ff', '#8fb877', open ? sky.hemi : 0.65]} />
@@ -76,7 +78,7 @@ export function Scene() {
         dir={open ? sunDir : FIXED_SUN}
         intensity={open ? sky.key : 1.15}
         color={open ? '#' + sky.sun.clone().lerp(new THREE.Color('#ffffff'), 0.4).getHexString() : '#fff2da'}
-        focus={inBoss || editing ? 'center' : 'player'}
+        focus={inBoss || inRaid || editing ? 'center' : 'player'}
         shadow={level === 'high'}
         range={editing ? 26 : inBoss ? 20 : 16}
       />
@@ -126,6 +128,8 @@ export function Scene() {
 
       {inTower ? (
         <TowerArena />
+      ) : inRaid ? (
+        <RaidArena />
       ) : inBoss ? (
         <BossArena />
       ) : inPlaza ? (
