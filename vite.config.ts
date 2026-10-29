@@ -15,6 +15,8 @@ export default defineConfig({
       // 새 배포가 있으면 백그라운드로 받아서 자동 적용 (main.tsx에서 새로고침)
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,glb,gltf}'],
+        // 게임이 커져서 메인 파일이 기본 한도(2MiB)를 넘었다. 한도를 올려야 오프라인 저장(미리 받아 두기)에서 빠지지 않는다.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
