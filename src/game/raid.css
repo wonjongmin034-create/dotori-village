@@ -167,3 +167,83 @@
 .raid-wait .raid-hint {
   color: #cdbfff;
 }
+
+/* ---------- 전투 ---------- */
+.raid-ftop {
+  top: 50px;
+  width: min(96vw, 560px);
+}
+.raid-time {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffd98a;
+}
+.raid-p1 { background: linear-gradient(90deg, #6fd66f, #b6f06a); }
+.raid-p2 { background: linear-gradient(90deg, #4fb3ff, #8ee0ff); }
+.raid-p3 { background: linear-gradient(90deg, #b46bff, #e0a8ff); }
+.raid-p4 { background: linear-gradient(90deg, #ff5d4d, #ffb347); }
+.raid-pips {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+.raid-pips i {
+  width: 28px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.raid-pips i.now {
+  background: #ffd98a;
+  box-shadow: 0 0 8px rgba(255, 217, 138, 0.8);
+}
+.raid-pips i.done {
+  background: #8affb0;
+}
+.raid-team {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px;
+  max-height: 58px;
+  overflow: hidden;
+}
+.raid-mem {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.14);
+  white-space: nowrap;
+}
+.raid-mem b {
+  margin-left: 3px;
+  font-size: 9px;
+  letter-spacing: -1px;
+  color: #ff8a9a;
+}
+.raid-mem.me {
+  background: rgba(138, 255, 176, 0.3);
+}
+.raid-mem.dead {
+  opacity: 0.55;
+}
+.raid-result {
+  text-align: center;
+  color: #3a2a4a;
+}
+.raid-result h3 {
+  margin: 4px 0;
+  font-size: 22px;
+}
+.raid-result p {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.raid-hint2 {
+  color: #7a6a90;
+  font-size: 13px;
+}

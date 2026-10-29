@@ -3,6 +3,7 @@ import { useVillage } from './store'
 import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES, raidVisible } from './raidData'
 import { raidBlockReason, raidCancel, raidStart, useRaid } from './raidState'
 import { enterRaid } from './raid'
+import { RaidFightHud } from './RaidFightHud'
 import './raid.css'
 
 // 입구 버튼 (아직은 시험 계정·시험 주소에만 보인다)
@@ -26,8 +27,6 @@ export function RaidHud() {
   const status = useRaid((s) => s.status)
   const noServer = useRaid((s) => s.noServer)
   const banner = useRaid((s) => s.banner)
-  const tries = useRaid((s) => s.tries)
-  const members = useRaid((s) => s.members)
   const starting = useRaid((s) => s.starting)
   const [msg, setMsg] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -45,9 +44,22 @@ export function RaidHud() {
 
   const isLeader = leader === me
   const left = status ? status.left : RAID_TRIES
-  const tryNo = status ? Math.min(RAID_TRIES, status.tries + 1) : 1
   const why = raidBlockReason(roster, status, noServer)
   const secs = Math.max(0, Math.ceil((countEnd - now) / 1000))
+
+  // 싸우는 동안에는 전투 화면을 보여 준다
+  if (phase === 'fight') {
+    return (
+      <>
+        <RaidFightHud />
+        {banner && (
+          <div className="raid-top" style={{ top: 150 }}>
+            <div className="raid-banner">{banner}</div>
+          </div>
+        )}
+      </>
+    )
+  }
 
   return (
     <>
@@ -56,7 +68,7 @@ export function RaidHud() {
           <div className="raid-title">
             🐲 학급 레이드{status?.practice ? ' (연습)' : ''}
             <span className="raid-try">
-              {phase === 'fight' ? `${tries || tryNo}번째 도전` : `오늘 남은 도전 ${left}번`}
+              오늘 남은 도전 {left}번
             </span>
           </div>
           <div className="raid-count">
@@ -108,12 +120,6 @@ export function RaidHud() {
           <button type="button" className="raid-cancel" onClick={raidCancel}>
             ✋ 잠깐, 취소할래요
           </button>
-        )}
-        {phase === 'fight' && (
-          <div className="raid-wait">
-            ⚔️ 출발! 함께 가는 사람 {members.length}명
-            <div className="raid-hint">거인과의 싸움은 곧 열려요 (지금은 대기실까지만 만들어졌어요)</div>
-          </div>
         )}
       </div>
     </>

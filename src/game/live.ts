@@ -393,6 +393,7 @@ function open(owner: string, key: string, me: string) {
           },
           me,
           useVillage.getState().session?.classCode ?? '',
+          (n) => peers.get(n)?.avatar.weapon ?? null,
         )
       }
       if (key.startsWith('plaza:')) {

@@ -1,7 +1,7 @@
 import { useVillage } from './store'
 import { playerPos } from './player-state'
 import { isClosed, CLOSED_TEXT } from './control'
-import { RAID_OPEN_TEXT, RAID_TRIES, raidFacing, raidSlot } from './raidData'
+import { RAID_OPEN_TEXT, RAID_TRIES, raidDevForce, raidFacing, raidSlot } from './raidData'
 import { raidStatus } from './raidApi'
 import { raidSetStatus, setRaidLateHandler, useRaid } from './raidState'
 
@@ -22,7 +22,7 @@ export async function enterRaid() {
   if (entering) return
   entering = true
   try {
-    const st = await raidStatus(s.session.classCode)
+    const st = raidDevForce() ? ('missing' as const) : await raidStatus(s.session.classCode)
     let noServer = false
     if (st === 'missing') {
       // 서버 준비(schema-11-raid.sql)가 안 됐다. 개발 중에만 그냥 들어가서 볼 수 있다.

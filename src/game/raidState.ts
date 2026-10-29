@@ -1,17 +1,20 @@
 import { create } from 'zustand'
-import { RAID_COUNTDOWN_S, RAID_MIN } from './raidData'
-import { raidBegin, type RaidStatus } from './raidApi'
+import { RAID_COUNTDOWN_S, RAID_MIN, raidHpFor } from './raidData'
+import { raidBegin, raidHpMult, raidStatus, type RaidStatus } from './raidApi'
+import { bindFightIO, fightAdoptLeader, fightOnEvent, fightReset, fightStart, fightTick, useFight, type FightPayload } from './raidFight'
 
-// 학급 레이드 대기실 — 보스방과 같은 방식: "대장"(방에 제일 먼저 들어온 사람)이 출발을 관리한다.
-//  · 서버 메시지를 아끼려고 사람들은 제자리에 서 있고(위치를 보내지 않는다), "출발 / 취소 / 시작" 같은 신호만 주고받는다.
-//  · 대장이 시작을 누르면 10초 세기가 시작되고, 끝났을 때 서버에서 도전 횟수를 하나 쓰고 모두 함께 이동한다.
+// 학급 레이드 — 대기실과 출발. 보스방과 같은 방식: "대장"(방에 제일 먼저 들어온 사람)이 출발을 관리한다.
+//  · 서버 메시지를 아끼려고 사람들은 제자리에 서 있고(위치를 보내지 않는다), 필요한 신호만 주고받는다.
+//  · 대장이 시작을 누르면 10초 세기가 시작되고, 끝났을 때 서버에서 도전 횟수를 하나 쓰고 모두 함께 전투를 시작한다.
+//  · 전투 규칙은 raidFight.ts.
 
 export type RaidPhase = 'lobby' | 'count' | 'fight'
 
 export type RaidPayload =
   | { k: 'go'; gid: number; ms: number } // 대장이 시작을 눌렀다 — ms 뒤에 출발
   | { k: 'cancel'; gid: number; why: string }
-  | { k: 'start'; gid: number; members: string[]; tries: number }
+  | { k: 'start'; gid: number; members: string[]; tries: number; hm?: number } // hm = 보스 체력 배율
+  | FightPayload // 전투 중: 'd' 피해 보고, 'f' 대장이 알리는 현재 상황
 
 type IO = { send: (p: RaidPayload) => void }
 
@@ -50,30 +53,41 @@ export const useRaid = create<RaidState>(() => ({ ...initial }))
 let io: IO | null = null
 let myName = ''
 let classCode = ''
-let tickTimer: ReturnType<typeof setInterval> | null = null
 let onLate: (() => void) | null = null
+let tickTimer: ReturnType<typeof setInterval> | null = null
+let myWasLeader = false
 
-export const raidMe = () => myName
-export const isRaidLeader = () => useRaid.getState().leader === myName
 export function setRaidLateHandler(fn: (() => void) | null) {
   onLate = fn
 }
 
-export function bindRaidIO(next: IO, name: string, code: string) {
+export function bindRaidIO(next: IO, name: string, code: string, weaponOf: (n: string) => string | null) {
   io = next
   myName = name
   classCode = code
+  bindFightIO({
+    send: (p) => next.send(p),
+    me: name,
+    isLeader: () => useRaid.getState().leader === name,
+    present: () => useRaid.getState().roster,
+    weaponOf,
+    classCode: code,
+  })
   if (tickTimer) clearInterval(tickTimer)
   tickTimer = setInterval(hostTick, 250)
   useRaid.setState({ banner: null })
+  fightReset()
 }
 
 export function raidReset() {
   if (tickTimer) clearInterval(tickTimer)
   tickTimer = null
   io = null
+  bindFightIO(null)
+  fightReset()
   const { status, noServer } = useRaid.getState()
   useRaid.setState({ ...initial, status, noServer }) // 들어올 때 받아 온 서버 상태는 남긴다
+  myWasLeader = false
 }
 
 export function raidSetStatus(status: RaidStatus | null, noServer: boolean) {
@@ -100,6 +114,13 @@ export function raidOnPresence(allowed: string[]) {
   }
   // 이미 출발한 뒤에 들어온 사람은 함께 갈 수 없다
   if (st.phase === 'fight' && myName && !st.members.includes(myName)) onLate?.()
+  // 싸우는 도중 대장이 나가서 내가 새 대장이 되었다 → 마지막으로 받은 상태로 이어서 진행한다
+  const nowLeader = leader === myName
+  if (nowLeader && !myWasLeader && st.phase === 'fight') {
+    fightAdoptLeader()
+    flashBanner('대장이 나가서 이제 내가 대장이에요!')
+  }
+  myWasLeader = nowLeader
 }
 
 /* ---------- 대장: 시작 · 취소 · 출발 ---------- */
@@ -143,19 +164,23 @@ function cancelFor(why: string) {
 
 function hostTick() {
   const st = useRaid.getState()
+  if (st.phase === 'fight') {
+    fightTick() // 전투: 모든 사람이 자기 문제를 내고, 대장은 체력과 페이즈를 관리한다
+    return
+  }
   if (st.phase !== 'count' || st.leader !== myName || st.starting) return
   if (st.roster.length < RAID_MIN) {
     cancelFor(`${RAID_MIN}명보다 적어져서 출발을 취소했어요`)
     return
   }
   if (Date.now() < st.countEnd) return
-  void finalizeStart(st.gid)
+  void finalizeStart(st.gid, st.roster.slice(), st.noServer)
 }
 
-async function finalizeStart(gid: number) {
+async function finalizeStart(gid: number, members: string[], noServer: boolean) {
   useRaid.setState({ starting: true })
   let tries = 0
-  if (!useRaid.getState().noServer) {
+  if (!noServer) {
     const r = await raidBegin(classCode)
     if (useRaid.getState().gid !== gid || useRaid.getState().phase !== 'count') return // 그 사이 취소됐다
     if (!r.ok) {
@@ -172,25 +197,51 @@ async function finalizeStart(gid: number) {
     }
     tries = r.tries
   }
-  const members = useRaid.getState().roster.slice()
-  io?.send({ k: 'start', gid, members, tries })
-  begin(gid, members, tries)
+  const hm = noServer ? 1 : await raidHpMult(classCode)
+  if (useRaid.getState().gid !== gid || useRaid.getState().phase !== 'count') return
+  io?.send({ k: 'start', gid, members, tries, hm })
+  begin(gid, members, tries, hm)
 }
 
-function begin(gid: number, members: string[], tries: number) {
+function begin(gid: number, members: string[], tries: number, hm = 1) {
   useRaid.setState({ phase: 'fight', gid, members, tries, countEnd: 0, countLeader: null, starting: false })
   const st = useRaid.getState()
-  if (st.status) useRaid.setState({ status: { ...st.status, tries: Math.max(st.status.tries, tries), left: Math.max(0, 3 - Math.max(st.status.tries, tries)) } })
-  if (myName && !members.includes(myName)) onLate?.()
+  if (st.status) {
+    const used = Math.max(st.status.tries, tries)
+    useRaid.setState({ status: { ...st.status, tries: used, left: Math.max(0, 3 - used) } })
+  }
+  if (myName && !members.includes(myName)) {
+    onLate?.()
+    return
+  }
+  fightStart(gid, members, hm)
+}
+
+// 싸움이 끝난 뒤 대기실로 돌아온다 (남은 도전 횟수를 서버에서 다시 받는다)
+export function raidToLobby() {
+  fightReset()
+  useRaid.setState({ phase: 'lobby', members: [], countEnd: 0, countLeader: null, starting: false, banner: null })
+  if (classCode && !useRaid.getState().noServer) {
+    void raidStatus(classCode).then((s) => {
+      if (s !== 'missing') useRaid.setState({ status: s })
+    })
+  }
 }
 
 /* ---------- 받은 신호 ---------- */
 
 export function raidOnEvent(p: RaidPayload) {
   const st = useRaid.getState()
+  if (p.k === 'd' || p.k === 'f') {
+    if (st.phase === 'fight') fightOnEvent(p)
+    return
+  }
   if (p.k === 'go') {
-    if (st.phase === 'fight') return
-    useRaid.setState({ phase: 'count', gid: p.gid, countEnd: Date.now() + Math.max(0, Math.min(15_000, p.ms)), countLeader: st.leader })
+    const fs = useFight.getState().st
+    // 싸움이 끝난 화면에 있어도 새 도전의 출발 신호를 받으면 대기실로 돌아온다
+    if (st.phase === 'fight' && fs !== 'won' && fs !== 'lost') return
+    if (st.phase === 'fight') fightReset()
+    useRaid.setState({ phase: 'count', gid: p.gid, countEnd: Date.now() + Math.max(0, Math.min(15_000, p.ms)), countLeader: st.leader, members: [] })
   } else if (p.k === 'cancel') {
     if (st.phase !== 'count' || p.gid !== st.gid) return
     useRaid.setState({ phase: 'lobby', countEnd: 0, countLeader: null })
@@ -198,7 +249,7 @@ export function raidOnEvent(p: RaidPayload) {
   } else if (p.k === 'start') {
     if (st.phase === 'fight' && st.gid === p.gid) return
     if (!Array.isArray(p.members)) return
-    begin(p.gid, p.members.filter((n) => typeof n === 'string').slice(0, 40), typeof p.tries === 'number' ? p.tries : 0)
+    begin(p.gid, p.members.filter((n) => typeof n === 'string').slice(0, 40), typeof p.tries === 'number' ? p.tries : 0, typeof p.hm === 'number' ? p.hm : 1)
   }
 }
 
@@ -207,5 +258,5 @@ export function raidResend() {
   const st = useRaid.getState()
   if (!io || st.leader !== myName) return
   if (st.phase === 'count') io.send({ k: 'go', gid: st.gid, ms: Math.max(0, st.countEnd - Date.now()) })
-  else if (st.phase === 'fight') io.send({ k: 'start', gid: st.gid, members: st.members, tries: st.tries })
+  else if (st.phase === 'fight') io.send({ k: 'start', gid: st.gid, members: st.members, tries: st.tries, hm: useFight.getState().hpList[0] / raidHpFor(1)[0] })
 }

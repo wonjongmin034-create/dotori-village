@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { teacherFetchControl, teacherSetControl, type Control } from './classControl'
+import { RAID_HP_MULTS } from './raidData'
 
 // 선생님 화면: 광장·친구 마을 닫기 / 학생 전원 다시 접속시키기
 export function TeacherControl({ classCode, flash }: { classCode: string; flash: (t: string) => void }) {
@@ -24,6 +25,14 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
     const ok = await teacherSetControl(classCode, { raidPractice: on })
     setBusy(false)
     flash(ok ? (on ? '레이드 연습을 열었어요 (아무 때나 들어올 수 있어요)' : '레이드 연습을 닫았어요 (금요일 8시~2시에만 열려요)') : '저장하지 못했어요')
+    void load()
+  }
+
+  const setHpMult = async (m: number) => {
+    setBusy(true)
+    const ok = await teacherSetControl(classCode, { raidHpMult: m })
+    setBusy(false)
+    flash(ok ? `레이드 보스 체력을 ×${m}로 정했어요 (다음 도전부터)` : '저장하지 못했어요')
     void load()
   }
 
@@ -69,6 +78,16 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
           <label className="dash-switch" style={{ marginTop: 12 }}>
             <input type="checkbox" disabled={busy || ctl === null} checked={ctl !== null && ctl.raidPractice} onChange={(e) => void setPractice(e.target.checked)} />
             <span>{ctl !== null && ctl.raidPractice ? '🐲 레이드 연습 열림 (금요일이 아니어도 가능)' : '🐲 레이드 연습 닫힘 (금요일 8시~2시에만 열려요)'}</span>
+          </label>
+          <label className="dash-switch" style={{ marginTop: 8 }}>
+            <span>🐲 레이드 보스 체력</span>
+            <select disabled={busy || ctl === null} value={ctl !== null ? ctl.raidHpMult : 1} onChange={(e) => void setHpMult(Number(e.target.value))} style={{ marginLeft: 8 }}>
+              {RAID_HP_MULTS.map((m) => (
+                <option key={m} value={m}>
+                  {m === 1 ? '기본 (×1)' : m < 1 ? `쉽게 (×${m})` : `어렵게 (×${m})`}
+                </option>
+              ))}
+            </select>
           </label>
           <button type="button" className="primary wide" disabled={busy || ctl === null} onClick={() => void resetBoss()} style={{ marginTop: 10 }}>
             ⚔️ 오늘 보스 도전 횟수 초기화

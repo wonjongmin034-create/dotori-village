@@ -11,7 +11,7 @@ import { leaveRaid } from './raid'
 // classes.control (jsonb) 에 저장 — supabase/schema-8-control.sql 을 실행해야 쓸 수 있다. 없어도 게임은 그대로 돌아간다.
 //   { closed?: boolean, kick?: number, bossReset?: number }   kick = 선생님이 "다시 접속"을 누른 시각(ms), bossReset = "보스 도전 횟수 초기화"를 누른 시각(ms)
 
-export type Control = { closed: boolean; kick: number; bossReset: number; raidPractice: boolean }
+export type Control = { closed: boolean; kick: number; bossReset: number; raidPractice: boolean; raidHpMult: number }
 
 function sanitize(raw: unknown): Control {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
@@ -20,6 +20,7 @@ function sanitize(raw: unknown): Control {
     kick: typeof o.kick === 'number' && Number.isFinite(o.kick) ? o.kick : 0,
     bossReset: typeof o.bossReset === 'number' && Number.isFinite(o.bossReset) ? o.bossReset : 0,
     raidPractice: o.raidPractice === true,
+    raidHpMult: typeof o.raidHpMult === 'number' && Number.isFinite(o.raidHpMult) ? Math.min(2, Math.max(0.4, o.raidHpMult)) : 1,
   }
 }
 

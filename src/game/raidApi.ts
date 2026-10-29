@@ -40,6 +40,18 @@ export async function raidBegin(classCode: string): Promise<RaidBegin> {
   }
 }
 
+// 선생님이 정한 "레이드 체력 배율" (없으면 1). 대장이 출발할 때 쓰고, 모두에게 알려 준다.
+export async function raidHpMult(classCode: string): Promise<number> {
+  try {
+    const { data, error } = await supabase.from('classes').select('control').eq('code', classCode).maybeSingle()
+    if (error || !data) return 1
+    const v = (data.control as Record<string, unknown> | null)?.raidHpMult
+    return typeof v === 'number' && Number.isFinite(v) ? Math.min(2, Math.max(0.4, v)) : 1
+  } catch {
+    return 1
+  }
+}
+
 export async function raidFinish(classCode: string, won: boolean, phase: number): Promise<void> {
   try {
     await supabase.rpc('raid_finish', { p_class: classCode, p_won: won, p_phase: phase })

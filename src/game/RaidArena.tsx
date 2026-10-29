@@ -3,11 +3,15 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { toonGradient } from './toon'
 import { RAID_BOSS, RAID_PHASES } from './raidData'
+import { raidFx, useFight } from './raidFight'
 
 // 학급 레이드 대기실 — 어둑한 돌바닥 위, 뒤쪽에 거대한 보스가 "봉인된 알" 모습으로 잠들어 있다.
 // (싸움이 시작되면 알이 깨지며 페이즈마다 다른 모습이 나온다. 지금은 대기실만.)
 
 const PHASE_COLORS = ['#6fd66f', '#4fb3ff', '#b46bff', '#ff5d4d']
+// 페이즈마다 알(거인)의 몸 색과 빛이 바뀐다
+const EGG_BODY = ['#2f1d52', '#1d3a66', '#4a1f66', '#6a1f2a']
+const EGG_GLOW = ['#6a1fd6', '#1f6ad6', '#b01fd6', '#ff3a2a']
 
 function Embers() {
   const refs = useRef<(THREE.Mesh | null)[]>([])
@@ -39,11 +43,26 @@ function Embers() {
 
 function Egg() {
   const egg = useRef<THREE.Group>(null)
+  const mat = useRef<THREE.MeshToonMaterial>(null)
   const cracks = useRef<(THREE.Mesh | null)[]>([])
   const gems = useRef<(THREE.Group | null)[]>([])
   useFrame((st) => {
     const t = st.clock.elapsedTime
-    if (egg.current) egg.current.scale.setScalar(1 + Math.sin(t * 1.6) * 0.018)
+    const f = useFight.getState()
+    const ph = Math.max(1, Math.min(RAID_PHASES, f.ph))
+    const now = Date.now()
+    const hitAge = now - raidFx.hitAt
+    const flash = hitAge < 220 ? 1 - hitAge / 220 : 0 // 맞으면 번쩍하며 살짝 커진다
+    const dying = f.st === 'won' ? Math.min(1, (now - raidFx.clearAt) / 1100) : 0 // 쓰러뜨리면 쪼그라들며 사라진다
+    if (egg.current) {
+      egg.current.scale.setScalar((1 + (ph - 1) * 0.1 + Math.sin(t * 1.6) * 0.018 + flash * 0.05) * Math.max(0.001, 1 - dying))
+      egg.current.visible = dying < 1
+    }
+    if (mat.current) {
+      mat.current.color.set(EGG_BODY[ph - 1])
+      mat.current.emissive.set(EGG_GLOW[ph - 1])
+      mat.current.emissiveIntensity = 0.28 + flash * 1.1 + (ph - 1) * 0.08
+    }
     cracks.current.forEach((m, i) => {
       if (m) (m.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(t * 2.2 + i * 1.3) * 0.35
     })
@@ -75,7 +94,7 @@ function Egg() {
       <group ref={egg} position={[0, 6.6, 0]}>
         <mesh scale={[4.2, 5.9, 4.2]}>
           <sphereGeometry args={[1, 36, 28]} />
-          <meshToonMaterial gradientMap={toonGradient} color="#2f1d52" emissive="#6a1fd6" emissiveIntensity={0.28} />
+          <meshToonMaterial ref={mat} gradientMap={toonGradient} color="#2f1d52" emissive="#6a1fd6" emissiveIntensity={0.28} />
         </mesh>
         {/* 갈라진 틈 */}
         {crackAt.map(([ang, y], i) => (
