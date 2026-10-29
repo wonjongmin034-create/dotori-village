@@ -6,6 +6,7 @@ import { playerPos } from './player-state'
 import { useVillage, landHalf, viewItems } from './store'
 import { LAND_START } from './economy'
 import { camShake } from './bossFx'
+import { useFight } from './raidFight'
 
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -48,9 +49,11 @@ export function CameraRig() {
 
     if (cs.raidRoom) {
       // 레이드 대기실: 반 친구들이 늘어선 모습과 뒤쪽의 거대한 보스가 한 화면에 보이게 고정
+      // 싸우는 동안은 거인(키 12)의 머리까지 보이게 조금 물러나 위를 본다
+      const fighting = useFight.getState().st !== 'idle'
       tmp.focus.set(0, 0, 2)
-      tmp.offset.set(0, 7.5, 13.5)
-      tmp.lookTarget.set(0, 3.4, -8.5)
+      tmp.offset.set(0, fighting ? 10.5 : 7.5, fighting ? 19 : 13.5)
+      tmp.lookTarget.set(0, fighting ? 6.6 : 3.4, -8.5)
     } else if (cs.bossRoom != null) {
       // 보스 방: 싸움터 가운데를 고정해서 본다 (보스와 팀이 한 화면에)
       tmp.focus.set(0, 0, 0.4)
