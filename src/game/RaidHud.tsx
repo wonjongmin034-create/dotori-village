@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useVillage } from './store'
-import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES, raidVisible } from './raidData'
+import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES } from './raidData'
 import { raidBlockReason, raidCancel, raidStart, useRaid } from './raidState'
 import { enterRaid } from './raid'
 import { RaidFightHud } from './RaidFightHud'
@@ -8,10 +8,10 @@ import { peers } from './live'
 import { raidTitleOf } from './raidData'
 import './raid.css'
 
-// 입구 버튼 (아직은 시험 계정·시험 주소에만 보인다)
+// 입구 버튼 — 로그인한 모든 학생에게 보인다. 열리는 시간(금요일 8~14시)이 아니면 눌렀을 때 안내가 나온다.
 export function RaidEntryButton() {
   const session = useVillage((s) => s.session)
-  if (!session || !raidVisible(session.name)) return null
+  if (!session) return null
   return (
     <button type="button" className="raid-btn" onClick={() => void enterRaid()}>
       🐲 레이드

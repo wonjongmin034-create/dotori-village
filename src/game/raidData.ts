@@ -80,18 +80,7 @@ export function raidMvpOf(rows: { n: string; t: number }[]): string | null {
 // 한 사람이 그 페이즈(체력 hp)에서 줄 수 있는 최대 피해
 export const raidCapOf = (hp: number) => Math.max(1, Math.floor(hp * RAID_CAP))
 
-export const RAID_OPEN_TEXT ='금요일 오전 8시부터 오후 2시까지 열려요'
-
-// 레이드를 아직 모든 학생에게 열지 않은 동안, 이 계정과 시험용 주소(?raid)에서만 입구가 보인다.
-const RAID_TESTERS = ['원종민']
-export function raidVisible(name: string | null | undefined): boolean {
-  if (name && RAID_TESTERS.includes(name.trim())) return true
-  try {
-    return location.search.includes('raid') || location.hash.includes('raid')
-  } catch {
-    return false
-  }
-}
+export const RAID_OPEN_TEXT = '금요일 오전 8시부터 오후 2시까지 열려요'
 
 // 대기실에서 서는 자리 (i번째). 사람이 들어오고 나가도 앞사람은 그대로 서 있게, 한 줄에 10명씩 고정으로 채운다.
 export const RAID_BOSS = { x: 0, z: -12 }
