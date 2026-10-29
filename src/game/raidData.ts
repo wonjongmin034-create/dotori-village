@@ -54,6 +54,29 @@ export const RAID_TIER_MIX: [number, number, number][] = [
 export const RAID_DMG = [0, 2, 3, 4] // 난이도별로 정답을 맞혔을 때의 피해 (1~3)
 export const RAID_LUCK_DMG = 6 // 가위바위보·홀짝에서 이겼을 때의 피해
 
+/* ---------- 보상 ---------- */
+export const RAID_REWARD_CLEAR = 150 // 거인을 쓰러뜨리면 함께 싸운 모두가 받는 도토리
+export const RAID_REWARD_MVP = 100 // 이번 도전에서 가장 많이 공격한 사람(MVP)이 더 받는 도토리
+export const RAID_REWARD_PHASE = 10 // (못 깼을 때) 넘긴 페이즈마다 위로로 받는 도토리
+export const RAID_REWARD_PHASE_MAX = 30
+// 레이드를 쓰러뜨린 횟수에 따른 칭호 — 이름 옆에 색깔 글자로 붙는다. 가장 높은 것 하나만 보인다.
+export const RAID_TITLES: { at: number; text: string; color: string }[] = [
+  { at: 1, text: '거인 사냥꾼', color: '#4f9d4b' },
+  { at: 2, text: '거인 정복자', color: '#2f7fd1' },
+  { at: 4, text: '거인 대영웅', color: '#8a4fd6' },
+  { at: 8, text: '전설의 용사', color: '#e0452b' },
+]
+export const raidTitleOf = (clears: number): { text: string; color: string } | null => {
+  let t: { text: string; color: string } | null = null
+  for (const x of RAID_TITLES) if (clears >= x.at) t = x
+  return t
+}
+// 한 도전의 MVP = 이번 도전에서 가장 많은 피해를 준 사람 (같으면 이름이 앞서는 사람). 피해를 준 사람이 없으면 없음.
+export function raidMvpOf(rows: { n: string; t: number }[]): string | null {
+  const best = rows.filter((r) => r.t > 0).sort((a, b) => b.t - a.t || (a.n < b.n ? -1 : 1))[0]
+  return best ? best.n : null
+}
+
 // 한 사람이 그 페이즈(체력 hp)에서 줄 수 있는 최대 피해
 export const raidCapOf = (hp: number) => Math.max(1, Math.floor(hp * RAID_CAP))
 

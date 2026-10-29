@@ -274,6 +274,12 @@ function Result() {
   const noServer = useRaid((s) => s.noServer)
   const won = f.st === 'won'
   const left = status ? status.left : 0
+  const r = f.reward
+  const rank = f.order
+    .map((n) => ({ n, t: f.members[n]?.t ?? 0 }))
+    .filter((x) => x.t > 0)
+    .sort((a, b) => b.t - a.t || (a.n < b.n ? -1 : 1))
+    .slice(0, 3)
   return (
     <div className="boss-out raid-result">
       <h3>{won ? '🎉 거인을 쓰러뜨렸어요!' : '💥 이번 도전은 여기까지…'}</h3>
@@ -282,6 +288,30 @@ function Result() {
           ? '반 친구들이 힘을 합쳐 해냈어요! 모두 정말 멋졌어요 👏'
           : f.why ?? '다음에는 더 힘을 합쳐 봐요!'}
       </p>
+      {r && (
+        <div className="raid-reward">
+          {r.practice ? (
+            <span>연습이라 보상은 없어요 🙂</span>
+          ) : (
+            <>
+              {r.coins > 0 && <b className="coin">🌰 +{r.coins} 도토리</b>}
+              {r.won && r.iMvp && <b className="mvp">👑 MVP! 보너스 도토리 포함</b>}
+              {r.titleUp && <b className="title">🏅 새 칭호: {r.titleUp}</b>}
+              {r.coins === 0 && !r.won && <span>다음에는 페이즈를 더 넘겨 봐요!</span>}
+            </>
+          )}
+          {rank.length > 0 && (
+            <div className="raid-rank">
+              {rank.map((x, i) => (
+                <span key={x.n} className={i === 0 ? 'first' : ''}>
+                  {['🥇', '🥈', '🥉'][i]} {x.n} <small>{x.t}</small>
+                </span>
+              ))}
+              <em>(이번 도전에서 준 피해){won && r.mvp ? ' · MVP는 1등이에요' : ''}</em>
+            </div>
+          )}
+        </div>
+      )}
       {!won && <p className="raid-hint2">{noServer ? '다시 도전할 수 있어요' : left > 0 ? `오늘 남은 도전 ${left}번` : '오늘 도전 기회를 모두 썼어요'}</p>}
       <button type="button" className="raid-go" onClick={raidToLobby}>
         대기실로 돌아가기

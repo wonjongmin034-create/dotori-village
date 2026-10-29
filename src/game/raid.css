@@ -247,3 +247,68 @@
   color: #7a6a90;
   font-size: 13px;
 }
+
+/* ---------- 보상 ---------- */
+.raid-reward {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.raid-reward b {
+  padding: 3px 12px;
+  border-radius: 999px;
+}
+.raid-reward b.coin {
+  color: #7a5a1a;
+  background: #fff1c9;
+}
+.raid-reward b.mvp {
+  color: #fff;
+  background: linear-gradient(90deg, #ffb347, #ff6a3d);
+}
+.raid-reward b.title {
+  color: #fff;
+  background: #8a4fd6;
+}
+.raid-rank {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #4a3d63;
+}
+.raid-rank small {
+  color: #8a7aa8;
+  font-weight: 700;
+}
+.raid-rank .first {
+  color: #c4620f;
+}
+.raid-rank em {
+  width: 100%;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  color: #9a8fb2;
+}
+.raid-mvp {
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #ffd98a;
+}
+.raid-tt {
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  color: #fff;
+}

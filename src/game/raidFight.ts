@@ -16,6 +16,7 @@ import {
   RAID_TIME_LIMIT_S,
   RAID_TIME_MULT,
   raidCapOf,
+  raidMvpOf,
 } from './raidData'
 import { raidFinish } from './raidApi'
 import { startSwing } from './swing'
@@ -28,11 +29,14 @@ import { useVillage } from './store'
 //    (대장이 나가면 마지막으로 받은 상태로 다음 사람이 이어받는다.)
 
 export type FightStatus = 'idle' | 'intro' | 'play' | 'between' | 'won' | 'lost'
-// 대장이 모두에게 알리는 한 장면: 단계, 체력, 남은 시간, 다음 전환까지(ms), 사람별 [이름, 목숨, 이번 페이즈에 준 피해]
-export type Snap = { gid: number; ph: number; st: FightStatus; hp: number; max: number; left: number; w: number; why?: string; m: [string, number, number][] }
+// 대장이 모두에게 알리는 한 장면: 단계, 체력, 남은 시간, 다음 전환까지(ms), 사람별 [이름, 목숨, 이번 페이즈에 준 피해, 이번 도전에서 준 피해 합계]
+export type Snap = { gid: number; ph: number; st: FightStatus; hp: number; max: number; left: number; w: number; why?: string; m: [string, number, number, number][] }
 export type FightPayload = { k: 'd'; gid: number; n: string; dmg: number; l: number } | { k: 'f'; s: Snap }
 
-type FIO = { send: (p: FightPayload) => void; me: string; isLeader: () => boolean; present: () => string[]; weaponOf: (n: string) => string | null; classCode: string }
+type FIO = { send: (p: FightPayload) => void; me: string; isLeader: () => boolean; present: () => string[]; weaponOf: (n: string) => string | null; classCode: string; practice: () => boolean }
+
+// 이 도전이 끝났을 때 내가 받은 보상 (결과 화면에 보여 준다)
+export type Reward = { coins: number; won: boolean; mvp: string | null; iMvp: boolean; practice: boolean; titleUp: string | null; clears: number; phases: number }
 
 export type Res = { ok: boolean; draw: boolean; timeout: boolean; dmg: number; text: string; pick?: string; capped: boolean; dead: boolean }
 
@@ -44,8 +48,9 @@ type Fight = {
   max: number
   endsAt: number // 이 시각(내 시계)이 되면 시간 종료
   nextAt: number // intro/between 이 끝나는 시각 (내 시계)
-  members: Record<string, { l: number; d: number }>
+  members: Record<string, { l: number; d: number; t: number }>
   order: string[]
+  reward: Reward | null
   hpList: number[] // 페이즈별 체력 (선생님의 체력 배율 반영)
   why: string | null
   myL: number // 내 목숨
@@ -61,7 +66,7 @@ type Fight = {
 }
 
 const blank = (): Fight => ({
-  gid: 0, ph: 1, st: 'idle', hp: 0, max: 0, endsAt: 0, nextAt: 0, members: {}, order: [], hpList: raidHpFor(1), why: null,
+  gid: 0, ph: 1, st: 'idle', hp: 0, max: 0, endsAt: 0, nextAt: 0, members: {}, order: [], reward: null, hpList: raidHpFor(1), why: null,
   myL: RAID_LIVES, myD: 0, q: null, qAt: 0, qMs: 0, qn: 0, qLv: 1, luck: false, res: null, askAt: 0,
 })
 
@@ -77,6 +82,7 @@ let lifeDirty = false
 let lastFlush = 0
 let lastSnap = 0
 let finished = false // (대장) 서버에 결과를 이미 보냈다
+let settledGid = 0 // 이 도전의 보상을 이미 받았다
 
 export function bindFightIO(next: FIO | null) {
   io = next
@@ -88,6 +94,7 @@ export function fightReset() {
   pending = 0
   lifeDirty = false
   finished = false
+  settledGid = 0
 }
 
 const set = (p: Partial<Fight>) => useFight.setState(p)
@@ -104,7 +111,7 @@ export function fightStart(gid: number, names: string[], hpMult = 1) {
   finished = false
   lastSnap = 0
   const members: Fight['members'] = {}
-  for (const n of names) members[n] = { l: RAID_LIVES, d: 0 }
+  for (const n of names) members[n] = { l: RAID_LIVES, d: 0, t: 0 }
   const now = Date.now()
   useFight.setState({
     ...blank(),
@@ -135,7 +142,7 @@ function snap(): Snap {
     left: Math.max(0, Math.round((f.endsAt - now) / 1000)),
     w: f.st === 'intro' || f.st === 'between' ? Math.max(0, f.nextAt - now) : 0,
     why: f.why ?? undefined,
-    m: f.order.map((n) => [n, f.members[n]?.l ?? 0, f.members[n]?.d ?? 0] as [string, number, number]),
+    m: f.order.map((n) => [n, f.members[n]?.l ?? 0, f.members[n]?.d ?? 0, f.members[n]?.t ?? 0] as [string, number, number, number]),
   }
 }
 
@@ -150,9 +157,12 @@ function leaderEnd(won: boolean, why: string | null) {
   set({ st: won ? 'won' : 'lost', why, nextAt: 0 })
   raidFx.clearAt = Date.now()
   broadcast()
+  settle()
   if (!finished && io) {
     finished = true
-    void raidFinish(io.classCode, won, won ? RAID_PHASES : f.ph)
+    const g = get()
+    const mvp = won ? raidMvpOf(g.order.map((n) => ({ n, t: g.members[n]?.t ?? 0 }))) : null
+    if (!io.practice()) void raidFinish(io.classCode, won, won ? RAID_PHASES : f.ph, mvp, mvp ? (g.members[mvp]?.t ?? 0) : 0)
   }
 }
 
@@ -174,7 +184,7 @@ function leaderNextPhase() {
   const members: Fight['members'] = {}
   for (const n of f.order) {
     const m = f.members[n]
-    members[n] = { l: m && m.l > 0 ? Math.min(RAID_LIVES, m.l + RAID_HEAL) : RAID_RETURN_LIVES, d: 0 }
+    members[n] = { l: m && m.l > 0 ? Math.min(RAID_LIVES, m.l + RAID_HEAL) : RAID_RETURN_LIVES, d: 0, t: m?.t ?? 0 }
   }
   const me = io?.me ?? ''
   set({ ph, hp: f.hpList[ph - 1], max: f.hpList[ph - 1], members, st: 'play', nextAt: 0, myL: members[me]?.l ?? get().myL, myD: 0, q: null, res: null, askAt: Date.now() + 600 })
@@ -231,10 +241,27 @@ function leaderApply(p: Extract<FightPayload, { k: 'd' }>) {
   if (f.st === 'play' && p.dmg > 0) {
     applied = Math.max(0, Math.min(Math.round(p.dmg), capNow() - m.d, f.hp))
   }
-  const members = { ...f.members, [p.n]: { l, d: m.d + applied } }
+  const members = { ...f.members, [p.n]: { l, d: m.d + applied, t: m.t + applied } }
   set({ members, hp: f.hp - applied })
   if (get().hp <= 0 && f.st === 'play') leaderPhaseClear()
   else leaderStuck()
+}
+
+// 도전이 끝났을 때 (이긴 도전도, 진 도전도) 내 보상을 받는다 — 같은 도전에서는 한 번만
+function settle() {
+  const f = get()
+  if (!io || (f.st !== 'won' && f.st !== 'lost') || f.gid === settledGid || !f.members[io.me]) return
+  settledGid = f.gid
+  const won = f.st === 'won'
+  const phases = won ? RAID_PHASES : Math.max(0, f.ph - 1)
+  const mvp = won ? raidMvpOf(f.order.map((n) => ({ n, t: f.members[n]?.t ?? 0 }))) : null
+  const practice = io.practice()
+  let reward: Reward = { coins: 0, won, mvp, iMvp: !!mvp && mvp === io.me, practice, titleUp: null, clears: useVillage.getState().raid.clears, phases }
+  if (!practice) {
+    const r = useVillage.getState().raidReward({ gid: f.gid, won, phases, mvp: reward.iMvp })
+    if (r) reward = { ...reward, coins: r.coins, titleUp: r.titleUp, clears: r.clears }
+  }
+  set({ reward })
 }
 
 /* ---------- 받은 신호 ---------- */
@@ -259,7 +286,7 @@ export function fightOnEvent(p: FightPayload) {
   const order: string[] = []
   for (const row of s.m) {
     if (!Array.isArray(row) || typeof row[0] !== 'string') continue
-    members[row[0]] = { l: Math.max(0, Number(row[1]) || 0), d: Math.max(0, Number(row[2]) || 0) }
+    members[row[0]] = { l: Math.max(0, Number(row[1]) || 0), d: Math.max(0, Number(row[2]) || 0), t: Math.max(0, Number(row[3]) || 0) }
     order.push(row[0])
   }
   const me = io?.me ?? ''
@@ -285,11 +312,13 @@ export function fightOnEvent(p: FightPayload) {
     pending = 0
     lifeDirty = false
   }
-  if ((s.st === 'won' || s.st === 'lost') && f.st !== s.st) {
+  const justEnded = (s.st === 'won' || s.st === 'lost') && f.st !== s.st
+  if (justEnded) {
     raidFx.clearAt = now
     next.q = null
   }
   set(next)
+  if (justEnded) settle()
 }
 
 /* ---------- 내 문제 풀이 ---------- */

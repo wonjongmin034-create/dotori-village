@@ -18,6 +18,8 @@ export type Avatar = {
   weapon: string | null // 들고 있는 무기 종류 (null = 안 듦)
   wt: number // 들고 있는 무기의 단계 1~6
   tt?: number // 도토리 탑에서 깬 가장 높은 단계 (이름 옆 칭호) — 실시간 접속 정보로만 전해진다
+  rt?: number // 학급 레이드를 쓰러뜨린 횟수 (이름 옆 칭호) — 실시간 접속 정보로만 전해진다
+  rm?: number // 1 이면 최근 일주일 안의 레이드 MVP (이름 옆 왕관)
   pet?: PetView | null // 따라다니는 펫 (실시간 접속 정보로만 전해진다 — 저장은 집의 pet 에)
 }
 

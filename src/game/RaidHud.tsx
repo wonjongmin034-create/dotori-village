@@ -4,6 +4,8 @@ import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES, raidVisible } from './raidData'
 import { raidBlockReason, raidCancel, raidStart, useRaid } from './raidState'
 import { enterRaid } from './raid'
 import { RaidFightHud } from './RaidFightHud'
+import { peers } from './live'
+import { raidTitleOf } from './raidData'
 import './raid.css'
 
 // 입구 버튼 (아직은 시험 계정·시험 주소에만 보인다)
@@ -71,13 +73,27 @@ export function RaidHud() {
               오늘 남은 도전 {left}번
             </span>
           </div>
+          {(status?.mvp || status?.lastMvp) && (
+            <div className="raid-mvp">
+              🏆 {status.mvp ? `이번 주 MVP: ${status.mvp}` : `지난 MVP: ${status.lastMvp}`}
+            </div>
+          )}
           <div className="raid-count">
             모인 사람 <b className={roster.length >= RAID_MIN ? 'ok' : ''}>{roster.length}명</b> <span>(최소 {RAID_MIN}명)</span>
           </div>
           <div className="raid-names">
             {roster.map((n) => (
               <span key={n} className={`raid-chip${n === me ? ' me' : ''}${n === leader ? ' lead' : ''}`}>
-                {n === leader ? '👑 ' : ''}
+                {n === leader ? '🚩 ' : ''}
+                {peers.get(n)?.avatar.rm ? '👑 ' : ''}
+                {(() => {
+                  const t = raidTitleOf(Math.round(Number(peers.get(n)?.avatar.rt) || 0))
+                  return t ? (
+                    <i className="raid-tt" style={{ background: t.color }}>
+                      {t.text}
+                    </i>
+                  ) : null
+                })()}
                 {n}
               </span>
             ))}
@@ -112,7 +128,7 @@ export function RaidHud() {
             </>
           ) : (
             <div className="raid-wait">
-              👑 <b>{leader ?? '…'}</b> 대장이 출발을 누르면 {RAID_COUNTDOWN_S}초 뒤 다 같이 출발해요
+              🚩 <b>{leader ?? '…'}</b> 대장이 출발을 누르면 {RAID_COUNTDOWN_S}초 뒤 다 같이 출발해요
               <div className="raid-hint">{why ?? '준비됐어요! 기다려 주세요'}</div>
             </div>
           ))}

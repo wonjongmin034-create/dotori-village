@@ -23,6 +23,7 @@ import {
 } from './economy'
 import { BOSS_DAILY } from './bossData'
 import { STAGE_COUNT, TOWER_DAILY, towerStage } from './towerData'
+import { RAID_REWARD_CLEAR, RAID_REWARD_MVP, RAID_REWARD_PHASE, RAID_REWARD_PHASE_MAX, raidTitleOf } from './raidData'
 import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
 import { findFreeSpot, resolveFarmOverlaps } from './layout'
@@ -101,6 +102,7 @@ export type PlacedItem = {
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   tower?: TowerData // (집에만) 도토리 탑 기록
+  raid?: RaidData // (집에만) 학급 레이드 기록
   nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (한 달에 한 번만)
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
@@ -121,6 +123,15 @@ export type TowerLog = { t: number; s: number; r: 'dead' | 'quiz' | 'clear'; ok?
 export type TowerData = { best: number; day: string; n: number; log: TowerLog[] }
 export const towerLeftOf = (t: TowerData | null | undefined): number =>
   Math.max(0, TOWER_DAILY - (t && t.day === dateKey() ? t.n : 0))
+
+// 학급 레이드 기록 — clears: 보상을 받은 클리어 횟수(칭호), mvps: MVP 횟수, part: 참여한 도전 수,
+// mvpAt: 마지막으로 MVP가 된 날(YYYY-MM-DD, 일주일 동안 이름 옆에 왕관), gid: 마지막으로 보상을 받은 도전(같은 도전을 두 번 받지 않게)
+export type RaidData = { clears: number; mvps: number; part: number; mvpAt: string; gid: number }
+export const raidMvpActive = (r: RaidData | null | undefined): boolean => {
+  if (!r || !r.mvpAt) return false
+  const t = Date.parse(r.mvpAt + 'T00:00:00')
+  return Number.isFinite(t) && Date.now() - t < 7 * 86_400_000
+}
 
 export type Mode = 'browse' | 'edit'
 
@@ -263,6 +274,11 @@ const towerOf = (items: PlacedItem[]): TowerData => {
     log: t && Array.isArray(t.log) ? (t.log as TowerLog[]).slice(0, 20) : [],
   }
 }
+const raidOf = (items: PlacedItem[]): RaidData => {
+  const r = items.find((i) => i.type === 'house')?.raid
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0)
+  return { clears: n(r?.clears), mvps: n(r?.mvps), part: n(r?.part), mvpAt: typeof r?.mvpAt === 'string' ? r.mvpAt : '', gid: n(r?.gid) }
+}
 const petOf = (items: PlacedItem[]): PetState | null => normalizePet(items.find((i) => i.type === 'house')?.pet)
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
@@ -346,6 +362,7 @@ interface VillageState {
   bossTry: BossTry | null // 오늘 보스 도전 횟수
   bossResetAt: number // 선생님이 보스 도전 횟수를 초기화한 시각 (반 설정에서 받아온다)
   tower: TowerData // 도토리 탑 기록
+  raid: RaidData // 학급 레이드 기록
   towerOn: boolean // 탑 안에 있는지
   petOpen: boolean // 펫 창 열림
   petFx: { at: number; ok: boolean; st: number } | null // 방금 한 진화 결과 (반짝이는 화면용)
@@ -378,6 +395,7 @@ interface VillageState {
   markNameChanged: () => void
   towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
   towerLog: (log: TowerLog) => void
+  raidReward: (r: { gid: number; won: boolean; phases: number; mvp: boolean }) => { coins: number; clears: number; titleUp: string | null; mvpDay: boolean } | null
   buyWeapon: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
   openPet: () => void
@@ -484,6 +502,7 @@ export const useVillage = create<VillageState>((set, get) => {
     bossTry: bossTryOf(initial.items),
     bossResetAt: 0,
     tower: towerOf(initial.items),
+    raid: raidOf(initial.items),
     towerOn: false,
     petOpen: false,
     petFx: null,
@@ -590,6 +609,27 @@ export const useVillage = create<VillageState>((set, get) => {
       save(nextCoins, nextItems, get().homework)
       set({ items: nextItems, tower: next, coins: nextCoins })
       return { first, reward }
+    },
+
+    // 학급 레이드 한 번이 끝났을 때의 보상 — 이긴 도전은 도토리와 칭호, 진 도전은 넘긴 페이즈만큼 위로 도토리
+    raidReward: ({ gid, won, phases, mvp }) => {
+      const { items, raid, coins } = get()
+      if (gid <= raid.gid) return null // 이미 받은 도전
+      const reward = (won ? RAID_REWARD_CLEAR : Math.min(RAID_REWARD_PHASE_MAX, Math.max(0, phases) * RAID_REWARD_PHASE)) + (won && mvp ? RAID_REWARD_MVP : 0)
+      const next: RaidData = {
+        clears: raid.clears + (won ? 1 : 0),
+        mvps: raid.mvps + (won && mvp ? 1 : 0),
+        part: raid.part + 1,
+        mvpAt: won && mvp ? dateKey() : raid.mvpAt,
+        gid,
+      }
+      const nextCoins = coins + reward
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, raid: next } : i))
+      save(nextCoins, nextItems, get().homework)
+      set({ items: nextItems, raid: next, coins: nextCoins })
+      const before = raidTitleOf(raid.clears)
+      const after = raidTitleOf(next.clears)
+      return { coins: reward, clears: next.clears, titleUp: after && after.text !== before?.text ? after.text : null, mvpDay: won && mvp }
     },
 
     // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
@@ -775,6 +815,7 @@ export const useVillage = create<VillageState>((set, get) => {
         pet: petOf(merged),
         bossTry: bossTryOf(merged),
         tower: towerOf(merged),
+        raid: raidOf(merged),
         daily: dailyOf(merged),
       })
     },

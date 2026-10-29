@@ -72,6 +72,7 @@ export function bindRaidIO(next: IO, name: string, code: string, weaponOf: (n: s
     present: () => useRaid.getState().roster,
     weaponOf,
     classCode: code,
+    practice: () => !!useRaid.getState().status?.practice,
   })
   if (tickTimer) clearInterval(tickTimer)
   tickTimer = setInterval(hostTick, 250)

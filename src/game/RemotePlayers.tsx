@@ -13,6 +13,7 @@ import { peers, useLive } from './live'
 import { swingPose } from './swing'
 import { useVillage } from './store'
 import { titleOf } from './towerData'
+import { raidTitleOf } from './raidData'
 
 const MAX_SHOWN = 10 // 한 번에 그리는 친구 수 (한 방 최대 10명)
 const RAID_SHOWN = 30 // 레이드 대기실은 반 전체
@@ -202,12 +203,23 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
         <div className="name-tag">
           {(() => {
             const t = titleOf(Math.round(Number(peer?.avatar.tt) || 0))
-            return t ? (
-              <i className="tt" style={{ background: t.color }}>
-                {t.text}
-              </i>
-            ) : null
+            const r = raidTitleOf(Math.round(Number(peer?.avatar.rt) || 0))
+            return (
+              <>
+                {r && (
+                  <i className="tt" style={{ background: r.color }}>
+                    {r.text}
+                  </i>
+                )}
+                {t && (
+                  <i className="tt" style={{ background: t.color }}>
+                    {t.text}
+                  </i>
+                )}
+              </>
+            )
           })()}
+          {peer?.avatar.rm ? '👑 ' : ''}
           {name}
         </div>
       </Html>
