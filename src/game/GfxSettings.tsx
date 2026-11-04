@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { GFX_LABEL, setGfxPref, useGfx, type GfxPref } from './gfx'
+import { refreshMine } from './cloud'
+import { useVillage } from './store'
 import './gfx.css'
 
 const OPTIONS: { id: GfxPref; label: string; desc: string }[] = [
@@ -11,6 +13,8 @@ const OPTIONS: { id: GfxPref; label: string; desc: string }[] = [
 
 export function GfxButton() {
   const [open, setOpen] = useState(false)
+  const [sync, setSync] = useState<'idle' | 'busy' | 'ok' | 'bad'>('idle')
+  const session = useVillage((s) => s.session)
   const pref = useGfx((s) => s.pref)
   const level = useGfx((s) => s.level)
   return (
@@ -33,6 +37,23 @@ export function GfxButton() {
                 </button>
               ))}
             </div>
+            {session && (
+              <div className="gfx-sync">
+                <button
+                  type="button"
+                  disabled={sync === 'busy'}
+                  onClick={async () => {
+                    setSync('busy')
+                    setSync((await refreshMine()) === 'ok' ? 'ok' : 'bad')
+                  }}
+                >
+                  {sync === 'busy' ? '불러오는 중…' : '🔄 내 도토리·기록 새로 불러오기'}
+                </button>
+                <small>
+                  {sync === 'ok' ? '✅ 서버에 저장된 값으로 맞췄어요' : sync === 'bad' ? '⚠️ 인터넷이 불안해서 못 불러왔어요. 잠시 뒤 다시 눌러 주세요' : '도토리나 보스 기록이 이상해 보일 때 눌러요'}
+                </small>
+              </div>
+            )}
             <button type="button" className="gfx-close" onClick={() => setOpen(false)}>
               닫기
             </button>

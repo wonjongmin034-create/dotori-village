@@ -197,9 +197,9 @@ export function logout() {
 /* ---------- 마을 상태 밀어올리기 ---------- */
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null
-async function pushVillage() {
+async function pushVillage(): Promise<boolean> {
   const { session, coins, items } = useVillage.getState()
-  if (!session) return
+  if (!session) return false
   try {
     const { error } = await supabase
       .from('villages')
@@ -207,13 +207,49 @@ async function pushVillage() {
       .eq('class_code', session.classCode)
       .eq('name', session.name)
     useVillage.setState({ cloud: error ? 'offline' : 'synced' })
+    return !error
   } catch {
     useVillage.setState({ cloud: 'offline' })
+    return false
   }
 }
 function queueVillagePush() {
   if (pushTimer) clearTimeout(pushTimer)
-  pushTimer = setTimeout(pushVillage, 1500)
+  pushTimer = setTimeout(() => {
+    pushTimer = null
+    void pushVillage()
+  }, 1500)
+}
+
+// 학생이 "새로 불러오기"를 눌렀을 때: 아직 못 보낸 내 변경이 있으면 먼저 보내고, 서버에 저장된 도토리·기록을 다시 받아 화면을 맞춘다.
+// 보내기에 실패하면(인터넷 문제) 서버의 옛 값으로 덮어쓰지 않도록 불러오지 않는다.
+export type RefreshResult = 'ok' | 'offline' | 'nosession'
+export async function refreshMine(): Promise<RefreshResult> {
+  const s = useVillage.getState()
+  if (!s.session) return 'nosession'
+  try {
+    if (pushTimer) {
+      clearTimeout(pushTimer)
+      pushTimer = null
+      if (!(await pushVillage())) return 'offline'
+    }
+    const { data, error } = await supabase.from('villages').select('coins, items').eq('class_code', s.session.classCode).eq('name', s.session.name).maybeSingle()
+    if (error || !data) return 'offline'
+    applyMine(data)
+    snapshotNow()
+    useVillage.setState({ cloud: 'synced' })
+    void pollGrants()
+    void pollControl()
+    return 'ok'
+  } catch {
+    useVillage.setState({ cloud: 'offline' })
+    return 'offline'
+  } finally {
+    void refreshClass(s.session.classCode)
+  }
+}
+function applyMine(data: { coins?: unknown; items?: unknown }) {
+  useVillage.getState().hydrateFromCloud(typeof data.coins === 'number' ? data.coins : 30, Array.isArray(data.items) ? (data.items as PlacedItem[]) : [])
 }
 
 async function markSeen() {

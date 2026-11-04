@@ -81,3 +81,28 @@
   background: #5bb36b;
   cursor: pointer;
 }
+
+.gfx-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #e3dcc5;
+}
+.gfx-sync button {
+  padding: 9px 10px;
+  border: 2px solid #8ab4ff;
+  border-radius: 12px;
+  font-weight: 800;
+  color: #2f4a8a;
+  background: #eef4ff;
+  cursor: pointer;
+}
+.gfx-sync button:disabled {
+  opacity: 0.6;
+}
+.gfx-sync small {
+  font-size: 12px;
+  color: #6b7a70;
+}

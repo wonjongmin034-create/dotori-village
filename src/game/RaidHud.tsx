@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useVillage } from './store'
 import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES } from './raidData'
-import { raidBlockReason, raidCancel, raidStart, useRaid } from './raidState'
+import { raidBlockReason, raidCancel, raidSetStatus, raidStart, useRaid } from './raidState'
+import { raidStatus } from './raidApi'
+import { refreshMine } from './cloud'
 import { enterRaid } from './raid'
 import { RaidFightHud } from './RaidFightHud'
 import { peers } from './live'
@@ -32,10 +34,34 @@ export function RaidHud() {
   const starting = useRaid((s) => s.starting)
   const [msg, setMsg] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [busy, setBusy] = useState(false)
+
+  // 서버에 저장된 레이드 상태(남은 도전·클리어 여부)와 내 도토리·기록을 다시 받는다
+  const reload = async () => {
+    if (busy) return
+    setBusy(true)
+    const code = useVillage.getState().session?.classCode
+    const [mine, st] = await Promise.all([refreshMine(), code && !useRaid.getState().noServer ? raidStatus(code) : Promise.resolve('missing' as const)])
+    if (st !== 'missing') raidSetStatus(st, false)
+    setMsg(mine === 'ok' ? '새로 불러왔어요 ✅' : '인터넷이 불안해서 일부만 불러왔어요')
+    setBusy(false)
+  }
 
   useEffect(() => {
     if (phase !== 'count') return
     const t = setInterval(() => setNow(Date.now()), 150)
+    return () => clearInterval(t)
+  }, [phase])
+  // 대기실에 있는 동안은 20초마다 서버 상태를 조용히 다시 확인한다 (누가 깼는지·횟수가 바뀌었는지)
+  useEffect(() => {
+    if (phase !== 'lobby') return
+    const code = useVillage.getState().session?.classCode
+    if (!code || useRaid.getState().noServer) return
+    const t = setInterval(() => {
+      void raidStatus(code).then((st) => {
+        if (st !== 'missing') raidSetStatus(st, false)
+      })
+    }, 20_000)
     return () => clearInterval(t)
   }, [phase])
   useEffect(() => {
@@ -73,6 +99,7 @@ export function RaidHud() {
               오늘 남은 도전 {left}번
             </span>
           </div>
+          {status?.cleared && <div className="raid-cleared">✅ 이번 주 레이드는 이미 깼어요! 🎉</div>}
           {(status?.mvp || status?.lastMvp) && (
             <div className="raid-mvp">
               🏆 {status.mvp ? `이번 주 MVP: ${status.mvp}` : `지난 MVP: ${status.lastMvp}`}
@@ -98,6 +125,11 @@ export function RaidHud() {
               </span>
             ))}
           </div>
+          {phase === 'lobby' && (
+            <button type="button" className="raid-refresh" disabled={busy} onClick={() => void reload()}>
+              {busy ? '불러오는 중…' : '🔄 새로 불러오기'}
+            </button>
+          )}
         </div>
         {(banner || msg) && <div className="raid-banner">{banner ?? msg}</div>}
       </div>
