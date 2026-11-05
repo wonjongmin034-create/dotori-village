@@ -5,9 +5,14 @@ import { useVillage } from './store'
 import { pushQuizStat } from './cloud'
 
 // 돌봄(물주기·먹이주기·비료) 전에 뜨는 학습 문제.
+//  · 틀리면 그 자리에서 이번 기회가 사라진다 (다른 문제로 다시 풀 수 없다).
+//  · 풀기 전에 닫았다가 다시 열면 같은 문제가 나온다 (문제를 보고 닫아서 새 문제를 뽑는 꼼수를 막는다).
+const asked = new Map<string, Question>()
+
 export function Quiz() {
   const quiz = useVillage((s) => s.quiz)
   const passQuiz = useVillage((s) => s.passQuiz)
+  const failQuiz = useVillage((s) => s.failQuiz)
   const cancelQuiz = useVillage((s) => s.cancelQuiz)
 
   const [q, setQ] = useState<Question>(() => randomQuestion())
@@ -18,7 +23,10 @@ export function Quiz() {
   // quiz 요청이 새로 들어올 때마다 새 문제로 초기화
   useEffect(() => {
     if (quiz) {
-      setQ(randomQuestion())
+      const saved = quiz.id ? asked.get(quiz.id) : undefined
+      const next = saved ?? randomQuestion()
+      if (quiz.id) asked.set(quiz.id, next)
+      setQ(next)
       setPicked(null)
       setWrong(false)
       logged.current = false
@@ -30,8 +38,19 @@ export function Quiz() {
   const answered = picked !== null
   const correct = answered && picked === q.answer
 
+  const done = () => {
+    if (quiz.id) asked.delete(quiz.id)
+  }
+  // 틀린 뒤에 닫으면(✕든 확인이든) 기회가 사라진다. 풀기 전에 닫는 것은 그냥 닫기.
+  const close = () => {
+    if (wrong) {
+      done()
+      failQuiz()
+    } else cancelQuiz()
+  }
+
   const choose = (i: number) => {
-    if (answered && correct) return
+    if (answered) return // 한 번 고르면 끝 — 다시 고를 수 없다
     setPicked(i)
     setWrong(i !== q.answer)
     if (!logged.current) {
@@ -40,19 +59,12 @@ export function Quiz() {
     }
   }
 
-  const retry = () => {
-    setQ((prev) => randomQuestion(prev))
-    setPicked(null)
-    setWrong(false)
-    logged.current = false
-  }
-
   return (
     <div className="quiz-overlay">
       <div className="quiz-card">
         <div className="quiz-top">
           <span className="quiz-sub">{q.subject}</span>
-          <button type="button" className="quiz-x" onClick={cancelQuiz} aria-label="닫기">
+          <button type="button" className="quiz-x" onClick={close} aria-label="닫기">
             ✕
           </button>
         </div>
@@ -74,9 +86,13 @@ export function Quiz() {
 
         {wrong && (
           <div className="quiz-feedback wrong-fb">
-            <p>{q.explain}</p>
-            <button type="button" onClick={retry}>
-              다른 문제 풀기
+            <p>
+              <b>틀렸어요 😢 이번 기회가 사라졌어요.</b>
+              <br />
+              {q.explain}
+            </p>
+            <button type="button" onClick={close}>
+              확인
             </button>
           </div>
         )}
@@ -84,7 +100,13 @@ export function Quiz() {
         {correct && (
           <div className="quiz-feedback right-fb">
             <p>정답이에요! +{QUIZ_REWARD} 도토리</p>
-            <button type="button" onClick={passQuiz}>
+            <button
+              type="button"
+              onClick={() => {
+                done()
+                passQuiz()
+              }}
+            >
               계속하기
             </button>
           </div>

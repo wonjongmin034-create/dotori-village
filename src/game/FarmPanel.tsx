@@ -69,6 +69,7 @@ export function FarmPanel() {
           const cd = CARE_COOLDOWN_MS - (now - item.crop.lastCareAt)
           const canWater = cd <= 0 && item.crop.waterCount < def.waterGoal
           const growLeft = def.minGrowMs - (now - item.crop.plantedAt)
+          const fertCd = item.crop.fertTryAt ? CARE_COOLDOWN_MS - (now - item.crop.fertTryAt) : 0
           const ripe =
             item.crop.waterCount >= def.waterGoal && growLeft <= 0
           return (
@@ -83,6 +84,7 @@ export function FarmPanel() {
                 <div>{ripe ? '✅ 수확할 수 있어요' : growLeft > 0 ? `자라는 중 · ${secs(growLeft)}` : '물이 더 필요해요'}</div>
                 {item.crop.fertilized && <div className="fert-on">비료 완료 (보상 ×{FERTILIZER_BONUS})</div>}
               </div>
+              <p className="farm-note farm-warn">⚠️ 문제를 틀리면 이번 기회가 사라지고, {secs(CARE_COOLDOWN_MS)} 뒤에 다시 도전할 수 있어요</p>
               <div className="farm-actions">
                 <button
                   type="button"
@@ -94,10 +96,10 @@ export function FarmPanel() {
                 {!item.crop.fertilized && (
                   <button
                     type="button"
-                    disabled={coins < FERTILIZER_COST}
+                    disabled={coins < FERTILIZER_COST || fertCd > 0}
                     onClick={() => fertilizeCrop(key)}
                   >
-                    🧪 비료주기 (🌰 {FERTILIZER_COST})
+                    🧪 비료주기 (🌰 {FERTILIZER_COST}){fertCd > 0 ? ` · ${secs(fertCd)} 뒤` : ''}
                   </button>
                 )}
                 <button
@@ -160,6 +162,7 @@ export function FarmPanel() {
                   {ready ? `✅ ${def.produceLabel} 거둘 수 있어요` : `${def.produceLabel} 모이는 중 · ${secs(produceLeft)}`}
                 </div>
               </div>
+              <p className="farm-note farm-warn">⚠️ 문제를 틀리면 이번 기회가 사라지고, {secs(CARE_COOLDOWN_MS)} 뒤에 다시 도전할 수 있어요</p>
               <div className="farm-actions">
                 <button type="button" disabled={!canFeed} onClick={() => feedAnimal(key)}>
                   🌾 먹이주기 {cd > 0 ? `(${secs(cd)})` : '· 문제 풀기'}

@@ -4308,3 +4308,9 @@ canvas {
     height: 120px;
   }
 }
+
+.farm-warn {
+  margin: 8px 0 0;
+  color: #b3541c;
+  font-weight: 700;
+}
