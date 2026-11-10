@@ -24,7 +24,7 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
     setBusy(true)
     const ok = await teacherSetControl(classCode, { raidPractice: on })
     setBusy(false)
-    flash(ok ? (on ? '레이드 연습을 열었어요 (아무 때나 들어올 수 있어요)' : '레이드 연습을 닫았어요 (금요일 8시~2시에만 열려요)') : '저장하지 못했어요')
+    flash(ok ? (on ? '레이드 연습을 열었어요 (아무 때나 들어올 수 있어요)' : '레이드 연습을 닫았어요 (수·금요일 8시~2시에만 열려요)') : '저장하지 못했어요')
     void load()
   }
 
@@ -77,7 +77,7 @@ export function TeacherControl({ classCode, flash }: { classCode: string; flash:
           </p>
           <label className="dash-switch" style={{ marginTop: 12 }}>
             <input type="checkbox" disabled={busy || ctl === null} checked={ctl !== null && ctl.raidPractice} onChange={(e) => void setPractice(e.target.checked)} />
-            <span>{ctl !== null && ctl.raidPractice ? '🐲 레이드 연습 열림 (금요일이 아니어도 가능)' : '🐲 레이드 연습 닫힘 (금요일 8시~2시에만 열려요)'}</span>
+            <span>{ctl !== null && ctl.raidPractice ? '🐲 레이드 연습 열림 (수·금요일이 아니어도 가능)' : '🐲 레이드 연습 닫힘 (수·금요일 8시~2시에만 열려요)'}</span>
           </label>
           <label className="dash-switch" style={{ marginTop: 8 }}>
             <span>🐲 레이드 보스 체력</span>

@@ -249,7 +249,7 @@ export default function App() {
             {towerOn
               ? '도토리 탑'
               : raidRoom
-              ? '학급 레이드 · 금요일의 거인'
+              ? '학급 레이드 · 거인 토벌'
               : bossRoom != null
               ? `보스 방 ${bossRoom}번 · ${Math.max(bossCount, roomCount + 1)}/4명`
               : plaza != null

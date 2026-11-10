@@ -5,7 +5,7 @@ import { toonGradient } from './toon'
 import { RAID_BOSS, RAID_INTRO_MS, RAID_PHASES } from './raidData'
 import { raidFx, useFight } from './raidFight'
 
-// 금요일의 거인 — 키 12(보스방 보스의 두 배쯤). 페이즈마다 모습이 바뀐다.
+// 레이드의 거인 — 키 12(보스방 보스의 두 배쯤). 페이즈마다 모습이 바뀐다.
 //  1 잠에서 깬 거인 (이끼 낀 돌)  2 불꽃의 거인 (용암이 흐르는 몸)  3 번개의 거인 (떠도는 수정)  4 폭주하는 거인 (뿔과 가시, 더 커진 몸)
 // 알이 깨지는 순간(intro)에 땅에서 솟아오르고, 쓰러지면(won) 무너져 사라진다.
 

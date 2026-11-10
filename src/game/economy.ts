@@ -9,8 +9,9 @@ const MIN = 60 * SEC
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
+// (배포본에서는 꺼져 있다 — 학생이 주소에 붙여도 소용없다)
 const FAST =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).has('fast')
+  import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('fast')
 // FAST 모드에서 하루 ≈ 10초
 const SCALE = FAST ? (10 * SEC) / DAY : 1
 

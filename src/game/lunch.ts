@@ -1,3 +1,4 @@
+import { serverNow } from './serverClock'
 // 급식 데이터 — 선생님이 한 달치를 여기에 넣습니다.
 // 형식: 날짜(YYYY-MM-DD) → 메뉴 배열.  새 달 식단표를 주시면 이 파일을 교체합니다.
 // (2026년 9월 식단표 반영)
@@ -174,7 +175,12 @@ export function parseLunchText(
 }
 
 // YYYY-MM-DD (로컬 기준)
-export function dateKey(d = new Date()): string {
+// 날짜를 주지 않으면 "오늘" = 서버 시각의 한국 날짜 (기기 시계·시간대를 바꿔도 하루 기록이 바뀌지 않게)
+export function dateKey(d?: Date): string {
+  if (!d) {
+    const k = new Date(serverNow() + 9 * 3_600_000)
+    return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, '0')}-${String(k.getUTCDate()).padStart(2, '0')}`
+  }
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')

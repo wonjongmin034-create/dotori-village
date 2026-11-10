@@ -28,6 +28,7 @@ import { dailySet, type Question } from './questions'
 import type { Worksheet, MySub } from './sheets'
 import { findFreeSpot, resolveFarmOverlaps } from './layout'
 import { dateKey, type ClassLunch } from './lunch'
+import { serverNow } from './serverClock'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
 import { findItem, houseNeeded, ownsItem, type Slot } from './wardrobe'
@@ -357,7 +358,7 @@ interface VillageState {
   visiting: Visiting | null // 놀러 간 친구 마을
   plaza: number | null // 광장 번호 (null = 내 마을에 있음)
   bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
-  raidRoom: boolean // 금요일 학급 레이드 대기실에 있는지
+  raidRoom: boolean // 학급 레이드(수·금요일) 대기실에 있는지
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
   bossTry: BossTry | null // 오늘 보스 도전 횟수
@@ -1120,7 +1121,7 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`씨앗 값 ${def.cost}도토리가 부족해요`)
         return
       }
-      const now = Date.now()
+      const now = serverNow()
       commit(
         items.map((i) =>
           i.key === key
@@ -1138,13 +1139,13 @@ export const useVillage = create<VillageState>((set, get) => {
     waterCrop: (key) => {
       const it = get().items.find((i) => i.key === key)
       if (!it?.crop) return
-      if (Date.now() - it.crop.lastCareAt < CARE_COOLDOWN_MS) {
+      if (serverNow() - it.crop.lastCareAt < CARE_COOLDOWN_MS) {
         get().flash('아직 물 줄 때가 아니에요')
         return
       }
       get().askQuiz(
         () => {
-          const now = Date.now()
+          const now = serverNow()
           commit(
             get().items.map((i) =>
               i.key === key && i.crop
@@ -1156,7 +1157,7 @@ export const useVillage = create<VillageState>((set, get) => {
         },
         () => {
           // 틀렸다: 물은 못 주고, 다음 기회는 대기시간이 지난 뒤에
-          const now = Date.now()
+          const now = serverNow()
           commit(get().items.map((i) => (i.key === key && i.crop ? { ...i, crop: { ...i.crop, lastCareAt: now } } : i)))
           get().flash('틀렸어요… 이번 물주기 기회가 사라졌어요 💧')
         },
@@ -1167,7 +1168,7 @@ export const useVillage = create<VillageState>((set, get) => {
     fertilizeCrop: (key) => {
       const it = get().items.find((i) => i.key === key)
       if (!it?.crop || it.crop.fertilized) return
-      if (it.crop.fertTryAt && Date.now() - it.crop.fertTryAt < CARE_COOLDOWN_MS) {
+      if (it.crop.fertTryAt && serverNow() - it.crop.fertTryAt < CARE_COOLDOWN_MS) {
         get().flash('아직 비료 줄 때가 아니에요')
         return
       }
@@ -1186,7 +1187,7 @@ export const useVillage = create<VillageState>((set, get) => {
           get().flash('비료를 줬어요 (수확 보상 ↑)')
         },
         () => {
-          const now = Date.now()
+          const now = serverNow()
           commit(get().items.map((i) => (i.key === key && i.crop ? { ...i, crop: { ...i.crop, fertTryAt: now } } : i)))
           get().flash('틀렸어요… 이번 비료 기회가 사라졌어요 🧪')
         },
@@ -1202,7 +1203,7 @@ export const useVillage = create<VillageState>((set, get) => {
       if (!def) return
       const ripe =
         it.crop.waterCount >= def.waterGoal &&
-        Date.now() - it.crop.plantedAt >= def.minGrowMs
+        serverNow() - it.crop.plantedAt >= def.minGrowMs
       if (!ripe) {
         get().flash('아직 다 자라지 않았어요')
         return
@@ -1225,7 +1226,7 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`${def.label} 값 ${def.cost}도토리가 부족해요`)
         return
       }
-      const now = Date.now()
+      const now = serverNow()
       commit(
         items.map((i) =>
           i.key === key
@@ -1243,13 +1244,13 @@ export const useVillage = create<VillageState>((set, get) => {
     feedAnimal: (key) => {
       const it = get().items.find((i) => i.key === key)
       if (!it?.animal) return
-      if (Date.now() - it.animal.lastCareAt < CARE_COOLDOWN_MS) {
+      if (serverNow() - it.animal.lastCareAt < CARE_COOLDOWN_MS) {
         get().flash('아직 먹이 줄 때가 아니에요')
         return
       }
       get().askQuiz(
         () => {
-          const now = Date.now()
+          const now = serverNow()
           commit(
             get().items.map((i) =>
               i.key === key && i.animal
@@ -1260,7 +1261,7 @@ export const useVillage = create<VillageState>((set, get) => {
           get().flash('먹이를 줬어요 🌾')
         },
         () => {
-          const now = Date.now()
+          const now = serverNow()
           commit(get().items.map((i) => (i.key === key && i.animal ? { ...i, animal: { ...i.animal, lastCareAt: now } } : i)))
           get().flash('틀렸어요… 이번 먹이주기 기회가 사라졌어요 🌾')
         },
@@ -1274,14 +1275,14 @@ export const useVillage = create<VillageState>((set, get) => {
       if (!it?.animal) return
       const def = ANIMAL_MAP[it.animal.species]
       if (!def) return
-      const ready = Date.now() - it.animal.cycleStart >= def.produceMs
+      const ready = serverNow() - it.animal.cycleStart >= def.produceMs
       if (!ready) {
         get().flash('생산물이 아직 안 모였어요')
         return
       }
       const wellFed = it.animal.feedCount >= def.feedGoal
       const gain = Math.round(def.reward * (wellFed ? def.wellFedBonus : 1))
-      const now = Date.now()
+      const now = serverNow()
       commit(
         items.map((i) =>
           i.key === key && i.animal

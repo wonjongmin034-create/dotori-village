@@ -130,7 +130,7 @@ export function raidBlockReason(roster: string[], status: RaidStatus | null, noS
   if (roster.length < RAID_MIN) return `${RAID_MIN}명 이상 모여야 해요 (지금 ${roster.length}명)`
   if (!noServer && status) {
     if (!status.open) return '지금은 레이드가 열려 있지 않아요'
-    if (status.cleared) return '이번 주 레이드는 이미 깼어요! 🎉'
+    if (status.cleared) return '오늘 레이드는 이미 깼어요! 🎉'
     if (status.left <= 0) return '오늘 도전 기회 3번을 모두 썼어요'
   }
   return null
@@ -189,7 +189,7 @@ async function finalizeStart(gid: number, members: string[], noServer: boolean) 
         r.why === 'limit'
           ? '오늘 도전 기회 3번을 모두 썼어요'
           : r.why === 'cleared'
-            ? '이번 주 레이드는 이미 깼어요! 🎉'
+            ? '오늘 레이드는 이미 깼어요! 🎉'
             : r.why === 'closed'
               ? '지금은 레이드가 열려 있지 않아요'
               : '서버와 연결이 불안해서 출발하지 못했어요. 잠깐 뒤에 다시 눌러 주세요',

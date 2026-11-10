@@ -35,10 +35,10 @@ export async function enterRaid() {
       s.setNotice(`지금은 레이드가 닫혀 있어요.\n${RAID_OPEN_TEXT}! 🐲`)
       return
     } else if (st.cleared) {
-      s.setNotice('이번 주 레이드는 이미 깼어요! 🎉\n다음 주 금요일에 또 만나요.')
+      s.setNotice('오늘 레이드는 이미 깼어요! 🎉\n다음 레이드 날(수·금요일)에 또 만나요.')
       return
     } else if (st.left <= 0) {
-      s.setNotice(`오늘 도전 기회 ${RAID_TRIES}번을 모두 썼어요.\n다음 주 금요일에 다시 도전해요! 💪`)
+      s.setNotice(`오늘 도전 기회 ${RAID_TRIES}번을 모두 썼어요.\n다음 레이드 날(수·금요일)에 다시 도전해요! 💪`)
       return
     }
     raidSetStatus(st === 'missing' ? null : st, noServer)

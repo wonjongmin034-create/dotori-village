@@ -1,4 +1,4 @@
-// 금요일 학급 레이드 — 규칙과 숫자 (다른 파일을 불러오지 않는다)
+// 학급 레이드(수·금요일) — 규칙과 숫자 (다른 파일을 불러오지 않는다)
 
 // 이 인원이 모여야 출발할 수 있다. (개발 중에만 주소 끝에 ?rmin=2 처럼 붙여 시험할 수 있고, 배포본은 항상 8명)
 export const RAID_MIN = (() => {
@@ -80,7 +80,7 @@ export function raidMvpOf(rows: { n: string; t: number }[]): string | null {
 // 한 사람이 그 페이즈(체력 hp)에서 줄 수 있는 최대 피해
 export const raidCapOf = (hp: number) => Math.max(1, Math.floor(hp * RAID_CAP))
 
-export const RAID_OPEN_TEXT = '금요일 오전 8시부터 오후 2시까지 열려요'
+export const RAID_OPEN_TEXT = '수요일·금요일 오전 8시부터 오후 2시까지 열려요'
 
 // 대기실에서 서는 자리 (i번째). 사람이 들어오고 나가도 앞사람은 그대로 서 있게, 한 줄에 10명씩 고정으로 채운다.
 export const RAID_BOSS = { x: 0, z: -12 }

@@ -13,6 +13,7 @@ import { dailySet, sanitizeQuestions, type Question } from './questions'
 import { refreshSheets, resetSheets } from './sheets'
 import { sanitizeLunch, type ClassLunch } from './lunch'
 import { pollControl, resetControl, clearRejoinFlag } from './classControl'
+import { syncServerClock } from './serverClock'
 
 const SESSION_KEY = 'dotori.session.v1'
 const TEACHER_KEY = 'dotori.teacher.v1'
@@ -87,12 +88,8 @@ export async function login(
   try {
     await ensureClass(code)
 
-    const { data: existing, error } = await supabase
-      .from('villages')
-      .select('coins, items, pin, quiz_correct, quiz_wrong')
-      .eq('class_code', code)
-      .eq('name', who)
-      .maybeSingle()
+    void syncServerClock()
+    const { data: existing, error } = await selectMine(code, who, 'coins, items, pin, quiz_correct, quiz_wrong')
 
     if (error) return { ok: false, error: 'network' }
 
@@ -110,12 +107,13 @@ export async function login(
         if (upErr) return { ok: false, error: 'network' }
         if (!set || set.length === 0) return { ok: false, error: 'pin' } // 그 사이 다른 번호로 정해졌다
       } else if ((existing.pin || '') !== pin) return { ok: false, error: 'pin' }
-      quizCorrect = existing.quiz_correct ?? 0
-      quizWrong = existing.quiz_wrong ?? 0
+      quizCorrect = Number(existing.quiz_correct) || 0
+      quizWrong = Number(existing.quiz_wrong) || 0
       useVillage.getState().hydrateFromCloud(
         typeof existing.coins === 'number' ? existing.coins : 30,
         Array.isArray(existing.items) ? (existing.items as PlacedItem[]) : [],
       )
+      rememberRev(existing)
     } else {
       const st = useVillage.getState()
       const { error: insErr } = await supabase.from('villages').insert({
@@ -126,6 +124,7 @@ export async function login(
         items: st.items,
       })
       if (insErr) return { ok: false, error: 'network' }
+      rev = revOn ? 0 : null // 새로 만든 마을은 0번부터
       quizCorrect = 0
       quizWrong = 0
     }
@@ -148,12 +147,8 @@ export async function login(
 
 export async function resume(session: Session): Promise<'in' | 'login'> {
   try {
-    const { data, error } = await supabase
-      .from('villages')
-      .select('coins, items, quiz_correct, quiz_wrong')
-      .eq('class_code', session.classCode)
-      .eq('name', session.name)
-      .maybeSingle()
+    void syncServerClock()
+    const { data, error } = await selectMine(session.classCode, session.name, 'coins, items, quiz_correct, quiz_wrong')
 
     if (error) {
       useVillage.setState({ session, cloud: 'offline' })
@@ -162,12 +157,13 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
     }
     if (!data) return 'login'
 
-    quizCorrect = data.quiz_correct ?? 0
-    quizWrong = data.quiz_wrong ?? 0
+    quizCorrect = Number(data.quiz_correct) || 0
+    quizWrong = Number(data.quiz_wrong) || 0
     useVillage.getState().hydrateFromCloud(
       typeof data.coins === 'number' ? data.coins : 30,
       Array.isArray(data.items) ? (data.items as PlacedItem[]) : [],
     )
+    rememberRev(data)
     await refreshClass(session.classCode)
     snapshotNow()
     void markSeen()
@@ -186,6 +182,7 @@ export async function resume(session: Session): Promise<'in' | 'login'> {
 
 export function logout() {
   saveLocalSession(null)
+  rev = null
   stopPolling()
   resetControl()
   clearRejoinFlag()
@@ -196,21 +193,131 @@ export function logout() {
 
 /* ---------- 마을 상태 밀어올리기 ---------- */
 
+// 같은 학생이 여러 기기(학교 크롬북·집 태블릿)나 여러 창에서 들어와도 서로 덮어쓰지 않게 "판 번호(rev)"를 쓴다.
+//  · 서버의 rev 는 도토리나 마을이 바뀔 때마다 서버가 1씩 올린다 (supabase/schema-13 의 트리거 — 선생님의 복원도 포함).
+//  · 내가 마지막으로 맞춘 rev 와 서버 rev 가 같을 때만 저장한다. 다르면 다른 곳에서 먼저 바뀐 것 → 덮어쓰지 않고 서버 값을 다시 받는다.
+//  · 저장은 한 번에 하나씩만 보낸다 (내 저장끼리 부딪히지 않게).
+//  · schema-13 을 실행하기 전(rev 칸이 없음)에는 예전처럼 그냥 저장한다.
 let pushTimer: ReturnType<typeof setTimeout> | null = null
+let rev: number | null = null // 마지막으로 서버와 맞춘 판 번호 (null = 모름)
+let revOn = true // 서버에 rev 칸이 있는지
+let pushing: Promise<boolean> | null = null
+let pushAgain = false
+
+type Row = Record<string, unknown>
+type Err = { code?: string; message?: string } | null
+// rev 칸이 아직 없을 때 서버가 돌려주는 오류 (schema-13 실행 전)
+const missingRev = (e: Err) => !!e && (e.code === '42703' || (/column/i.test(e.message ?? '') && /\brev\b/.test(e.message ?? '')))
+
+function rememberRev(row: Row | null | undefined) {
+  if (row && typeof row.rev === 'number') rev = row.rev
+}
+
+// 내 마을 한 줄을 읽는다 (rev 칸이 있으면 함께)
+async function selectMine(classCode: string, name: string, cols: string): Promise<{ data: Row | null; error: Err }> {
+  if (revOn) {
+    const r = await supabase.from('villages').select(`${cols}, rev`).eq('class_code', classCode).eq('name', name).maybeSingle()
+    if (!r.error || !missingRev(r.error)) return { data: (r.data as Row | null) ?? null, error: r.error }
+    revOn = false
+    rev = null
+  }
+  const r = await supabase.from('villages').select(cols).eq('class_code', classCode).eq('name', name).maybeSingle()
+  return { data: (r.data as Row | null) ?? null, error: r.error }
+}
+
 async function pushVillage(): Promise<boolean> {
+  if (pushing) {
+    pushAgain = true
+    return pushing
+  }
+  pushing = pushOnce()
+  try {
+    return await pushing
+  } finally {
+    pushing = null
+    if (pushAgain) {
+      pushAgain = false
+      void pushVillage()
+    }
+  }
+}
+
+async function pushOnce(): Promise<boolean> {
   const { session, coins, items } = useVillage.getState()
   if (!session) return false
   try {
-    const { error } = await supabase
+    const q = supabase
       .from('villages')
       .update({ coins, items, updated_at: new Date().toISOString() })
       .eq('class_code', session.classCode)
       .eq('name', session.name)
+    if (revOn && rev !== null) {
+      const { data, error } = await q.eq('rev', rev).select('rev')
+      if (error) {
+        if (missingRev(error)) {
+          revOn = false
+          rev = null
+          return pushOnce()
+        }
+        useVillage.setState({ cloud: 'offline' })
+        return false
+      }
+      if (!data || data.length === 0) {
+        // 다른 기기·창에서 먼저 바뀌었다 → 덮어쓰지 않는다
+        await reloadFromCloud('conflict')
+        return false
+      }
+      rememberRev(data[0] as Row)
+      useVillage.setState({ cloud: 'synced' })
+      return true
+    }
+    const { error } = await q
     useVillage.setState({ cloud: error ? 'offline' : 'synced' })
     return !error
   } catch {
     useVillage.setState({ cloud: 'offline' })
     return false
+  }
+}
+
+// 서버에 저장된 내 마을로 화면을 맞춘다
+async function reloadFromCloud(why: 'conflict' | 'remote'): Promise<boolean> {
+  const s = useVillage.getState()
+  if (!s.session) return false
+  const { data, error } = await selectMine(s.session.classCode, s.session.name, 'coins, items')
+  if (error || !data) {
+    useVillage.setState({ cloud: 'offline' })
+    return false
+  }
+  if (pushTimer) {
+    clearTimeout(pushTimer)
+    pushTimer = null
+  }
+  applyMine(data)
+  rememberRev(data)
+  snapshotNow()
+  useVillage.setState({ cloud: 'synced' })
+  useVillage
+    .getState()
+    .flash(
+      why === 'conflict'
+        ? '다른 기기(또는 다른 창)에서 바뀐 내용이 있어서 새로 불러왔어요. 방금 한 일이 안 보이면 한 번 더 해 주세요'
+        : '다른 기기에서 바뀐 내용을 불러왔어요',
+    )
+  return true
+}
+
+// 다른 기기에서 바뀌었는지 가볍게 확인한다 (판 번호만 읽는다). 내가 보낼 게 남아 있으면 건너뛴다 — 저장할 때 알아서 확인된다.
+async function checkRemote() {
+  const s = useVillage.getState()
+  if (!s.session || !revOn || rev === null || pushTimer || pushing) return
+  try {
+    const { data, error } = await supabase.from('villages').select('rev').eq('class_code', s.session.classCode).eq('name', s.session.name).maybeSingle()
+    if (error || !data || typeof data.rev !== 'number' || data.rev === rev) return
+    if (pushTimer || pushing) return
+    await reloadFromCloud('remote')
+  } catch {
+    /* noop */
   }
 }
 function queueVillagePush() {
@@ -233,9 +340,11 @@ export async function refreshMine(): Promise<RefreshResult> {
       pushTimer = null
       if (!(await pushVillage())) return 'offline'
     }
-    const { data, error } = await supabase.from('villages').select('coins, items').eq('class_code', s.session.classCode).eq('name', s.session.name).maybeSingle()
+    if (pushing) await pushing
+    const { data, error } = await selectMine(s.session.classCode, s.session.name, 'coins, items')
     if (error || !data) return 'offline'
     applyMine(data)
+    rememberRev(data)
     snapshotNow()
     useVillage.setState({ cloud: 'synced' })
     void pollGrants()
@@ -402,6 +511,8 @@ function startPolling() {
     void pollGrants()
     void refreshSheets()
     void markSeen()
+    void checkRemote()
+    void syncServerClock()
   }, 45_000)
 }
 function stopPolling() {
@@ -419,6 +530,16 @@ registerCloudHook((coins, items, homework) => {
   if (homework !== last.homework) pushHomework()
   last = { coins, items, homework }
 })
+
+if (typeof document !== 'undefined') {
+  // 다른 창·앱을 보다가 돌아오면 다른 기기에서 바뀐 게 있는지 바로 확인한다
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void checkRemote()
+      void syncServerClock()
+    }
+  })
+}
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {

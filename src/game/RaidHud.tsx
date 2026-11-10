@@ -10,7 +10,7 @@ import { peers } from './live'
 import { raidTitleOf } from './raidData'
 import './raid.css'
 
-// 입구 버튼 — 로그인한 모든 학생에게 보인다. 열리는 시간(금요일 8~14시)이 아니면 눌렀을 때 안내가 나온다.
+// 입구 버튼 — 로그인한 모든 학생에게 보인다. 열리는 시간(수·금요일 8~14시)이 아니면 눌렀을 때 안내가 나온다.
 export function RaidEntryButton() {
   const session = useVillage((s) => s.session)
   if (!session) return null
@@ -99,10 +99,10 @@ export function RaidHud() {
               오늘 남은 도전 {left}번
             </span>
           </div>
-          {status?.cleared && <div className="raid-cleared">✅ 이번 주 레이드는 이미 깼어요! 🎉</div>}
+          {status?.cleared && <div className="raid-cleared">✅ 오늘 레이드는 이미 깼어요! 🎉</div>}
           {(status?.mvp || status?.lastMvp) && (
             <div className="raid-mvp">
-              🏆 {status.mvp ? `이번 주 MVP: ${status.mvp}` : `지난 MVP: ${status.lastMvp}`}
+              🏆 {status.mvp ? `오늘 MVP: ${status.mvp}` : `지난 MVP: ${status.lastMvp}`}
             </div>
           )}
           <div className="raid-count">
