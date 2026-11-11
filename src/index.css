@@ -4314,3 +4314,197 @@ canvas {
   color: #b3541c;
   font-weight: 700;
 }
+
+/* ── 농장 개편: 하루 한 번 돌봄 · 품질 · 창고 · 도감 ── */
+.barn-btn {
+  padding: 9px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: #c8873a;
+  box-shadow: 0 4px 16px rgba(170, 110, 40, 0.35);
+}
+.farm-stars {
+  color: #e2a21b;
+  font-size: 0.92em;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.farm-days {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.farm-days span {
+  width: 18px;
+  height: 8px;
+  border-radius: 4px;
+  background: #d8dccd;
+}
+.farm-days span.on {
+  background: #4fae5c;
+}
+.farm-wilt {
+  color: #a5642c;
+  font-weight: 700;
+}
+.farm-help-on {
+  color: #3b8f57;
+  font-weight: 700;
+}
+.farm-price {
+  font-size: 12px;
+  color: #8a6a24;
+}
+.fert-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #eef2e6;
+  font-size: 12px;
+  color: #3a4a3f;
+  cursor: pointer;
+}
+.fert-toggle input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.farm-barn-link {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px dashed #c8b98d;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #8a6a24;
+  cursor: pointer;
+}
+.barn-card {
+  max-width: 420px;
+}
+.barn-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+.barn-tabs button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a6a5e;
+  background: #ececdf;
+  cursor: pointer;
+}
+.barn-tabs button.on {
+  color: #fff;
+  background: #c8873a;
+}
+.barn-empty {
+  padding: 18px 10px;
+  text-align: center;
+  font-size: 13px;
+  color: #8a8f86;
+}
+.barn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.barn-row {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e3e1d2;
+}
+.barn-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #33423a;
+}
+.barn-emoji {
+  font-size: 20px;
+}
+.barn-mult {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7a7f76;
+}
+.barn-mult.up {
+  color: #c0433f;
+}
+.barn-mult.down {
+  color: #3f6fc0;
+}
+.barn-stars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.barn-star {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #3a4a3f;
+}
+.barn-star button {
+  padding: 5px 9px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #3e9b4f;
+  cursor: pointer;
+}
+.barn-star button + button {
+  background: #2f7a40;
+}
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+.dex-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  background: #ececdf;
+  font-size: 12px;
+  color: #9a9f96;
+}
+.dex-cell.got {
+  background: #fff;
+  border: 1px solid #e3e1d2;
+  color: #33423a;
+}
+.dex-cell.gold {
+  border-color: #e2a21b;
+  box-shadow: 0 0 0 2px rgba(226, 162, 27, 0.25);
+}
+.dex-emoji {
+  font-size: 24px;
+}
+.dex-name {
+  font-weight: 700;
+}

@@ -1,25 +1,12 @@
 // 도토리 마을 경제 밸런스 — 여기 숫자만 바꾸면 난이도가 조절된다.
-//
-// ⏱ 시간은 "실제 학급 운영" 기준(일·시간)이다.
-//    빠르게 테스트하려면 주소 뒤에 ?fast 를 붙인다 → 하루가 약 10초로 압축된다.
-//    예: https://.../dotori-village/?fast
 
 const SEC = 1000
 const MIN = 60 * SEC
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
-// (배포본에서는 꺼져 있다 — 학생이 주소에 붙여도 소용없다)
-const FAST =
-  import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('fast')
-// FAST 모드에서 하루 ≈ 10초
-const SCALE = FAST ? (10 * SEC) / DAY : 1
-
-const days = (n: number) => n * DAY * SCALE
-const hours = (n: number) => n * HOUR * SCALE
-
 export const START_COINS = 30 // 처음 주는 도토리
-export const QUIZ_REWARD = 2 // 돌봄(물주기 등) 앞 문제 하나 맞히면 주는 도토리
+export const QUIZ_REWARD = 1 // 농장 돌봄(물주기·먹이주기·친구 돕기) 문제 하나 맞히면 주는 도토리
 
 /* ---------- 오늘의 학습 (하루 할당 문제) ---------- */
 export const DAILY_PER_SUBJECT = 4 // 과목(국어·수학·사회·과학·영어)당 문제 수 → 하루 20문제
@@ -44,56 +31,89 @@ export function dailyPay(points: number, total: number): { rate: number; coins: 
   const rate = total ? points / total : 0
   return DAILY_PAY.find((t) => rate >= t.rate - 1e-9) ?? null
 }
-export const CARE_COOLDOWN_MS = hours(10) // 물/먹이 다시 줄 수 있을 때까지 (약 10시간 → 하루 1~2번)
-export const FERTILIZER_COST = 3 // 비료 값
-export const FERTILIZER_BONUS = 1.5 // 비료 주면 수확 보상 배수
+/* ---------- 농장 (하루 한 번 돌봄) ---------- */
+// · 밭과 우리는 하루에 한 번씩 돌볼 수 있다 (서버 날짜 기준). 돌볼 때 문제를 푼다.
+//     맞히면: 작물은 하루 자라고 / 동물은 하루치 먹이를 먹는다.  틀리면: 그날 기회가 사라지고 품질(별)이 하나 준다.
+// · 작물은 "돌본 날"만큼 자란다 (실제 날짜가 아니라). 동물은 먹이를 먹은 날만큼 생산물을 모은다.
+// · 학교 날(평일, 학급 휴일 제외)로 3일 동안 돌보지 않으면 시들어서(동물은 배가 고파서) 별이 하나 준다.
+// · 거둔 것은 창고에 쌓이고, 시장에서 판다. 시장 값은 날마다 바뀐다.
+// · 품질 ★1~3 — 별이 많을수록 비싸게 팔린다.
+export const STAR_MULT = [0, 0.6, 1, 1.5] // ★1 · ★2 · ★3 값 배수
+export const WILT_SCHOOL_DAYS = 3
+export const DEX_NEW_REWARD = 3 // 도감에 처음 올린 것마다
+export const HELP_PER_DAY = 3 // 하루에 친구를 도와줄 수 있는 횟수
+export const HELP_REWARD = 1 // 친구를 도와주면 나도, 친구도 받는 도토리
 
 export type CropDef = {
   id: string
   label: string
   emoji: string
   cost: number // 씨앗 값 (0 = 무료)
-  waterGoal: number // 몇 번 물 줘야 다 자라는지
-  minGrowMs: number // 최소 성장 시간
-  reward: number // 수확 보상 (도토리)
+  days: number // 다 자라는 데 필요한 "돌본 날" 수
+  base: number // ★2 품질일 때 시장 기본값
   color: string // 3D 표시용
 }
 
-// 기본(무료·낮은 보상·빠름) → 고급(코인 필요·높은 보상·느림)
+// 기본(무료·짧음) → 고급(씨앗값·길지만 비쌈)
 export const CROPS: CropDef[] = [
-  { id: 'rice', label: '벼', emoji: '🌾', cost: 0, waterGoal: 2, minGrowMs: days(1.5), reward: 5, color: '#e3c65b' },
-  { id: 'potato', label: '감자', emoji: '🥔', cost: 4, waterGoal: 2, minGrowMs: days(2.5), reward: 13, color: '#c9a25e' },
-  { id: 'corn', label: '옥수수', emoji: '🌽', cost: 9, waterGoal: 3, minGrowMs: days(4), reward: 28, color: '#f2c14e' },
-  { id: 'apple', label: '사과', emoji: '🍎', cost: 20, waterGoal: 4, minGrowMs: days(7), reward: 62, color: '#d64b46' },
-  { id: 'pear', label: '배', emoji: '🍐', cost: 27, waterGoal: 5, minGrowMs: days(10), reward: 88, color: '#cdd66a' },
-  { id: 'peach', label: '복숭아', emoji: '🍑', cost: 35, waterGoal: 5, minGrowMs: days(14), reward: 115, color: '#f2a3a3' },
+  { id: 'rice', label: '벼', emoji: '🌾', cost: 0, days: 2, base: 3, color: '#e3c65b' },
+  { id: 'potato', label: '감자', emoji: '🥔', cost: 2, days: 3, base: 6, color: '#c9a25e' },
+  { id: 'corn', label: '옥수수', emoji: '🌽', cost: 4, days: 4, base: 9, color: '#f2c14e' },
+  { id: 'apple', label: '사과', emoji: '🍎', cost: 8, days: 5, base: 14, color: '#d64b46' },
+  { id: 'pear', label: '배', emoji: '🍐', cost: 12, days: 6, base: 19, color: '#cdd66a' },
+  { id: 'peach', label: '복숭아', emoji: '🍑', cost: 16, days: 7, base: 25, color: '#f2a3a3' },
 ]
 
 export const CROP_MAP: Record<string, CropDef> = Object.fromEntries(CROPS.map((c) => [c.id, c]))
+
+// 비료는 심을 때만 줄 수 있다 — 자라는 날이 하루 줄어든다 (최소 1일)
+export const fertCost = (c: CropDef) => 3 + Math.floor(c.cost / 4)
+export const cropDays = (c: CropDef, fert: boolean) => Math.max(1, c.days - (fert ? 1 : 0))
 
 export type AnimalDef = {
   id: string
   label: string
   emoji: string
-  cost: number
-  feedGoal: number // 생산 주기 안에 이만큼 먹여야 "잘 키운" 보상
-  produceMs: number // 생산물이 다시 차는 시간
+  cost: number // 데려오는 값 (한 번만)
+  need: number // 생산물 하나를 모으려면 먹이를 먹어야 하는 날 수
+  base: number // ★2 품질일 때 생산물 시장 기본값
   produceLabel: string
   produceEmoji: string
-  reward: number // 생산물 거둘 때 보상
-  wellFedBonus: number // 잘 먹였을 때 배수
   body: string
   accent: string
 }
 
 export const ANIMALS: AnimalDef[] = [
-  { id: 'chick', label: '병아리', emoji: '🐤', cost: 0, feedGoal: 2, produceMs: days(1), produceLabel: '달걀', produceEmoji: '🥚', reward: 6, wellFedBonus: 1.4, body: '#f2d24e', accent: '#e8912e' },
-  { id: 'hen', label: '닭', emoji: '🐔', cost: 12, feedGoal: 3, produceMs: days(2), produceLabel: '달걀 꾸러미', produceEmoji: '🥚', reward: 22, wellFedBonus: 1.5, body: '#f5f0e4', accent: '#d94f4f' },
-  { id: 'sheep', label: '양', emoji: '🐑', cost: 30, feedGoal: 3, produceMs: days(4.5), produceLabel: '양털', produceEmoji: '🧶', reward: 52, wellFedBonus: 1.5, body: '#f3f1ea', accent: '#cdbfae' },
-  { id: 'cow', label: '젖소', emoji: '🐄', cost: 55, feedGoal: 4, produceMs: days(7), produceLabel: '우유', produceEmoji: '🥛', reward: 88, wellFedBonus: 1.6, body: '#f5f2ec', accent: '#3f3a37' },
+  { id: 'chick', label: '병아리', emoji: '🐤', cost: 0, need: 2, base: 2, produceLabel: '달걀', produceEmoji: '🥚', body: '#f2d24e', accent: '#e8912e' },
+  { id: 'hen', label: '닭', emoji: '🐔', cost: 10, need: 2, base: 4, produceLabel: '달걀 꾸러미', produceEmoji: '🧺', body: '#f5f0e4', accent: '#d94f4f' },
+  { id: 'sheep', label: '양', emoji: '🐑', cost: 25, need: 3, base: 7, produceLabel: '양털', produceEmoji: '🧶', body: '#f3f1ea', accent: '#cdbfae' },
+  { id: 'cow', label: '젖소', emoji: '🐄', cost: 45, need: 4, base: 11, produceLabel: '우유', produceEmoji: '🥛', body: '#f5f2ec', accent: '#3f3a37' },
 ]
 
 export const ANIMAL_MAP: Record<string, AnimalDef> = Object.fromEntries(ANIMALS.map((a) => [a.id, a]))
+
+/* ---------- 창고 · 시장 ---------- */
+// 창고에 쌓이는 것: 작물은 'c:벼id', 동물 생산물은 'a:동물id'
+export type ProductInfo = { id: string; label: string; emoji: string; base: number }
+export function productInfo(pid: string): ProductInfo | null {
+  const [k, id] = pid.split(':')
+  if (k === 'c' && CROP_MAP[id]) return { id: pid, label: CROP_MAP[id].label, emoji: CROP_MAP[id].emoji, base: CROP_MAP[id].base }
+  if (k === 'a' && ANIMAL_MAP[id]) return { id: pid, label: ANIMAL_MAP[id].produceLabel, emoji: ANIMAL_MAP[id].produceEmoji, base: ANIMAL_MAP[id].base }
+  return null
+}
+export const ALL_PRODUCTS: string[] = [...CROPS.map((c) => 'c:' + c.id), ...ANIMALS.map((a) => 'a:' + a.id)]
+
+// 오늘의 시장 값 배수 (0.7 ~ 1.4, 0.05 단위) — 날짜와 물건으로 정해지므로 모두에게 같다
+export function marketMult(day: string, pid: string): number {
+  let h = 2166136261
+  for (const ch of day + '|' + pid) {
+    h ^= ch.charCodeAt(0)
+    h = Math.imul(h, 16777619)
+  }
+  const r = ((h >>> 0) % 1000) / 1000
+  return Math.round((0.7 + r * 0.7) * 20) / 20
+}
+export const sellPrice = (base: number, star: number, mult: number) => Math.max(1, Math.round(base * (STAR_MULT[star] ?? 1) * mult))
 
 /* ---------- 도토리 강화 게임 ---------- */
 // 하루 시도 제한 (도박 중독 방지)

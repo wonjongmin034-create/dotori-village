@@ -2,10 +2,14 @@ import { create } from 'zustand'
 import {
   START_COINS,
   QUIZ_REWARD,
-  CARE_COOLDOWN_MS,
-  FERTILIZER_COST,
-  FERTILIZER_BONUS,
   CROP_MAP,
+  fertCost,
+  DEX_NEW_REWARD,
+  HELP_PER_DAY,
+  HELP_REWARD,
+  productInfo,
+  sellPrice,
+  marketMult,
   ANIMAL_MAP,
   HOUSE_LEVELS,
   ENHANCE_DAILY_LIMIT,
@@ -29,6 +33,21 @@ import type { Worksheet, MySub } from './sheets'
 import { findFreeSpot, resolveFarmOverlaps } from './layout'
 import { dateKey, type ClassLunch } from './lunch'
 import { serverNow } from './serverClock'
+import {
+  normCrop,
+  normAnimal,
+  applyWilt,
+  cropRipe,
+  animalReady,
+  normBarn,
+  normDex,
+  normHelp,
+  type CropState,
+  type AnimalState,
+  type Barn,
+  type Dex,
+  type HelpLog,
+} from './farm'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
 import { findItem, houseNeeded, ownsItem, type Slot } from './wardrobe'
@@ -49,22 +68,7 @@ import { FAMILY_HOUSE, MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName
 
 export type { Avatar }
 
-export type CropState = {
-  seed: string
-  plantedAt: number
-  waterCount: number
-  fertilized: boolean
-  lastCareAt: number
-  fertTryAt?: number // 비료 문제를 틀린 시각 (이 시각부터 돌봄 대기시간 동안 다시 못 준다)
-}
-
-export type AnimalState = {
-  species: string
-  boughtAt: number
-  feedCount: number
-  lastCareAt: number
-  cycleStart: number // 이번 생산 주기 시작 시각
-}
+export type { CropState, AnimalState }
 
 export type EnhanceState = {
   level: number
@@ -110,7 +114,13 @@ export type PlacedItem = {
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
   learnLog?: DailyResult[] // (집에만) 지난 날 학습 결과 (최근 것부터, 최대 20개)
   enh?: EnhanceState // 강화 게임 상태 (arcade)
+  barn?: Barn // (집에만) 창고 — 거둔 작물·생산물 (별 개수별)
+  dex?: Dex // (집에만) 농장 도감 — 거둔 것과 가장 좋은 별
+  help?: HelpLog // (집에만) 친구 돕기 기록
 }
+
+// 친구가 내 농장을 도와준 기록 (서버 farm_help 표)
+export type FarmHelpRow = { id: number; helper: string; item_key: string; day: string }
 
 // 하루 보스 도전 기록 — day 가 오늘이 아니면 0번으로 본다. gid 는 마지막으로 센 전투 (다시 접속해도 같은 판을 두 번 세지 않게)
 export type BossTry = { day: string; n: number; gid: number }
@@ -237,6 +247,44 @@ function ensureWardrobe(items: PlacedItem[]): PlacedItem[] {
   if (items.some((i) => i.type === 'wardrobe')) return items
   const [x, z] = isNewVillage(items) ? [-3.5, -2.5] : [-5, -4]
   return [...items, { key: 'wardrobe', type: 'wardrobe', x, z, rot: Math.PI * 0.1 }]
+}
+
+// 예전 방식(물주기 횟수·시간)의 작물·동물을 새 규칙(하루 한 번 돌봄)으로 옮긴다
+function ensureFarm(items: PlacedItem[]): PlacedItem[] {
+  if (!items.some((i) => (i.crop && i.crop.v !== 2) || (i.animal && i.animal.v !== 2))) return items
+  const today = dateKey()
+  return items.map((i) =>
+    i.crop && i.crop.v !== 2
+      ? { ...i, crop: normCrop(i.crop, today) }
+      : i.animal && i.animal.v !== 2
+        ? { ...i, animal: normAnimal(i.animal, today) }
+        : i,
+  )
+}
+
+// 거둔 것을 창고에 넣고 도감에 적는다. 도감에 처음 올리면(그리고 처음 ★3을 거두면) 도토리를 더 준다.
+function storeProduce(items: PlacedItem[], pid: string, star: number): { items: PlacedItem[]; bonus: number; note: string } {
+  const h = items.find((i) => i.type === 'house')
+  const barn = normBarn(h?.barn)
+  const dex = normDex(h?.dex)
+  const row = [...(barn[pid] ?? [0, 0, 0])] as [number, number, number]
+  row[star - 1] += 1
+  const prev = dex[pid] ?? 0
+  let bonus = 0
+  let note = ''
+  if (!prev) {
+    bonus += DEX_NEW_REWARD
+    note = ` 📖 도감에 새로 올렸어요! +${DEX_NEW_REWARD}`
+  } else if (star === 3 && prev < 3) {
+    bonus += DEX_NEW_REWARD
+    note = ` 📖 처음으로 ★★★! +${DEX_NEW_REWARD}`
+  }
+  const nextDex = { ...dex, [pid]: Math.max(prev, star) }
+  return {
+    items: items.map((i) => (i.type === 'house' ? { ...i, barn: { ...barn, [pid]: row }, dex: nextDex } : i)),
+    bonus,
+    note,
+  }
 }
 
 export const landHalf = (items: PlacedItem[]) =>
@@ -370,6 +418,8 @@ interface VillageState {
   petFx: { at: number; ok: boolean; st: number } | null // 방금 한 진화 결과 (반짝이는 화면용)
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
+  barnOpen: boolean // 창고·시장·도감 창
+  helpTarget: string | null // 친구 마을에서 도와주려고 누른 밭/우리 key
   notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
   worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
   mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
@@ -454,22 +504,30 @@ interface VillageState {
   failQuiz: () => void
   cancelQuiz: () => void
 
-  plantCrop: (key: string, seedId: string) => void
+  plantCrop: (key: string, seedId: string, fert: boolean) => void
   waterCrop: (key: string) => void
-  fertilizeCrop: (key: string) => void
   harvestCrop: (key: string) => void
 
   buyAnimal: (key: string, speciesId: string) => void
   feedAnimal: (key: string) => void
   collectProduce: (key: string) => void
+  openBarn: () => void
+  closeBarn: () => void
+  sellProduce: (pid: string, star: number, n: number) => void
+  sellAllProduce: () => void
+  openHelp: (key: string) => void
+  closeHelp: () => void
+  helpBlock: (owner: string) => string | null
+  noteHelp: (owner: string) => void
+  applyHelps: (rows: FarmHelpRow[]) => void
 
   enhanceTry: () => void
   enhanceSell: () => void
 }
 
 const initialRaw = load()
-const initialItems = ensureLayout(
-  ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items))))),
+const initialItems = ensureFarm(
+  ensureLayout(ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))))),
 )
 const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
 if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
@@ -511,6 +569,8 @@ export const useVillage = create<VillageState>((set, get) => {
     petFx: null,
     friendsOpen: false,
     friendInfoOpen: false,
+    barnOpen: false,
+    helpTarget: null,
     notice: null,
     worksheets: [],
     mySubs: {},
@@ -801,10 +861,12 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     hydrateFromCloud: (coins, items) => {
-      const merged = ensureLayout(
-        ensureDaily(
-          ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
-          get().classQuestions,
+      const merged = ensureFarm(
+        ensureLayout(
+          ensureDaily(
+            ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
+            get().classQuestions,
+          ),
         ),
       )
       saveLocal(coins, merged, get().homework)
@@ -945,6 +1007,8 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(fixed[it.type])
         return
       }
+      if (it?.crop && !window.confirm('밭에 작물이 자라고 있어요.\n지우면 작물도 함께 사라져요. 지울까요?')) return
+      if (it?.animal && !window.confirm('우리에 동물이 살고 있어요.\n지우면 동물도 함께 떠나요. 지울까요?')) return
       commit(items.filter((i) => i.key !== selected))
       set({ selected: null })
     },
@@ -1017,6 +1081,7 @@ export const useVillage = create<VillageState>((set, get) => {
         visiting,
         friendsOpen: false,
         friendInfoOpen: false,
+        helpTarget: null,
         activeFarm: null,
         selected: null,
         placing: null,
@@ -1111,109 +1176,92 @@ export const useVillage = create<VillageState>((set, get) => {
     },
     cancelQuiz: () => set({ quiz: null }),
 
-    plantCrop: (key, seedId) => {
+    /* ---------- 농장: 하루 한 번 돌봄 ---------- */
+
+    plantCrop: (key, seedId, fert) => {
       const def = CROP_MAP[seedId]
       if (!def) return
       const { items, coins } = get()
       const it = items.find((i) => i.key === key)
       if (!it || it.crop) return
-      if (def.cost > coins) {
-        get().flash(`씨앗 값 ${def.cost}도토리가 부족해요`)
+      const cost = def.cost + (fert ? fertCost(def) : 0)
+      if (cost > coins) {
+        get().flash(`${cost}도토리가 필요해요`)
         return
       }
-      const now = serverNow()
+      const today = dateKey()
+      const crop: CropState = {
+        v: 2,
+        seed: seedId,
+        plantedAt: serverNow(),
+        plantDay: today,
+        grow: 0,
+        stars: 3,
+        fert,
+        lastDay: '',
+        tryDay: '',
+      }
       commit(
-        items.map((i) =>
-          i.key === key
-            ? {
-                ...i,
-                crop: { seed: seedId, plantedAt: now, waterCount: 0, fertilized: false, lastCareAt: 0 },
-              }
-            : i,
-        ),
-        coins - def.cost,
+        items.map((i) => (i.key === key ? { ...i, crop } : i)),
+        coins - cost,
       )
-      get().flash(`${def.label} 씨앗을 심었어요`)
+      get().flash(`${def.label} 씨앗을 심었어요${fert ? ' (비료 🧪)' : ''} — 날마다 물을 주세요`)
     },
 
+    // 물주기: 하루 한 번, 문제를 맞히면 하루 자란다. 틀리면 오늘 기회가 사라지고 별이 하나 준다.
     waterCrop: (key) => {
       const it = get().items.find((i) => i.key === key)
       if (!it?.crop) return
-      if (serverNow() - it.crop.lastCareAt < CARE_COOLDOWN_MS) {
-        get().flash('아직 물 줄 때가 아니에요')
+      const today = dateKey()
+      const c = normCrop(it.crop, today)
+      if (cropRipe(c)) {
+        get().flash('다 자랐어요! 수확해요 🧺')
         return
       }
-      get().askQuiz(
-        () => {
-          const now = serverNow()
-          commit(
-            get().items.map((i) =>
-              i.key === key && i.crop
-                ? { ...i, crop: { ...i.crop, waterCount: i.crop.waterCount + 1, lastCareAt: now } }
-                : i,
-            ),
-          )
-          get().flash('물을 줬어요 💧')
-        },
-        () => {
-          // 틀렸다: 물은 못 주고, 다음 기회는 대기시간이 지난 뒤에
-          const now = serverNow()
-          commit(get().items.map((i) => (i.key === key && i.crop ? { ...i, crop: { ...i.crop, lastCareAt: now } } : i)))
-          get().flash('틀렸어요… 이번 물주기 기회가 사라졌어요 💧')
-        },
-        `water:${key}`,
-      )
-    },
-
-    fertilizeCrop: (key) => {
-      const it = get().items.find((i) => i.key === key)
-      if (!it?.crop || it.crop.fertilized) return
-      if (it.crop.fertTryAt && serverNow() - it.crop.fertTryAt < CARE_COOLDOWN_MS) {
-        get().flash('아직 비료 줄 때가 아니에요')
+      if (c.tryDay === today) {
+        get().flash('오늘은 이미 돌봤어요. 내일 또 와요 🌙')
         return
       }
-      if (get().coins < FERTILIZER_COST) {
-        get().flash(`비료 값 ${FERTILIZER_COST}도토리가 부족해요`)
-        return
+      const update = (ok: boolean) => {
+        const t = dateKey()
+        const cur = get().items.find((i) => i.key === key)?.crop
+        if (!cur) return
+        const w = applyWilt(normCrop(cur, t), t, get().classLunch)
+        const next = ok
+          ? { ...w.s, grow: w.s.grow + 1, lastDay: t, tryDay: t }
+          : { ...w.s, stars: Math.max(1, w.s.stars - 1), tryDay: t }
+        commit(get().items.map((i) => (i.key === key ? { ...i, crop: next } : i)))
+        const wilt = w.wilted ? ' (며칠 못 돌봐서 시들었어요 🥀 ★-1)' : ''
+        get().flash(
+          ok
+            ? cropRipe(next)
+              ? `물을 줬어요 💧 다 자랐어요! 수확해요 🧺${wilt}`
+              : `물을 줬어요 💧 하루 자랐어요${wilt}`
+            : `틀렸어요… 오늘 물주기 기회가 사라지고 품질이 ★1 내려갔어요${wilt}`,
+        )
       }
-      get().askQuiz(
-        () => {
-          commit(
-            get().items.map((i) =>
-              i.key === key && i.crop ? { ...i, crop: { ...i.crop, fertilized: true } } : i,
-            ),
-            get().coins - FERTILIZER_COST,
-          )
-          get().flash('비료를 줬어요 (수확 보상 ↑)')
-        },
-        () => {
-          const now = serverNow()
-          commit(get().items.map((i) => (i.key === key && i.crop ? { ...i, crop: { ...i.crop, fertTryAt: now } } : i)))
-          get().flash('틀렸어요… 이번 비료 기회가 사라졌어요 🧪')
-        },
-        `fert:${key}`,
-      )
+      get().askQuiz(() => update(true), () => update(false), `water:${key}:${today}`)
     },
 
     harvestCrop: (key) => {
-      const { items } = get()
-      const it = items.find((i) => i.key === key)
+      const it = get().items.find((i) => i.key === key)
       if (!it?.crop) return
-      const def = CROP_MAP[it.crop.seed]
+      const today = dateKey()
+      const w = applyWilt(normCrop(it.crop, today), today, get().classLunch)
+      const def = CROP_MAP[w.s.seed]
       if (!def) return
-      const ripe =
-        it.crop.waterCount >= def.waterGoal &&
-        serverNow() - it.crop.plantedAt >= def.minGrowMs
-      if (!ripe) {
+      if (!cropRipe(w.s)) {
         get().flash('아직 다 자라지 않았어요')
         return
       }
-      const gain = Math.round(def.reward * (it.crop.fertilized ? FERTILIZER_BONUS : 1))
+      const got = storeProduce(get().items, 'c:' + def.id, w.s.stars)
       commit(
-        items.map((i) => (i.key === key ? { ...i, crop: undefined } : i)),
-        get().coins + gain,
+        got.items.map((i) => (i.key === key ? { ...i, crop: undefined } : i)),
+        get().coins + got.bonus,
       )
-      get().flash(`${def.label} 수확! +${gain} 도토리`)
+      get().flash(
+        `${def.emoji} ${def.label} ${'★'.repeat(w.s.stars)} 수확! 창고에 넣었어요${w.wilted ? ' (조금 시들었어요 🥀)' : ''}${got.note}`,
+      )
     },
 
     buyAnimal: (key, speciesId) => {
@@ -1226,72 +1274,185 @@ export const useVillage = create<VillageState>((set, get) => {
         get().flash(`${def.label} 값 ${def.cost}도토리가 부족해요`)
         return
       }
-      const now = serverNow()
+      const animal: AnimalState = {
+        v: 2,
+        species: speciesId,
+        boughtAt: serverNow(),
+        buyDay: dateKey(),
+        fed: 0,
+        stars: 3,
+        lastDay: '',
+        tryDay: '',
+      }
       commit(
-        items.map((i) =>
-          i.key === key
-            ? {
-                ...i,
-                animal: { species: speciesId, boughtAt: now, feedCount: 0, lastCareAt: 0, cycleStart: now },
-              }
-            : i,
-        ),
+        items.map((i) => (i.key === key ? { ...i, animal } : i)),
         coins - def.cost,
       )
-      get().flash(`${def.label}를 데려왔어요`)
+      get().flash(`${def.label}를 데려왔어요 — 날마다 먹이를 주세요`)
     },
 
+    // 먹이주기: 하루 한 번. 먹이를 먹은 날이 모이면 생산물이 생긴다.
     feedAnimal: (key) => {
       const it = get().items.find((i) => i.key === key)
       if (!it?.animal) return
-      if (serverNow() - it.animal.lastCareAt < CARE_COOLDOWN_MS) {
-        get().flash('아직 먹이 줄 때가 아니에요')
+      const today = dateKey()
+      const a = normAnimal(it.animal, today)
+      const def = ANIMAL_MAP[a.species]
+      if (!def) return
+      if (animalReady(a)) {
+        get().flash(`${def.produceLabel}을(를) 먼저 거둬요 ${def.produceEmoji}`)
         return
       }
-      get().askQuiz(
-        () => {
-          const now = serverNow()
-          commit(
-            get().items.map((i) =>
-              i.key === key && i.animal
-                ? { ...i, animal: { ...i.animal, feedCount: i.animal.feedCount + 1, lastCareAt: now } }
-                : i,
-            ),
-          )
-          get().flash('먹이를 줬어요 🌾')
-        },
-        () => {
-          const now = serverNow()
-          commit(get().items.map((i) => (i.key === key && i.animal ? { ...i, animal: { ...i.animal, lastCareAt: now } } : i)))
-          get().flash('틀렸어요… 이번 먹이주기 기회가 사라졌어요 🌾')
-        },
-        `feed:${key}`,
-      )
+      if (a.tryDay === today) {
+        get().flash('오늘은 이미 먹이를 줬어요. 내일 또 와요 🌙')
+        return
+      }
+      const update = (ok: boolean) => {
+        const t = dateKey()
+        const cur = get().items.find((i) => i.key === key)?.animal
+        if (!cur) return
+        const w = applyWilt(normAnimal(cur, t), t, get().classLunch)
+        const next = ok
+          ? { ...w.s, fed: w.s.fed + 1, lastDay: t, tryDay: t }
+          : { ...w.s, stars: Math.max(1, w.s.stars - 1), tryDay: t }
+        commit(get().items.map((i) => (i.key === key ? { ...i, animal: next } : i)))
+        const hungry = w.wilted ? ' (며칠 굶어서 기운이 없어요 😢 ★-1)' : ''
+        get().flash(
+          ok
+            ? animalReady(next)
+              ? `먹이를 줬어요 🌾 ${def.produceLabel}이(가) 생겼어요! ${def.produceEmoji}${hungry}`
+              : `먹이를 줬어요 🌾${hungry}`
+            : `틀렸어요… 오늘 먹이주기 기회가 사라지고 품질이 ★1 내려갔어요${hungry}`,
+        )
+      }
+      get().askQuiz(() => update(true), () => update(false), `feed:${key}:${today}`)
     },
 
     collectProduce: (key) => {
-      const { items } = get()
-      const it = items.find((i) => i.key === key)
+      const it = get().items.find((i) => i.key === key)
       if (!it?.animal) return
-      const def = ANIMAL_MAP[it.animal.species]
+      const today = dateKey()
+      const w = applyWilt(normAnimal(it.animal, today), today, get().classLunch)
+      const def = ANIMAL_MAP[w.s.species]
       if (!def) return
-      const ready = serverNow() - it.animal.cycleStart >= def.produceMs
-      if (!ready) {
-        get().flash('생산물이 아직 안 모였어요')
+      if (!animalReady(w.s)) {
+        get().flash(`${def.produceLabel}이(가) 아직 안 모였어요`)
         return
       }
-      const wellFed = it.animal.feedCount >= def.feedGoal
-      const gain = Math.round(def.reward * (wellFed ? def.wellFedBonus : 1))
-      const now = serverNow()
+      const got = storeProduce(get().items, 'a:' + def.id, w.s.stars)
+      const next = { ...w.s, fed: 0, stars: 3, lastDay: today }
       commit(
-        items.map((i) =>
-          i.key === key && i.animal
-            ? { ...i, animal: { ...i.animal, cycleStart: now, feedCount: 0 } }
-            : i,
-        ),
-        get().coins + gain,
+        got.items.map((i) => (i.key === key ? { ...i, animal: next } : i)),
+        get().coins + got.bonus,
       )
-      get().flash(`${def.produceLabel} 거둠! +${gain} 도토리${wellFed ? ' (잘 키웠어요!)' : ''}`)
+      get().flash(
+        `${def.produceEmoji} ${def.produceLabel} ${'★'.repeat(w.s.stars)} 거둠! 창고에 넣었어요${w.wilted ? ' (기운이 없었어요 😢)' : ''}${got.note}`,
+      )
+    },
+
+    /* ---------- 창고 · 시장 ---------- */
+
+    openBarn: () => set({ barnOpen: true, activeFarm: null }),
+    closeBarn: () => set({ barnOpen: false }),
+
+    sellProduce: (pid, star, n) => {
+      const info = productInfo(pid)
+      if (!info || star < 1 || star > 3) return
+      const { items } = get()
+      const barn = normBarn(items.find((i) => i.type === 'house')?.barn)
+      const have = barn[pid]?.[star - 1] ?? 0
+      const k = Math.min(have, Math.max(0, Math.floor(n)))
+      if (k <= 0) return
+      const price = sellPrice(info.base, star, marketMult(dateKey(), pid))
+      const row = [...(barn[pid] ?? [0, 0, 0])] as [number, number, number]
+      row[star - 1] -= k
+      const nextBarn = { ...barn, [pid]: row }
+      commit(
+        items.map((i) => (i.type === 'house' ? { ...i, barn: normBarn(nextBarn) } : i)),
+        get().coins + price * k,
+      )
+      get().flash(`${info.emoji} ${info.label} ${'★'.repeat(star)} ${k}개 팔았어요! +${price * k} 도토리`)
+    },
+
+    sellAllProduce: () => {
+      const { items } = get()
+      const barn = normBarn(items.find((i) => i.type === 'house')?.barn)
+      const today = dateKey()
+      let total = 0
+      let count = 0
+      for (const [pid, row] of Object.entries(barn)) {
+        const info = productInfo(pid)
+        if (!info) continue
+        row.forEach((n, i) => {
+          total += n * sellPrice(info.base, i + 1, marketMult(today, pid))
+          count += n
+        })
+      }
+      if (count <= 0) {
+        get().flash('창고가 비어 있어요')
+        return
+      }
+      commit(
+        items.map((i) => (i.type === 'house' ? { ...i, barn: {} } : i)),
+        get().coins + total,
+      )
+      get().flash(`창고의 ${count}개를 모두 팔았어요! +${total} 도토리`)
+    },
+
+    /* ---------- 친구 농장 돕기 ---------- */
+
+    openHelp: (key) => set({ helpTarget: key }),
+    closeHelp: () => set({ helpTarget: null }),
+
+    helpBlock: (owner) => {
+      const h = get().items.find((i) => i.type === 'house')
+      const log = normHelp(h?.help, dateKey())
+      if (log.to.includes(owner)) return '오늘은 이미 이 친구를 도와줬어요'
+      if (log.n >= HELP_PER_DAY) return `친구 돕기는 하루에 ${HELP_PER_DAY}번까지예요`
+      return null
+    },
+
+    noteHelp: (owner) => {
+      const { items } = get()
+      const h = items.find((i) => i.type === 'house')
+      const log = normHelp(h?.help, dateKey())
+      const help: HelpLog = { ...log, n: log.n + 1, to: [...log.to, owner].slice(-10) }
+      commit(items.map((i) => (i.type === 'house' ? { ...i, help } : i)))
+    },
+
+    // 친구가 도와준 기록을 받는다 (cloud.ts 폴링) — 도와준 밭/우리는 그날 돌본 것으로 쳐서 시들지 않는다
+    applyHelps: (rows) => {
+      const { items } = get()
+      const today = dateKey()
+      const h = items.find((i) => i.type === 'house')
+      const log = normHelp(h?.help, today)
+      let seen = log.seen
+      let next = items
+      let gain = 0
+      const names: string[] = []
+      for (const r of [...rows].sort((a, b) => a.id - b.id)) {
+        if (typeof r.id !== 'number' || r.id <= seen) continue
+        seen = r.id
+        const day = typeof r.day === 'string' && r.day <= today ? r.day : today
+        next = next.map((i) => {
+          if (i.key !== r.item_key) return i
+          if (i.crop) {
+            const c = normCrop(i.crop, today)
+            return { ...i, crop: { ...c, helpDay: c.helpDay && c.helpDay > day ? c.helpDay : day } }
+          }
+          if (i.animal) {
+            const a = normAnimal(i.animal, today)
+            return { ...i, animal: { ...a, helpDay: a.helpDay && a.helpDay > day ? a.helpDay : day } }
+          }
+          return i
+        })
+        gain += HELP_REWARD
+        if (typeof r.helper === 'string' && !names.includes(r.helper)) names.push(r.helper)
+      }
+      if (seen === log.seen) return
+      next = next.map((i) => (i.type === 'house' ? { ...i, help: { ...log, seen } } : i))
+      commit(next, get().coins + gain)
+      get().flash(`${names.slice(0, 3).join(', ')}${names.length > 3 ? ' 외' : ''} 친구가 내 농장을 도와줬어요! 🤝 +${gain} 도토리`)
     },
 
     /* ---------- 도토리 강화 게임 ---------- */

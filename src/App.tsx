@@ -10,6 +10,8 @@ import { Scene } from './game/Scene'
 import { Joystick } from './game/Joystick'
 import { Quiz } from './game/Quiz'
 import { FarmPanel } from './game/FarmPanel'
+import { BarnPanel } from './game/BarnPanel'
+import { HelpPanel } from './game/HelpPanel'
 import { HousePanel } from './game/HousePanel'
 import { BoardPanel } from './game/BoardPanel'
 import { ArcadePanel } from './game/ArcadePanel'
@@ -102,6 +104,7 @@ export default function App() {
   const inFight = useBoss((s) => !!s.game && isActive(s.game) && s.game.members.some((m) => m.n === session?.name))
   const roomCount = useLive((s) => s.names.length)
   const openFriends = useVillage((s) => s.openFriends)
+  const openBarn = useVillage((s) => s.openBarn)
   const setMode = useVillage((s) => s.setMode)
   const togglePlacing = useVillage((s) => s.togglePlacing)
   const rotateSelected = useVillage((s) => s.rotateSelected)
@@ -351,6 +354,9 @@ export default function App() {
                 )
               })()}
 
+            <button type="button" className="barn-btn" onClick={openBarn}>
+              🧺 창고
+            </button>
             <ArmoryButton />
             <PetButton />
             {session && (
@@ -510,6 +516,8 @@ export default function App() {
       {!editing && !inFight && !towerBusy && <Joystick />}
 
       <FarmPanel />
+      <BarnPanel />
+      <HelpPanel />
       <HousePanel />
       <BoardPanel />
       <ArcadePanel />

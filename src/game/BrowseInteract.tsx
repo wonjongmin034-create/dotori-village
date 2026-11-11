@@ -49,10 +49,14 @@ export function BrowseInteract({ itemsRef }: { itemsRef: RefObject<THREE.Group |
       while (o && o.userData.editorKey === undefined) o = o.parent
       const key = o?.userData.editorKey as string | undefined
       const item = key ? viewItems(st).find((i) => i.key === key) : undefined
-      // 친구 마을에서는 집만 눌러 볼 수 있다 (오두막 레벨 확인)
+      // 친구 마을에서는 집(오두막 레벨 확인)과 밭·우리(친구 돕기)만 누를 수 있다
       if (st.visiting) {
         if (item?.type === 'house') st.openFriendInfo()
-        else if (st.friendInfoOpen) st.closeFriendInfo()
+        else if (item && (item.type === 'plot' || item.type === 'coop')) st.openHelp(item.key)
+        else {
+          if (st.friendInfoOpen) st.closeFriendInfo()
+          if (st.helpTarget) st.closeHelp()
+        }
         return
       }
       if (

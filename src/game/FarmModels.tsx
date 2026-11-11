@@ -2,8 +2,8 @@ import { useRef } from 'react'
 import { toonGradient } from './toon'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { CROP_MAP, ANIMAL_MAP } from './economy'
-import type { CropState, AnimalState } from './store'
+import { CROP_MAP, ANIMAL_MAP, cropDays } from './economy'
+import { cropRipe, normCrop, type CropState, type AnimalState } from './farm'
 
 function M({ c }: { c: string }) {
   return <meshToonMaterial gradientMap={toonGradient} color={c} />
@@ -231,7 +231,7 @@ const SPOTS: Record<string, [number, number][]> = {
 }
 
 // 밭 위에서 자라는 작물
-export function CropView({ crop, now }: { crop: CropState; now: number }) {
+export function CropView({ crop, today }: { crop: CropState; today: string }) {
   const def = CROP_MAP[crop.seed]
   const root = useRef<THREE.Group>(null)
 
@@ -246,8 +246,9 @@ export function CropView({ crop, now }: { crop: CropState; now: number }) {
   })
   if (!def) return null
 
-  const grown = Math.min(1, crop.waterCount / def.waterGoal)
-  const ripe = crop.waterCount >= def.waterGoal && now - crop.plantedAt >= def.minGrowMs
+  const cs = normCrop(crop, today)
+  const grown = Math.min(1, cs.grow / cropDays(def, cs.fert))
+  const ripe = cropRipe(cs)
   const s = 0.3 + 0.7 * (ripe ? 1 : Math.min(grown, 0.95))
   const tree = crop.seed in TREES
 
