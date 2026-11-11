@@ -11,7 +11,6 @@ import { Joystick } from './game/Joystick'
 import { Quiz } from './game/Quiz'
 import { FarmPanel } from './game/FarmPanel'
 import { BarnPanel } from './game/BarnPanel'
-import { HelpPanel } from './game/HelpPanel'
 import { HousePanel } from './game/HousePanel'
 import { BoardPanel } from './game/BoardPanel'
 import { ArcadePanel } from './game/ArcadePanel'
@@ -517,7 +516,6 @@ export default function App() {
 
       <FarmPanel />
       <BarnPanel />
-      <HelpPanel />
       <HousePanel />
       <BoardPanel />
       <ArcadePanel />

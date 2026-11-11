@@ -16,7 +16,6 @@ export type CropState = {
   fert?: boolean // 심을 때 비료를 줬다 (자라는 날 -1)
   lastDay?: string // 마지막으로 잘 돌본 날
   tryDay?: string // 마지막으로 돌봄을 시도한 날 (하루 한 번)
-  helpDay?: string // 마지막으로 친구가 도와준 날
   wiltAt?: string // 마지막으로 시들어서 별이 준 날
   // ↓ 예전 방식 (옮길 때만 읽는다)
   waterCount?: number
@@ -34,7 +33,6 @@ export type AnimalState = {
   stars?: number
   lastDay?: string
   tryDay?: string
-  helpDay?: string
   wiltAt?: string
   // ↓ 예전 방식
   feedCount?: number
@@ -43,9 +41,9 @@ export type AnimalState = {
 }
 
 export type Crop2 = Required<Pick<CropState, 'seed' | 'plantedAt' | 'plantDay' | 'grow' | 'stars' | 'fert' | 'lastDay' | 'tryDay'>> &
-  Pick<CropState, 'helpDay' | 'wiltAt'> & { v: 2 }
+  Pick<CropState, 'wiltAt'> & { v: 2 }
 export type Animal2 = Required<Pick<AnimalState, 'species' | 'boughtAt' | 'buyDay' | 'fed' | 'stars' | 'lastDay' | 'tryDay'>> &
-  Pick<AnimalState, 'helpDay' | 'wiltAt'> & { v: 2 }
+  Pick<AnimalState, 'wiltAt'> & { v: 2 }
 
 // 예전 규칙의 목표치 (옮길 때 "다 자랐는지" 판단용)
 const OLD_WATER: Record<string, number> = { rice: 2, potato: 2, corn: 3, apple: 4, pear: 5, peach: 5 }
@@ -70,7 +68,6 @@ export function normCrop(c: CropState, today: string, now = Date.now()): Crop2 {
       fert: !!c.fert,
       lastDay: str(c.lastDay),
       tryDay: str(c.tryDay),
-      helpDay: c.helpDay,
       wiltAt: c.wiltAt,
     }
   }
@@ -104,7 +101,6 @@ export function normAnimal(a: AnimalState, today: string, now = Date.now()): Ani
       stars: clampStar(a.stars),
       lastDay: str(a.lastDay),
       tryDay: str(a.tryDay),
-      helpDay: a.helpDay,
       wiltAt: a.wiltAt,
     }
   }
@@ -154,11 +150,11 @@ export function schoolDaysBetween(from: string, to: string, lunch?: ClassLunch):
 
 const maxDay = (...ds: (string | undefined)[]) => ds.reduce<string>((m, d) => (d && d > m ? d : m), '')
 
-// 마지막으로 누군가 돌봐 준 날 (심은 날·돌본 날·시도한 날·친구가 도와준 날·마지막으로 시든 날 중 가장 늦은 날)
-export const lastActive = (s: { plantDay?: string; buyDay?: string; lastDay?: string; tryDay?: string; helpDay?: string; wiltAt?: string }) =>
-  maxDay(s.plantDay, s.buyDay, s.lastDay, s.tryDay, s.helpDay, s.wiltAt)
+// 마지막으로 돌본 날 (심은 날·돌본 날·시도한 날·마지막으로 시든 날 중 가장 늦은 날)
+export const lastActive = (s: { plantDay?: string; buyDay?: string; lastDay?: string; tryDay?: string; wiltAt?: string }) =>
+  maxDay(s.plantDay, s.buyDay, s.lastDay, s.tryDay, s.wiltAt)
 
-// 오늘 시들었는지 (학교 날로 3일 넘게 아무도 돌보지 않았다) — 다음에 만질 때 별이 하나 준다
+// 오늘 시들었는지 (학교 날로 3일 넘게 돌보지 않았다) — 다음에 만질 때 별이 하나 준다
 export function wiltPending(s: Crop2 | Animal2, today: string, lunch?: ClassLunch): boolean {
   const from = lastActive(s)
   return !!from && schoolDaysBetween(from, today, lunch) >= WILT_SCHOOL_DAYS
@@ -185,8 +181,6 @@ export const animalReady = (a: Animal2) => {
 export type Barn = Record<string, [number, number, number]>
 // 도감: 물건 id → 거둔 가장 좋은 별
 export type Dex = Record<string, number>
-// 친구 돕기: 오늘 도운 횟수 · 도운 친구, seen = 받은 도움 중 마지막으로 반영한 번호
-export type HelpLog = { day: string; n: number; to: string[]; seen: number }
 
 export function normBarn(raw: unknown): Barn {
   const out: Barn = {}
@@ -203,10 +197,4 @@ export function normDex(raw: unknown): Dex {
   if (!raw || typeof raw !== 'object') return out
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (typeof v === 'number') out[k] = clampStar(v)
   return out
-}
-export function normHelp(raw: unknown, today: string): HelpLog {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<HelpLog>
-  const seen = typeof o.seen === 'number' ? o.seen : 0
-  if (o.day !== today) return { day: today, n: 0, to: [], seen }
-  return { day: today, n: Math.max(0, Number(o.n) || 0), to: Array.isArray(o.to) ? o.to.filter((s) => typeof s === 'string') : [], seen }
 }

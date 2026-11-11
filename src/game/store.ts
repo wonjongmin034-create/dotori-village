@@ -5,8 +5,6 @@ import {
   CROP_MAP,
   fertCost,
   DEX_NEW_REWARD,
-  HELP_PER_DAY,
-  HELP_REWARD,
   productInfo,
   sellPrice,
   marketMult,
@@ -41,12 +39,10 @@ import {
   animalReady,
   normBarn,
   normDex,
-  normHelp,
   type CropState,
   type AnimalState,
   type Barn,
   type Dex,
-  type HelpLog,
 } from './farm'
 import { CATALOG_MAP } from './catalog'
 import { DEFAULT_AVATAR, normalizeAvatar, type Avatar } from './avatar'
@@ -116,11 +112,8 @@ export type PlacedItem = {
   enh?: EnhanceState // 강화 게임 상태 (arcade)
   barn?: Barn // (집에만) 창고 — 거둔 작물·생산물 (별 개수별)
   dex?: Dex // (집에만) 농장 도감 — 거둔 것과 가장 좋은 별
-  help?: HelpLog // (집에만) 친구 돕기 기록
 }
 
-// 친구가 내 농장을 도와준 기록 (서버 farm_help 표)
-export type FarmHelpRow = { id: number; helper: string; item_key: string; day: string }
 
 // 하루 보스 도전 기록 — day 가 오늘이 아니면 0번으로 본다. gid 는 마지막으로 센 전투 (다시 접속해도 같은 판을 두 번 세지 않게)
 export type BossTry = { day: string; n: number; gid: number }
@@ -419,7 +412,6 @@ interface VillageState {
   friendsOpen: boolean // 친구 목록 패널
   friendInfoOpen: boolean // 친구 집 정보 패널
   barnOpen: boolean // 창고·시장·도감 창
-  helpTarget: string | null // 친구 마을에서 도와주려고 누른 밭/우리 key
   notice: string | null // 화면 가운데 안내창 (확인을 누를 때까지)
   worksheets: Worksheet[] // 선생님이 보낸 학습지(PDF)
   mySubs: Record<string, MySub> // 학습지 id → 내 제출 상태
@@ -515,11 +507,6 @@ interface VillageState {
   closeBarn: () => void
   sellProduce: (pid: string, star: number, n: number) => void
   sellAllProduce: () => void
-  openHelp: (key: string) => void
-  closeHelp: () => void
-  helpBlock: (owner: string) => string | null
-  noteHelp: (owner: string) => void
-  applyHelps: (rows: FarmHelpRow[]) => void
 
   enhanceTry: () => void
   enhanceSell: () => void
@@ -570,7 +557,6 @@ export const useVillage = create<VillageState>((set, get) => {
     friendsOpen: false,
     friendInfoOpen: false,
     barnOpen: false,
-    helpTarget: null,
     notice: null,
     worksheets: [],
     mySubs: {},
@@ -1081,7 +1067,6 @@ export const useVillage = create<VillageState>((set, get) => {
         visiting,
         friendsOpen: false,
         friendInfoOpen: false,
-        helpTarget: null,
         activeFarm: null,
         selected: null,
         placing: null,
@@ -1397,62 +1382,6 @@ export const useVillage = create<VillageState>((set, get) => {
         get().coins + total,
       )
       get().flash(`창고의 ${count}개를 모두 팔았어요! +${total} 도토리`)
-    },
-
-    /* ---------- 친구 농장 돕기 ---------- */
-
-    openHelp: (key) => set({ helpTarget: key }),
-    closeHelp: () => set({ helpTarget: null }),
-
-    helpBlock: (owner) => {
-      const h = get().items.find((i) => i.type === 'house')
-      const log = normHelp(h?.help, dateKey())
-      if (log.to.includes(owner)) return '오늘은 이미 이 친구를 도와줬어요'
-      if (log.n >= HELP_PER_DAY) return `친구 돕기는 하루에 ${HELP_PER_DAY}번까지예요`
-      return null
-    },
-
-    noteHelp: (owner) => {
-      const { items } = get()
-      const h = items.find((i) => i.type === 'house')
-      const log = normHelp(h?.help, dateKey())
-      const help: HelpLog = { ...log, n: log.n + 1, to: [...log.to, owner].slice(-10) }
-      commit(items.map((i) => (i.type === 'house' ? { ...i, help } : i)))
-    },
-
-    // 친구가 도와준 기록을 받는다 (cloud.ts 폴링) — 도와준 밭/우리는 그날 돌본 것으로 쳐서 시들지 않는다
-    applyHelps: (rows) => {
-      const { items } = get()
-      const today = dateKey()
-      const h = items.find((i) => i.type === 'house')
-      const log = normHelp(h?.help, today)
-      let seen = log.seen
-      let next = items
-      let gain = 0
-      const names: string[] = []
-      for (const r of [...rows].sort((a, b) => a.id - b.id)) {
-        if (typeof r.id !== 'number' || r.id <= seen) continue
-        seen = r.id
-        const day = typeof r.day === 'string' && r.day <= today ? r.day : today
-        next = next.map((i) => {
-          if (i.key !== r.item_key) return i
-          if (i.crop) {
-            const c = normCrop(i.crop, today)
-            return { ...i, crop: { ...c, helpDay: c.helpDay && c.helpDay > day ? c.helpDay : day } }
-          }
-          if (i.animal) {
-            const a = normAnimal(i.animal, today)
-            return { ...i, animal: { ...a, helpDay: a.helpDay && a.helpDay > day ? a.helpDay : day } }
-          }
-          return i
-        })
-        gain += HELP_REWARD
-        if (typeof r.helper === 'string' && !names.includes(r.helper)) names.push(r.helper)
-      }
-      if (seen === log.seen) return
-      next = next.map((i) => (i.type === 'house' ? { ...i, help: { ...log, seen } } : i))
-      commit(next, get().coins + gain)
-      get().flash(`${names.slice(0, 3).join(', ')}${names.length > 3 ? ' 외' : ''} 친구가 내 농장을 도와줬어요! 🤝 +${gain} 도토리`)
     },
 
     /* ---------- 도토리 강화 게임 ---------- */

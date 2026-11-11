@@ -43,7 +43,7 @@ export function FarmPanel() {
       <br />
       ❌ 틀리면 그날 기회가 사라지고 품질이 ★ 하나 줄어요.
       <br />
-      🥀 학교 날 {WILT_SCHOOL_DAYS}일 동안 아무도 안 돌보면 시들어서 ★ 하나 줄어요. (친구가 도와주면 괜찮아요)
+      🥀 학교 날 {WILT_SCHOOL_DAYS}일 동안 돌보지 않으면 시들어서 ★ 하나 줄어요.
     </p>
   )
   const barnLink = (
@@ -117,7 +117,6 @@ export function FarmPanel() {
                         : '💧 오늘 물을 줄 수 있어요'}
                   </div>
                   {wilt && <div className="farm-wilt">🥀 며칠 동안 못 돌봐서 시들었어요 (★ 하나 줄어요)</div>}
-                  {c.helpDay === today && <div className="farm-help-on">🤝 오늘 친구가 도와줬어요</div>}
                   <div className="farm-price">오늘 시장에서 약 🌰 {price}</div>
                 </div>
                 {rules}
@@ -186,7 +185,6 @@ export function FarmPanel() {
                         : '🌾 오늘 먹이를 줄 수 있어요'}
                   </div>
                   {wilt && <div className="farm-wilt">😢 며칠 동안 굶어서 기운이 없어요 (★ 하나 줄어요)</div>}
-                  {a.helpDay === today && <div className="farm-help-on">🤝 오늘 친구가 도와줬어요</div>}
                   <div className="farm-price">
                     {def.produceEmoji} 오늘 시장에서 약 🌰 {price}
                   </div>

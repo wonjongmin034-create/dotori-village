@@ -11,11 +11,11 @@ import { WardrobeModel } from './WardrobeModel'
 import { dateKey, type ClassLunch } from './lunch'
 import { animalReady, cropRipe, normAnimal, normCrop, wiltPending } from './farm'
 
-// 머리 위 표시: 노랑 = 거둘 수 있다 · 파랑 = 오늘 돌볼 수 있다 · 갈색 = 시들었다(돌봐 주세요) · 초록 = (친구 마을) 도와줄 수 있다
+// 머리 위 표시: 노랑 = 거둘 수 있다 · 파랑 = 오늘 돌볼 수 있다 · 갈색 = 시들었다(돌봐 주세요)
 function beaconColor(it: PlacedItem, today: string, lunch: ClassLunch, friend: boolean): string | null {
+  if (friend) return null // 친구 마을에서는 표시하지 않는다
   const st = it.type === 'plot' && it.crop ? normCrop(it.crop, today) : it.type === 'coop' && it.animal ? normAnimal(it.animal, today) : null
   if (!st) return null
-  if (friend) return st.tryDay !== today && st.helpDay !== today ? '#6fd36f' : null
   if ('seed' in st ? cropRipe(st) : animalReady(st)) return '#ffce3a'
   if (wiltPending(st, today, lunch)) return '#b07a3e'
   if (st.tryDay !== today) return '#54b6e8'

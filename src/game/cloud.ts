@@ -7,13 +7,11 @@ import {
   type Session,
   type Mission,
   type DailyResult,
-  type FarmHelpRow,
 } from './store'
 import { DAILY_PER_SUBJECT } from './economy'
 import { dailySet, sanitizeQuestions, type Question } from './questions'
 import { refreshSheets, resetSheets } from './sheets'
-import { dateKey, sanitizeLunch, type ClassLunch } from './lunch'
-import { normHelp } from './farm'
+import { sanitizeLunch, type ClassLunch } from './lunch'
 import { pollControl, resetControl, clearRejoinFlag } from './classControl'
 import { syncServerClock } from './serverClock'
 
@@ -454,7 +452,6 @@ async function pushHomework() {
 async function pollGrants() {
   const { session } = useVillage.getState()
   if (!session) return
-  void pollHelps()
   try {
     // 최근 7일치 지급을 확인. 중복 적용은 consumed_by로 막는다.
     const since = new Date(Date.now() - 7 * 86400_000).toISOString()
@@ -475,49 +472,6 @@ async function pollGrants() {
         .update({ consumed_by: [...(g.consumed_by || []), session.name] })
         .eq('id', g.id)
     }
-  } catch {
-    /* noop */
-  }
-}
-
-/* ---------- 친구 농장 돕기 (supabase/schema-14-farm-help.sql) ---------- */
-
-// 친구의 밭/우리를 도와줬다고 서버에 남긴다. 친구는 다음 폴링 때 받아서 그날 돌본 것으로 친다.
-export async function sendFarmHelp(owner: string, itemKey: string): Promise<'ok' | 'dup' | 'missing' | 'fail'> {
-  const { session } = useVillage.getState()
-  if (!session) return 'fail'
-  try {
-    const { error } = await supabase.from('farm_help').insert({
-      class_code: session.classCode,
-      owner,
-      helper: session.name,
-      item_key: itemKey,
-      day: dateKey(),
-    })
-    if (!error) return 'ok'
-    if (error.code === '23505') return 'dup'
-    if (error.code === '42P01' || error.code === 'PGRST205') return 'missing'
-    return 'fail'
-  } catch {
-    return 'fail'
-  }
-}
-
-async function pollHelps() {
-  const s = useVillage.getState()
-  if (!s.session) return
-  try {
-    const seen = normHelp(s.items.find((i) => i.type === 'house')?.help, dateKey()).seen
-    const { data, error } = await supabase
-      .from('farm_help')
-      .select('id, helper, item_key, day')
-      .eq('class_code', s.session.classCode)
-      .eq('owner', s.session.name)
-      .gt('id', seen)
-      .order('id', { ascending: true })
-      .limit(50)
-    if (error || !data || !data.length) return
-    useVillage.getState().applyHelps(data as FarmHelpRow[])
   } catch {
     /* noop */
   }

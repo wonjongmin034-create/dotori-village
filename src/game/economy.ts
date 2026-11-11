@@ -41,8 +41,6 @@ export function dailyPay(points: number, total: number): { rate: number; coins: 
 export const STAR_MULT = [0, 0.6, 1, 1.5] // ★1 · ★2 · ★3 값 배수
 export const WILT_SCHOOL_DAYS = 3
 export const DEX_NEW_REWARD = 3 // 도감에 처음 올린 것마다
-export const HELP_PER_DAY = 3 // 하루에 친구를 도와줄 수 있는 횟수
-export const HELP_REWARD = 1 // 친구를 도와주면 나도, 친구도 받는 도토리
 
 export type CropDef = {
   id: string
