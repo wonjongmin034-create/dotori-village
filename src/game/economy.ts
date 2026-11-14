@@ -156,12 +156,15 @@ export const HOUSE_LEVELS: HouseLevel[] = [
   { level: 2, label: '통나무 오두막', cost: 45, desc: '지붕과 문이 생겼어요' },
   { level: 3, label: '아담한 집', cost: 130, desc: '창문과 굴뚝, 작은 현관' },
   { level: 4, label: '이층집', cost: 340, desc: '위층이 생겨 넓어졌어요' },
-  { level: 5, label: '큰 저택', cost: 750, desc: '마을에서 제일 멋진 집' },
+  { level: 5, label: '큰 저택', cost: 750, desc: '정원과 기둥이 있는 저택' },
+  { level: 6, label: '탑이 있는 저택', cost: 1500, desc: '망루(탑)가 달린 넓은 저택' },
+  { level: 7, label: '작은 성', cost: 2800, desc: '성벽과 깃발이 있는 작은 성' },
+  { level: 8, label: '도토리 궁전', cost: 5000, desc: '마을에서 가장 웅장한 궁전' },
 ]
 export const MAX_HOUSE_LEVEL = HOUSE_LEVELS.length
 
 // 밭·우리는 무료라서 무한정 늘리면 도토리가 끝없이 불어난다 → 집 단계에 따라 개수 제한.
-// 밭 3~7개, 우리 2~6개 (집 1~5단계). 이미 더 많이 가진 학생은 그대로 두고 새로 놓기만 막는다.
+// 밭 3~10개, 우리 2~9개 (집 1~8단계). 이미 더 많이 가진 학생은 그대로 두고 새로 놓기만 막는다.
 export const FARM_LIMIT_TYPES = ['plot', 'coop'] as const
 export function farmLimit(type: string, level: number | undefined): number | null {
   const lv = Math.max(1, Math.min(MAX_HOUSE_LEVEL, level ?? 1))
@@ -175,14 +178,14 @@ export const houseLevel = (n: number | undefined) =>
 // ── 마을 땅 (네모) ──
 // half = 반쪽 크기. 땅은 (half*2) x (half*2) 정사각형. 1칸 = "1평".
 export const LAND_START = 5 // 처음: 10 x 10 = 100평
-export const LAND_MAX = 18 // 최대: 36 x 36
+export const LAND_MAX = 30 // 최대: 60 x 60 (8단계 집)
 export const LAND_STEP = 1 // 한 번 넓히면 반쪽 +1 (가로세로 각 +2)
 export const LAND_PRICE_PER_TILE = 1 // 평당 도토리
 export const LAND_OLD = 17 // 예전(둥근) 마을 크기 — 기존 학생은 이걸로 유지
 
-// 땅은 집 단계에 따라 넓힐 수 있는 한계가 있다 (집 1~5단계 → 반쪽 7·9·11·14·18 = 14×14 ~ 36×36칸).
+// 땅은 집 단계에 따라 넓힐 수 있는 한계가 있다 (집 1~8단계 → 반쪽 7·9·11·14·18·22·26·30 = 14×14 ~ 60×60칸).
 // 이미 그보다 큰 땅을 가진 학생은 그대로 두고, 더 넓히는 것만 막는다.
-export const LAND_CAP_BY_HOUSE = [7, 9, 11, 14, 18]
+export const LAND_CAP_BY_HOUSE = [7, 9, 11, 14, 18, 22, 26, 30]
 export const landCapFor = (houseLv: number | undefined) => LAND_CAP_BY_HOUSE[Math.max(1, Math.min(LAND_CAP_BY_HOUSE.length, houseLv ?? 1)) - 1]
 // 이 크기(반쪽)까지 넓히려면 필요한 가장 낮은 집 단계
 export const houseNeededForLand = (half: number) => {

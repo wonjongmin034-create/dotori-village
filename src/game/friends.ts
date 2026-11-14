@@ -15,8 +15,8 @@ export type Friend = {
   online: boolean // 최근 3분 안에 접속
 }
 
-export const HOUSE_EMOJI = ['⛺', '🛖', '🏡', '🏠', '🏰']
-export const houseEmoji = (level: number) => HOUSE_EMOJI[Math.max(1, Math.min(5, level)) - 1]
+export const HOUSE_EMOJI = ['⛺', '🛖', '🏡', '🏠', '🏘️', '🗼', '🏯', '🏰']
+export const houseEmoji = (level: number) => HOUSE_EMOJI[Math.max(1, Math.min(HOUSE_EMOJI.length, level)) - 1]
 
 const SYSTEM = new Set(['house', 'board', 'arcade', 'wardrobe'])
 
