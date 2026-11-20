@@ -84,7 +84,7 @@ export const STAGES: Stage[] = [
   {
     id: 6,
     name: '시계탑 거인 크로노',
-    subject: '한국사 2부 (조선 후기~오늘날)',
+    subject: '한국사 2부 (조선 후기~일제 강점기)',
     ms: 13_000,
     hp: 400,
     life: 6,
@@ -92,8 +92,8 @@ export const STAGES: Stage[] = [
     mixed: true,
     rounds: true,
     healOnMiss: true,
-    roundNames: ['', '조선 후기 라운드', '개항·일제 강점기 라운드', '광복~오늘날 라운드'],
-    intro: '나는 역사를 먹고 자라는 시계탑 거인! 조선 후기부터 오늘날까지 기억하지 못하면 시간을 되돌려 버리겠다! 틀릴 때마다 내 체력이 회복된다!',
+    roundNames: ['', '조선 후기 라운드', '개항·대한 제국 라운드', '일제 강점기 라운드'],
+    intro: '나는 역사를 먹고 자라는 시계탑 거인! 조선 후기부터 광복 전까지의 역사를 기억하지 못하면 시간을 되돌려 버리겠다! 틀릴 때마다 내 체력이 회복된다!',
     theme: { sky: '#e9c79a', fog: '#e2bf93', ground: '#9a8063', ring: '#c9a77a', accent: '#ffcf6b' },
   },
 ]

@@ -351,7 +351,7 @@ class RoundDeck {
 }
 
 /* ---------- 6단계: 한국사 2부 (라운드제) ---------- */
-//  1라운드 조선 후기 · 2라운드 개항 ~ 일제 강점기 · 3라운드 광복 ~ 오늘날 + 앞 시대 섞기
+//  1라운드 조선 후기 · 2라운드 개항 ~ 대한 제국 · 3라운드 일제 강점기 + 앞 시대 섞기  (광복 ~ 오늘날은 다음 보스용으로 남겨 둔다)
 //  보기 고르기 + 일어난 순서 맞히기 + 인물 이름 글자 타일, 3번째마다 가위바위보·홀짝, 5번째마다 필살기(사람마다 다른 문제)
 class HistoryRoundDeck {
   private era = new Map<Era, Cycler>(([1, 2, 3, 4] as Era[]).map((e) => [e, new Cycler(HISTORY2.flatMap((h, i) => (h.e === e ? [i] : [])))]))
@@ -405,22 +405,21 @@ class HistoryRoundDeck {
     const table: [number, () => BossQ][] =
       lv === 1
         ? [
-            [0.7, () => this.mc(1, 1)],
-            [0.15, () => this.mc(2, 1)],
-            [0.15, () => this.name([1], 1, 1)],
+            [0.8, () => this.mc(1, 1)],
+            [0.2, () => this.name([1], 1, 1)],
           ]
         : lv === 2
           ? [
-              [0.33, () => this.mc(2, 2)],
-              [0.33, () => this.mc(3, 2)],
-              [0.17, () => this.order(4, 1945, 20_000)],
-              [0.17, () => this.name([2, 3], 2, 2)],
+              [0.55, () => this.mc(2, 2)],
+              [0.15, () => this.mc(1, 2)],
+              [0.15, () => this.order(4, 1910, 20_000)],
+              [0.15, () => this.name([1, 2], 2, 2)],
             ]
           : [
-              [0.35, () => this.mc(4, 3)],
-              [0.2, () => this.mc(([1, 2, 3] as Era[])[ri(0, 2)], 3)],
-              [0.25, () => this.order(5, 3000, 24_000)],
-              [0.2, () => this.name([1, 2, 3, 4], 3, 3)],
+              [0.45, () => this.mc(3, 3)],
+              [0.2, () => this.mc(([1, 2] as Era[])[ri(0, 1)], 3)],
+              [0.2, () => this.order(5, 1940, 24_000)],
+              [0.15, () => this.name([1, 2, 3], 3, 3)],
             ]
     let r = Math.random()
     for (const [w, fn] of table) {
@@ -430,10 +429,10 @@ class HistoryRoundDeck {
     return table[table.length - 1][1]()
   }
 
-  // 필살기: 팀원마다 서로 다른 보기 고르기 문제 (모든 시대에서), 시간은 모두 같다
+  // 필살기: 팀원마다 서로 다른 보기 고르기 문제 (조선 후기 ~ 일제 강점기), 시간은 모두 같다
   ult(n: number): BossQ[] {
     return Array.from({ length: n }, (_, i) => {
-      const q = this.mc(((i % 4) + 1) as Era, 2)
+      const q = this.mc(((i % 3) + 1) as Era, 2)
       q.ms = 13_000
       return q
     })
