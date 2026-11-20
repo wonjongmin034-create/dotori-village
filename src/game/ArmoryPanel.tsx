@@ -150,6 +150,9 @@ export function ArmoryPanel() {
               <div className="armory-confirm">
                 <div>
                   <small>{JOB_MAP[pickJob].desc}</small>
+                  <small className="job-skill">
+                    {JOB_MAP[pickJob].skill} · 보스전: {JOB_MAP[pickJob].boss} · 레이드: {JOB_MAP[pickJob].raid}
+                  </small>
                   <b>
                     {JOB_MAP[pickJob].label}(으)로 전직할까요? → ‘{tierName(pickJob, 1)}’
                   </b>
@@ -187,6 +190,16 @@ export function ArmoryPanel() {
               {ready ? '⭐ 1차 전직할 수 있어요!' : `⭐ 1차 전직 조건 보기 (${checks.filter((c) => c.ok).length}/${checks.length})`}
             </button>
           )}
+
+        {job && (
+          <p className="job-skill-now">
+            {JOB_MAP[job.f].emoji} 직업 기술 <b>{JOB_MAP[job.f].skill}</b>
+            <br />
+            보스전: {JOB_MAP[job.f].boss}
+            <br />
+            레이드: {JOB_MAP[job.f].raid}
+          </p>
+        )}
 
         <div className="armory-tabs">
           {owned_.map((f) => (

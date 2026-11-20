@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { Deck, publicOf, type Answer, type BossQ, type PublicQ, type QKind } from './bossQuestions'
+import { JOB_MAP, SKILL, jobOf } from './jobs'
 import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, ULT_DMG_MULT, ULT_EVERY, ULT_LIFE_LOSS, comboMult, lifeFor, MAX_PARTY, MIN_PARTY, RESULT_MS, RPS_WIN_MULT, dmgOf, phaseOf, soloTest, stageOf, STAGES, type StageId } from './bossData'
 
 // 보스전 — 광장 오목과 같은 방식: "방장"(방에 제일 먼저 들어온 사람)이 판을 혼자 관리한다.
@@ -8,7 +9,7 @@ import { ANSWER_GRACE_MS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, ULT_DMG_
 //   · 서버 메시지를 아끼려고 "문제가 나갈 때 / 답이 올 때 / 결과가 나올 때"만 보낸다. 시간은 매초 알리지 않고 제한 시간만 알린다.
 //   · 이 방은 최대 4명이라 메시지가 아주 적다.
 
-export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number; tl: number; pt: number } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계, 오늘 남은 도전 횟수, 펫 단계
+export type Member = { n: string; cl: number; wf: string | null; wt: number; hl: number; tl: number; pt: number; jb?: string | null } // 이름, 클리어한 단계, 무기 종류, 무기 단계, 집 단계, 오늘 남은 도전 횟수, 펫 단계, 직업
 export type Phase = 'intro' | 'ask' | 'result' | 'won' | 'lost' | 'aborted'
 export type LastHit = {
   who: string
@@ -30,6 +31,7 @@ export type LastHit = {
   ultOk?: string[] // 필살기에서 맞힌 사람
   ultBad?: string[] // 필살기에서 틀리거나 못 푼 사람
   ultAns?: Record<string, string> // 필살기가 끝난 뒤 공개하는 사람별 정답 (이름 → 정답)
+  skill?: string[] // 이번에 발동한 직업 기술 (화면에 보여 줄 글)
 }
 
 export type BossGame = {
@@ -55,6 +57,8 @@ export type BossGame = {
   ult: boolean // 지금 문제가 필살기(팀원 모두가 동시에 푸는 문제)인지
   done: string[] // (필살기) 이미 답을 낸 사람
   uq?: Record<string, PublicQ> // (필살기) 사람마다 받은 서로 다른 문제 — 이름 → 문제
+  sk?: Record<string, number> // 직업 기술을 쓴 횟수 (이름 → 횟수)
+  open?: string // 전투 시작 때 발동한 기술 (창기사 선제 돌격)
 }
 
 export type BossPayload =
@@ -151,7 +155,7 @@ export const bossPresence = () => ({ bm: { cl: myCleared, hl: myHouse, tl: myLef
 
 /* ---------- 방(presence)이 바뀔 때 ---------- */
 
-type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number; pet?: { st?: number } | null }; bm?: { cl?: number; hl?: number; tl?: number } }
+type PresenceMeta = { avatar?: { weapon?: string | null; wt?: number; pet?: { st?: number } | null; jb?: string | null }; bm?: { cl?: number; hl?: number; tl?: number } }
 
 export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: string[]) {
   const roster: Member[] = allowed.map((n) => {
@@ -162,7 +166,7 @@ export function bossOnPresence(state: Record<string, PresenceMeta[]>, allowed: s
     const tl = typeof m?.bm?.tl === 'number' ? Math.max(0, Math.min(BOSS_DAILY, Math.round(m.bm.tl))) : BOSS_DAILY
     const ps = m?.avatar?.pet?.st
     const pt = typeof ps === 'number' ? Math.max(0, Math.min(4, Math.round(ps))) : 0
-    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl, tl, pt }
+    return { n, cl, wf: m?.avatar?.weapon ?? null, wt: m?.avatar?.weapon ? wt : 1, hl, tl, pt, jb: jobOf(m?.avatar?.jb) }
   })
   const host = allowed[0] ?? null
   useBoss.setState({ roster, host })
@@ -245,12 +249,16 @@ export function startFight(): string | null {
   const members = st.roster.map((m) => ({ ...m }))
   const life = lifeFor(cfg, members.map((m) => m.hl))
   const prev = st.game?.gid ?? 0
+  // 창기사: 전투가 시작되면 먼저 찌른다
+  const spear = spearHit(members, stage)
   publish({
     gid: Math.max(Date.now(), prev + 1),
     host: myName,
     stage,
     members,
-    hp: cfg.hp,
+    hp: Math.max(1, cfg.hp - spear.dmg),
+    open: spear.text || undefined,
+    sk: {},
     maxHp: cfg.hp,
     life,
     maxLife: life,
@@ -269,6 +277,23 @@ export function startFight(): string | null {
     done: [],
   })
   return null
+}
+
+/* ---------- 직업 기술 (방장이 계산한다) ---------- */
+const usedOf = (g: BossGame, n: string) => g.sk?.[n] ?? 0
+const useSkill = (sk: Record<string, number>, n: string) => ({ ...sk, [n]: (sk[n] ?? 0) + 1 })
+// 창기사 선제 돌격: 팀의 창기사마다 (내 공격력 × 2)
+function spearHit(members: Member[], stage: number): { dmg: number; text: string } {
+  const sp = members.filter((m) => m.jb === 'spear')
+  if (!sp.length) return { dmg: 0, text: '' }
+  const dmg = sp.reduce((a, m) => a + Math.round(dmgOf(m.wt ?? 1, stage, m.pt ?? 0) * SKILL.spearMult), 0)
+  return { dmg, text: JOB_MAP.spear.skill + '! ' + sp.map((m) => m.n).join(', ') + ' −' + dmg }
+}
+// 수호자 철벽 방어: 팀 생명이 깎일 때 아직 막기를 안 쓴 (자리에 있는) 수호자가 막는다
+function guardian(g: BossGame, sk: Record<string, number>): string | null {
+  const here = presentNames()
+  const m = g.members.find((x) => x.jb === 'hammer' && here.has(x.n) && (sk[x.n] ?? 0) < SKILL.hammerUses)
+  return m ? m.n : null
 }
 
 function presentNames(): Set<string> {
@@ -306,6 +331,21 @@ function askNext(g: BossGame) {
     uq = Object.fromEntries(g.members.map((m, i) => [m.n, publicOf(qs[i])]))
     q = qs[0]
   } else q = deck!.next(g.lv, g.n + 1)
+  let sk = g.sk ?? {}
+  if (!isUlt) {
+    const me = g.members.find((m) => m.n === who)
+    // 궁수 매의 눈: 내 차례 보기 고르기 문제에서 오답 하나를 지운다
+    if (me?.jb === 'bow' && (q.k ?? 'mc') === 'mc' && typeof q.a === 'number' && q.o.length > 2 && usedOf(g, who) < SKILL.bowUses) {
+      const wrong = q.o.map((_, i) => i).filter((i) => i !== q.a)
+      const drop = wrong[Math.floor(Math.random() * wrong.length)]
+      const ans = q.o[q.a as number]
+      const o = q.o.filter((_, i) => i !== drop)
+      q = { ...q, o, a: o.indexOf(ans), sub: JOB_MAP.bow.skill + '! 오답 하나를 지웠어요 (' + (usedOf(g, who) + 1) + '/' + SKILL.bowUses + ')' }
+      sk = useSkill(sk, who)
+    }
+    // 검사 집중: 내 차례 제한 시간 +3초
+    if (me?.jb === 'sword') q = { ...q, ms: (q.ms ?? stageOf(g.stage).ms) + SKILL.swordMs }
+  }
   curQ = q
   if (import.meta.env.DEV) {
     // 개발용: 시험 도구가 정답을 읽을 수 있게 (운영 빌드에는 없다)
@@ -330,6 +370,7 @@ function askNext(g: BossGame) {
     ult: isUlt,
     done: [],
     uq,
+    sk,
   })
 }
 
@@ -409,8 +450,19 @@ function resolveUlt(g: BossGame) {
   const allOk = results.length > 0 && results.every((r) => r.j.ok)
   const sum = present.reduce((a, m) => a + dmgOf(m.wt ?? 1, g.stage, m.pt ?? 0), 0)
   const dmg = allOk ? Math.round(sum * ULT_DMG_MULT) : 0
-  const hp = Math.max(0, g.hp - dmg)
-  let life = allOk ? g.life : Math.max(0, g.life - ULT_LIFE_LOSS)
+  let hp = Math.max(0, g.hp - dmg)
+  let sk = g.sk ?? {}
+  const skill: string[] = []
+  let loss = allOk ? 0 : ULT_LIFE_LOSS
+  if (loss > 0) {
+    const gd = guardian(g, sk)
+    if (gd) {
+      loss -= 1
+      sk = useSkill(sk, gd)
+      skill.push(JOB_MAP.hammer.skill + '! ' + gd + '님이 생명 하나를 지켰어요')
+    }
+  }
+  let life = Math.max(0, g.life - loss)
   let lv = g.lv
   let lvUp = false
   if (cfg.mixed && hp > 0) {
@@ -419,6 +471,11 @@ function resolveUlt(g: BossGame) {
       lv = nl
       lvUp = true
       life = Math.min(g.maxLife, life + HEAL_ON_PHASE)
+      const spear = spearHit(g.members, g.stage)
+      if (spear.dmg) {
+        hp = Math.max(1, hp - spear.dmg)
+        skill.push(spear.text)
+      }
     }
   }
   const end: BossGame['end'] = hp <= 0 ? 'won' : life <= 0 ? 'lost' : null
@@ -450,7 +507,9 @@ function resolveUlt(g: BossGame) {
       ultOk: results.filter((r) => r.j.ok).map((r) => r.m.n),
       ultBad: results.filter((r) => !r.j.ok).map((r) => r.m.n),
       lvUp: lvUp || undefined,
+      skill: skill.length ? skill : undefined,
     },
+    sk,
     seq: g.seq + 1,
   })
 }
@@ -459,14 +518,32 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
   const q = curQ
   if (!q) return
   const me = g.members.find((m) => m.n === g.who)
-  const j = judge(q, pick, timeout)
+  let j = judge(q, pick, timeout)
   const cfg = stageOf(g.stage)
+  let sk = g.sk ?? {}
+  const skill: string[] = []
+  // 마법사 행운의 주문: 가위바위보·홀짝에서 지거나 비기면 이긴 걸로 (답을 냈을 때만)
+  if (me?.jb === 'staff' && (q.k === 'rps' || q.k === 'oe') && !j.ok && !timeout && j.pickIdx >= 0 && usedOf(g, g.who) < SKILL.staffUses) {
+    j = { ...j, ok: true, draw: false }
+    sk = useSkill(sk, g.who)
+    skill.push(JOB_MAP.staff.skill + '! 운을 바꿔 이겼어요')
+  }
   const mult = q.k === 'rps' && j.ok ? RPS_WIN_MULT : 1
   const cm = cfg.rounds && j.ok ? comboMult(g.combo ?? 0) : 1 // 연속 정답 콤보 (5단계)
-  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage, me?.pt ?? 0) * mult * cm) : 0
+  const axe = me?.jb === 'axe' && j.ok ? SKILL.axeMult : 1 // 광전사 분노의 일격
+  if (axe > 1) skill.push(JOB_MAP.axe.skill + '! 피해 ×' + SKILL.axeMult)
+  const dmg = j.ok ? Math.round(dmgOf(me?.wt ?? 1, g.stage, me?.pt ?? 0) * mult * cm * axe) : 0
   const heal = cfg.healOnMiss && !j.ok && !j.draw ? Math.min(BOSS_HEAL_ON_MISS, g.maxHp - g.hp) : 0 // 틀리면 보스가 체력을 회복한다 (4단계)
-  const hp = Math.max(0, g.hp - dmg) + heal
-  let life = j.ok || j.draw ? g.life : Math.max(0, g.life - 1)
+  let hp = Math.max(0, g.hp - dmg) + heal
+  let life = g.life
+  if (!j.ok && !j.draw) {
+    // 수호자 철벽 방어: 팀 생명이 깎이는 것을 한 번 막는다
+    const gd = guardian(g, sk)
+    if (gd) {
+      sk = useSkill(sk, gd)
+      skill.push(JOB_MAP.hammer.skill + '! ' + gd + '님이 팀 생명을 지켰어요')
+    } else life = Math.max(0, g.life - 1)
+  }
   // 종합 보스: 체력이 다음 구간으로 내려가면 보스가 화나서 다음 페이즈 — 팀 생명이 조금 회복된다
   let lv = g.lv
   let lvUp = false
@@ -476,6 +553,11 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
       lv = nl
       lvUp = true
       life = Math.min(g.maxLife, life + HEAL_ON_PHASE)
+      const spear = spearHit(g.members, g.stage)
+      if (spear.dmg) {
+        hp = Math.max(1, hp - spear.dmg)
+        skill.push(spear.text)
+      }
     }
   }
   const end: BossGame['end'] = hp <= 0 ? 'won' : life <= 0 ? 'lost' : null
@@ -484,6 +566,7 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
     hp,
     life,
     lv,
+    sk,
     combo: j.ok ? (g.combo ?? 0) + 1 : j.draw ? (g.combo ?? 0) : 0,
     ult: false,
     done: [],
@@ -506,6 +589,7 @@ function resolve(g: BossGame, pick: Answer | undefined, timeout: boolean) {
       pickText: j.pickText,
       lvUp: lvUp || undefined,
       heal: heal || undefined,
+      skill: skill.length ? skill : undefined,
     },
     seq: g.seq + 1,
   })

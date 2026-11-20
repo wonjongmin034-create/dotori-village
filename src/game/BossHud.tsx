@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { JOB_MAP, jobIcon, jobOf } from './jobs'
 import { useVillage, bossLeftOf } from './store'
 import {
   answer,
@@ -150,6 +151,19 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
           {cfg.mixed ? '문제마다 달라요' : `${Math.round(cfg.ms / 1000)}초`}
         </small>
         {cfg.healOnMiss && <small>⚠️ 틀리면 보스 체력이 {BOSS_HEAL_ON_MISS} 회복돼요!</small>}
+        {game.members.some((m) => jobOf(m.jb)) && (
+          <span className="boss-skill">
+            {game.open && <i>{game.open}</i>}
+            {game.members
+              .filter((m) => jobOf(m.jb))
+              .map((m) => (
+                <i key={m.n} className="dim">
+                  {jobIcon(m.jb)}
+                  {m.n}: {JOB_MAP[jobOf(m.jb)!].skill} — {JOB_MAP[jobOf(m.jb)!].boss}
+                </i>
+              ))}
+          </span>
+        )}
         {cfg.rounds && (
           <small>
             🔥 연속으로 맞히면 공격이 점점 세져요 · ⚡ {ULT_EVERY}번째 문제는 필살기! 모두 맞히면 큰 피해, 한 명이라도 틀리면 팀 생명 −{ULT_LIFE_LOSS}
@@ -229,6 +243,13 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
             <b className="bad">{last.timeout ? '⏰ 시간 초과!' : '❌ 아쉬워요!'} 보스의 반격 💥{last.heal ? ` · 보스 체력 +${last.heal} 회복` : ''}</b>
           )
         ) : null}
+        {showRes && last.skill && (
+          <span className="boss-skill">
+            {last.skill.map((t) => (
+              <i key={t}>{t}</i>
+            ))}
+          </span>
+        )}
         <small>
           {q.cat && <span className="boss-cat">{q.cat}</span>}
           {ult ? '⚡ 필살기' : `${game.n}번째`} · 내 공격력 {dmgOf(myTier, game.stage, myPet)}
@@ -366,7 +387,8 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         <div className="boss-wait">
           {game.members.map((m) => (
             <span key={m.n} className={(game.done ?? []).includes(m.n) ? 'done' : ''}>
-              {(game.done ?? []).includes(m.n) ? '✅' : '✏️'} {m.n}
+              {(game.done ?? []).includes(m.n) ? '✅' : '✏️'} {jobIcon(m.jb)}
+              {m.n}
             </span>
           ))}
         </div>
@@ -398,6 +420,7 @@ function Lobby({ room }: { room: number }) {
         {roster.map((m) => (
           <li key={m.n} className={m.n === name ? 'me' : ''}>
             {m.n === host ? '👑 ' : ''}
+            {jobIcon(m.jb)}
             {m.n}
             {m.n === name ? ' (나)' : ''}
             <small> ⭐{m.cl}/{STAGES.length} · 🎟️{m.tl}/{BOSS_DAILY}</small>

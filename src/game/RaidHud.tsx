@@ -1,3 +1,4 @@
+import { jobIcon } from './jobs'
 import { useEffect, useState } from 'react'
 import { useVillage } from './store'
 import { RAID_COUNTDOWN_S, RAID_MIN, RAID_TRIES } from './raidData'
@@ -121,6 +122,7 @@ export function RaidHud() {
                     </i>
                   ) : null
                 })()}
+                {jobIcon(peers.get(n)?.avatar.jb)}
                 {n}
               </span>
             ))}

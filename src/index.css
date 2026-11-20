@@ -4625,3 +4625,56 @@ canvas {
   color: #6b5a3a;
   cursor: pointer;
 }
+
+
+/* ── 직업 기술 ── */
+.boss-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+}
+.boss-skill i {
+  font-style: normal;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #8a5a00;
+  background: #fff1c2;
+  border-radius: 8px;
+  padding: 2px 8px;
+  align-self: center;
+}
+.boss-skill i.dim {
+  font-weight: 600;
+  color: #6b5a3a;
+  background: rgba(255, 241, 194, 0.7);
+}
+.raid-note {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #6b4a12;
+  background: #ffe7a6;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+.job-skill {
+  color: #8a5a00 !important;
+  font-weight: 700;
+}
+.job-skill-now {
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff8e3;
+  border: 1px solid #f0d89a;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #6b5a3a;
+}

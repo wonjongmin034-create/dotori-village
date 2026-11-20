@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useVillage } from './store'
+import { JOB_MAP } from './jobs'
 import { fightAnswer, fightMyCap, useFight } from './raidFight'
 import { raidToLobby, useRaid } from './raidState'
 import { RAID_HEAL, RAID_LIVES, RAID_LUCK_EVERY, RAID_PHASES, RAID_RETURN_LIVES } from './raidData'
@@ -131,6 +132,13 @@ function Question() {
           )
         ) : (
           <b>🫵 풀어 보세요!</b>
+        )}
+        {(res?.skill || (!res && f.qSkill)) && (
+          <span className="boss-skill">
+            {(res?.skill ?? [f.qSkill!]).map((t) => (
+              <i key={t}>{t}</i>
+            ))}
+          </span>
         )}
         <small>
           {q.cat && <span className="boss-cat">{q.cat}</span>}
@@ -326,15 +334,18 @@ export function RaidFightHud() {
   if (f.st === 'idle') return null
   const dead = f.myL <= 0
   const capped = f.myD >= cap
+  const job = useVillage.getState().job
   return (
     <>
       <Top />
+      {f.note && <div className="raid-note">{f.note}</div>}
       {f.st === 'intro' && (
         <Message
           title="🐲 거인이 눈을 떠요!"
           lines={[
             `목숨 ${RAID_LIVES}개 · 틀리면 목숨이 줄고 0이 되면 쓰러져요 (다음 페이즈에 돌아와요)`,
             `한 페이즈에서 내가 줄 수 있는 피해는 최대 ${cap} · 문제 ${RAID_LUCK_EVERY}개마다 가위바위보·홀짝이 나와요`,
+            ...(job ? [`${JOB_MAP[job.f].emoji} 내 직업 기술 ${JOB_MAP[job.f].skill}: ${JOB_MAP[job.f].raid}`] : []),
           ]}
         />
       )}

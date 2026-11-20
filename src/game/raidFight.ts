@@ -21,6 +21,7 @@ import {
 import { raidFinish } from './raidApi'
 import { startSwing } from './swing'
 import { useVillage } from './store'
+import { JOB_MAP, SKILL } from './jobs'
 
 // 학급 레이드 전투.
 //  · 모두가 동시에 각자 문제를 푼다. 맞히면 보스(하나의 공동 체력)가 깎이고, 틀리면 내 목숨이 줄어든다. 목숨이 0이면 이번 페이즈 끝까지 쓰러져 있다.
@@ -38,7 +39,7 @@ type FIO = { send: (p: FightPayload) => void; me: string; isLeader: () => boolea
 // 이 도전이 끝났을 때 내가 받은 보상 (결과 화면에 보여 준다)
 export type Reward = { coins: number; won: boolean; mvp: string | null; iMvp: boolean; practice: boolean; titleUp: string | null; clears: number; phases: number }
 
-export type Res = { ok: boolean; draw: boolean; timeout: boolean; dmg: number; text: string; pick?: string; capped: boolean; dead: boolean }
+export type Res = { ok: boolean; draw: boolean; timeout: boolean; dmg: number; text: string; pick?: string; capped: boolean; dead: boolean; skill?: string[] }
 
 type Fight = {
   gid: number
@@ -63,11 +64,13 @@ type Fight = {
   luck: boolean
   res: Res | null
   askAt: number // 다음 문제가 나올 시각
+  note: string | null // 방금 발동한 직업 기술 (창기사 선제 돌격 등)
+  qSkill: string | null // 이번 문제에 쓴 기술 (궁수 매의 눈)
 }
 
 const blank = (): Fight => ({
   gid: 0, ph: 1, st: 'idle', hp: 0, max: 0, endsAt: 0, nextAt: 0, members: {}, order: [], reward: null, hpList: raidHpFor(1), why: null,
-  myL: RAID_LIVES, myD: 0, q: null, qAt: 0, qMs: 0, qn: 0, qLv: 1, luck: false, res: null, askAt: 0,
+  myL: RAID_LIVES, myD: 0, q: null, qAt: 0, qMs: 0, qn: 0, qLv: 1, luck: false, res: null, askAt: 0, note: null, qSkill: null,
 })
 
 export const useFight = create<Fight>(() => blank())
@@ -84,12 +87,30 @@ let lastSnap = 0
 let finished = false // (대장) 서버에 결과를 이미 보냈다
 let settledGid = 0 // 이 도전의 보상을 이미 받았다
 
+/* ---------- 직업 기술 (내 화면에서만 계산 — 페이즈마다 다시 채워진다) ---------- */
+const myJob = () => useVillage.getState().job?.f ?? null
+let skPh = 0 // 아래 횟수가 몇 페이즈 것인지
+let skUsed = { bow: 0, staff: 0, hammer: 0 }
+let spearPh = 0 // 창기사 선제 돌격을 쓴 페이즈
+function skill(k: 'bow' | 'staff' | 'hammer', limit: number): boolean {
+  const ph = get().ph
+  if (skPh !== ph) {
+    skPh = ph
+    skUsed = { bow: 0, staff: 0, hammer: 0 }
+  }
+  if (skUsed[k] >= limit) return false
+  skUsed[k] += 1
+  return true
+}
+
 export function bindFightIO(next: FIO | null) {
   io = next
 }
 
 export function fightReset() {
   useFight.setState(blank())
+  skPh = 0
+  spearPh = 0
   deck = null
   pending = 0
   lifeDirty = false
@@ -388,21 +409,46 @@ function makeQuestion() {
     for (let i = 0; i < 6 && (q.k === 'rps' || q.k === 'oe'); i++) q = deck.next(lv) // 운 문제는 정해진 차례에만 낸다
     q.ms = q.ms ?? timeFor(q, lv)
   }
-  const ms = Math.round((q.ms ?? 8000) * RAID_TIME_MULT)
-  set({ q, qAt: Date.now(), qMs: ms, qn, qLv: lv, luck, res: null })
+  let ms = Math.round((q.ms ?? 8000) * RAID_TIME_MULT)
+  const job = myJob()
+  let qSkill: string | null = null
+  // 궁수 매의 눈: 보기 고르기 문제에서 오답 하나를 지운다 (페이즈마다 2번)
+  if (job === 'bow' && !luck && (q.k ?? 'mc') === 'mc' && typeof q.a === 'number' && q.o.length > 2 && skill('bow', SKILL.bowUses)) {
+    const ans = q.o[q.a]
+    const wrong = q.o.map((_, i) => i).filter((i) => i !== q.a)
+    const drop = wrong[Math.floor(Math.random() * wrong.length)]
+    const o = q.o.filter((_, i) => i !== drop)
+    q = { ...q, o, a: o.indexOf(ans) }
+    qSkill = JOB_MAP.bow.skill + '! 오답 하나를 지웠어요 (' + skUsed.bow + '/' + SKILL.bowUses + ')'
+  }
+  // 검사 집중: 제한 시간 +3초
+  if (job === 'sword') ms += SKILL.swordMs
+  set({ q, qAt: Date.now(), qMs: ms, qn, qLv: lv, luck, res: null, qSkill })
 }
 
 export function fightAnswer(p: Answer | null) {
   const f = get()
   if (!io || f.st !== 'play' || !f.q || f.res) return
   const timeout = p === null
-  const j = judge(f.q, p, timeout)
+  let j = judge(f.q, p, timeout)
+  const job = myJob()
+  const used: string[] = []
+  // 마법사 행운의 주문: 가위바위보·홀짝에서 지거나 비기면 이긴 걸로 (페이즈마다 1번)
+  if (job === 'staff' && f.luck && !j.ok && !timeout && skill('staff', SKILL.staffUses)) {
+    j = { ...j, ok: true, draw: false }
+    used.push(JOB_MAP.staff.skill + '! 운을 바꿔 이겼어요')
+  }
   let dmg = 0
   let capped = false
   let myL = f.myL
   let myD = f.myD
   if (j.ok) {
-    const base = f.luck ? RAID_LUCK_DMG : RAID_DMG[f.qLv]
+    let base = f.luck ? RAID_LUCK_DMG : RAID_DMG[f.qLv]
+    // 광전사 분노의 일격: 정답 피해 ×1.5
+    if (job === 'axe') {
+      base = Math.round(base * SKILL.axeMult)
+      used.push(JOB_MAP.axe.skill + '! 피해 ×' + SKILL.axeMult)
+    }
     const room = Math.max(0, capNow() - myD)
     dmg = Math.min(base, room)
     myD += dmg
@@ -416,13 +462,17 @@ export function fightAnswer(p: Answer | null) {
   } else if (!j.draw) {
     // 가위바위보·홀짝에서 지는 것은 목숨이 줄지 않는다 (운으로 목숨을 잃으면 억울하다)
     if (!f.luck) {
-      myL = Math.max(0, myL - 1)
-      lifeDirty = true
+      // 수호자 철벽 방어: 목숨이 깎이는 것을 막는다 (페이즈마다 1번)
+      if (job === 'hammer' && skill('hammer', SKILL.hammerUses)) used.push(JOB_MAP.hammer.skill + '! 목숨을 지켰어요')
+      else {
+        myL = Math.max(0, myL - 1)
+        lifeDirty = true
+      }
     }
   }
   const dead = myL <= 0
   if (dead) raidFx.deadAt = Date.now()
-  const res: Res = { ok: j.ok, draw: j.draw, timeout, dmg, text: j.text, pick: j.pick, capped, dead }
+  const res: Res = { ok: j.ok, draw: j.draw, timeout, dmg, text: j.text, pick: j.pick, capped, dead, skill: used.length ? used : undefined }
   set({ myL, myD, res, askAt: Date.now() + RAID_Q_GAP_MS })
   // 쓰러지거나 한계에 닿으면 바로 알린다 (대장이 상황을 빨리 알아야 한다)
   flush(dead || capped)
@@ -451,8 +501,22 @@ export function fightTick() {
   const g = get()
   if (g.st !== 'play') return
   const now = Date.now()
+  // 창기사 선제 돌격: 페이즈가 시작되면 보스를 먼저 찌른다
+  if (myJob() === 'spear' && spearPh !== g.ph && g.myL > 0) {
+    spearPh = g.ph
+    const dmg = Math.min(SKILL.spearRaid, Math.max(0, capNow() - g.myD))
+    if (dmg > 0) {
+      pending += dmg
+      set({ myD: g.myD + dmg, note: JOB_MAP.spear.skill + '! 보스를 먼저 찔렀어요 −' + dmg })
+      raidFx.hitAt = now
+      startSwing(io.me, 0, useVillage.getState().avatar.weapon)
+      setTimeout(() => {
+        if (get().note?.startsWith(JOB_MAP.spear.skill)) set({ note: null })
+      }, 3500)
+    }
+  }
   const alive = g.myL > 0
-  const canAct = alive && g.myD < capNow()
+  const canAct = alive && get().myD < capNow()
   if (g.res && now >= g.askAt) set({ q: null, res: null })
   else if (!g.res && canAct) {
     if (!g.q && now >= g.askAt) makeQuestion()

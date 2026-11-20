@@ -1,3 +1,4 @@
+import { jobIcon } from './jobs'
 import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
@@ -220,6 +221,7 @@ function RemoteFigure({ name, simple }: { name: string; simple: boolean }) {
             )
           })()}
           {peer?.avatar.rm ? '👑 ' : ''}
+          {jobIcon(peer?.avatar.jb)}
           {name}
         </div>
       </Html>
