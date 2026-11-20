@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { skillStyle } from './JobAura'
 import { JOB_MAP, jobIcon, jobOf } from './jobs'
 import { useVillage, bossLeftOf } from './store'
 import {
@@ -246,7 +247,7 @@ function QuestionSheet({ game, name }: { game: BossGame; name: string }) {
         {showRes && last.skill && (
           <span className="boss-skill">
             {last.skill.map((t) => (
-              <i key={t}>{t}</i>
+              <i key={t} className="pop" style={skillStyle(t)}>{t}</i>
             ))}
           </span>
         )}

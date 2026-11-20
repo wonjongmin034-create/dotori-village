@@ -92,7 +92,7 @@ export function ArmoryPanel() {
   const maxed = owned && tier >= MAX_TIER
   const equipped = avatar.weapon === fam
   const shownTier = !owned ? 1 : peek && next != null ? tier + 1 : tier
-  const preview = jobView && pickJob ? { ...avatar, ride: null, weapon: pickJob, wt: 1 } : { ...avatar, ride: null, weapon: fam, wt: shownTier }
+  const preview = jobView && pickJob ? { ...avatar, ride: null, weapon: pickJob, wt: 1, jb: pickJob } : { ...avatar, ride: null, weapon: fam, wt: shownTier, jb: job?.f ?? null }
   const grade = gradeOf(shownTier)
 
   return (

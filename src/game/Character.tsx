@@ -5,6 +5,7 @@ import type { Avatar } from './avatar'
 import { rideOf } from './rides'
 import { RideModel } from './RideModel'
 import { Weapon } from './WeaponModel'
+import { JobAura } from './JobAura'
 import { HOLD_ROLL, HOLD_TILT, isFamily } from './weapons'
 import { HatMore, HairMore, NEW_HATS, NEW_HAIR } from './WearHats'
 import {
@@ -1153,12 +1154,15 @@ function CostumeHeadBase({ id }: { id: string }) {
 export function Character({ avatar, refs }: { avatar: Avatar; refs: CharacterRefs }) {
   const ride = rideOf(avatar.ride)
   return (
-    <group userData={{ outline: true }}>
-      {ride && <RideModel id={ride.id} />}
-      <group position={[0, ride ? ride.seat : 0, ride && ride.pose === 'horse' ? -0.05 : 0]}>
-        <CharacterBody avatar={avatar} refs={refs} />
+    <>
+      <group userData={{ outline: true }}>
+        {ride && <RideModel id={ride.id} />}
+        <group position={[0, ride ? ride.seat : 0, ride && ride.pose === 'horse' ? -0.05 : 0]}>
+          <CharacterBody avatar={avatar} refs={refs} />
+        </group>
       </group>
-    </group>
+      {avatar.jb && <JobAura jb={avatar.jb} />}
+    </>
   )
 }
 

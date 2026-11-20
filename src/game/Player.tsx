@@ -49,7 +49,8 @@ export function Player() {
 
   const baseAvatar = useVillage((s) => s.avatar)
   const rideOn = useVillage((s) => s.rideOn)
-  const avatar = useMemo(() => viewAvatar(baseAvatar, rideOn), [baseAvatar, rideOn])
+  const jb = useVillage((s) => s.job?.f ?? null)
+  const avatar = useMemo(() => ({ ...viewAvatar(baseAvatar, rideOn), jb }), [baseAvatar, rideOn, jb])
   const myEmote = useLive((s) => s.emotes.__me)
 
   const s = useRef({ facing: Math.PI, phase: 0, blink: 0, nextBlink: 2.5, vy: 0, land: 0, bossLock: false })

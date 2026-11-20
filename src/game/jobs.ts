@@ -52,4 +52,7 @@ export const SKILL = {
 export const jobOf = (jb: unknown): WeaponFamily | null => (isFamily(jb) ? jb : null)
 export const jobIcon = (jb: unknown): string => (isFamily(jb) ? JOB_MAP[jb].emoji + ' ' : '')
 
+// 기술 알림 글에서 어느 직업의 기술인지 찾는다 (글자색·효과용)
+export const skillJob = (text: string): WeaponFamily | null => JOBS.find((j) => text.startsWith(j.skill))?.f ?? null
+
 export const jobLabel = (j: JobState | null) => (j ? `${FAMILY_EMOJI[j.f]} ${JOB_MAP[j.f].label}` : '견습 검사')

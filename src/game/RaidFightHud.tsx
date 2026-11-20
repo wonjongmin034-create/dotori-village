@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { skillStyle } from './JobAura'
 import { useVillage } from './store'
 import { JOB_MAP } from './jobs'
 import { fightAnswer, fightMyCap, useFight } from './raidFight'
@@ -136,7 +137,7 @@ function Question() {
         {(res?.skill || (!res && f.qSkill)) && (
           <span className="boss-skill">
             {(res?.skill ?? [f.qSkill!]).map((t) => (
-              <i key={t}>{t}</i>
+              <i key={t} className="pop" style={skillStyle(t)}>{t}</i>
             ))}
           </span>
         )}
