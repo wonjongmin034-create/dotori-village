@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useVillage } from './store'
-import { serverNow } from './serverClock'
 import { PreviewCharacter } from './WardrobePanel'
 import { sfxBig, sfxSuccess } from './sfx'
 import {
@@ -16,7 +15,7 @@ import {
   totalCostToMax,
   type WeaponFamily,
 } from './weapons'
-import { JOBS, JOB_CHANGE_MS, JOB_MAP, carriedTier, jobChecks, jobLabel } from './jobs'
+import { JOBS, JOB_MAP, jobChecks, jobLabel } from './jobs'
 
 // 무기고: 가진 무기를 고르고, 도토리를 써서 한 단계씩 진화시킨다.
 // 처음에는 검으로 시작하고, 조건을 채우면 1차 전직으로 직업 무기를 얻는다 (jobs.ts).
@@ -86,8 +85,6 @@ export function ArmoryPanel() {
   const owned_ = WEAPON_FAMILIES.filter((f) => weapons[f])
   const checks = jobChecks(bossCleared, houseLv, petSt)
   const ready = checks.every((c) => c.ok)
-  const changeLeft = job ? job.at + JOB_CHANGE_MS - serverNow() : 0
-  const carry = carriedTier(weapons)
 
   const tier = weapons[fam] ?? 0
   const owned = tier > 0
@@ -95,7 +92,7 @@ export function ArmoryPanel() {
   const maxed = owned && tier >= MAX_TIER
   const equipped = avatar.weapon === fam
   const shownTier = !owned ? 1 : peek && next != null ? tier + 1 : tier
-  const preview = jobView && pickJob ? { ...avatar, ride: null, weapon: pickJob, wt: carry } : { ...avatar, ride: null, weapon: fam, wt: shownTier }
+  const preview = jobView && pickJob ? { ...avatar, ride: null, weapon: pickJob, wt: 1 } : { ...avatar, ride: null, weapon: fam, wt: shownTier }
   const grade = gradeOf(shownTier)
 
   return (
@@ -127,38 +124,22 @@ export function ArmoryPanel() {
           </div>
         </div>
 
-        {jobView && (
+        {jobView && !job && (
           <div className="job-box">
-            <b>{job ? '🔁 직업 바꾸기' : '⭐ 1차 전직'}</b>
-            {!job && (
-              <>
-                <p className="farm-note">
-                  조건을 모두 채우면 직업을 골라 그 직업의 무기를 얻어요. 지금까지 키운 무기 중 가장 높은 단계(<b>{carry}단계</b>)로 받아요!
-                </p>
-                <ul className="job-checks">
-                  {checks.map((c) => (
-                    <li key={c.label} className={c.ok ? 'ok' : ''}>
-                      {c.ok ? '✅' : '⬜'} {c.label} <small>({c.now})</small>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {job && (
-              <p className="farm-note">
-                직업은 한 달에 한 번 바꿀 수 있어요. 무기 단계(<b>{carry}단계</b>)는 그대로 새 직업 무기로 옮겨 가요.
-                {changeLeft > 0 && <b> · {Math.ceil(changeLeft / 86_400_000)}일 뒤에 바꿀 수 있어요</b>}
-              </p>
-            )}
+            <b>⭐ 1차 전직</b>
+            <p className="farm-note">
+              조건을 모두 채우면 직업을 골라 그 직업의 무기를 얻어요. 전직한 뒤부터 도토리로 무기를 강화할 수 있어요. <b>직업은 한 번 고르면 바꿀 수 없어요!</b>
+            </p>
+            <ul className="job-checks">
+              {checks.map((c) => (
+                <li key={c.label} className={c.ok ? 'ok' : ''}>
+                  {c.ok ? '✅' : '⬜'} {c.label} <small>({c.now})</small>
+                </li>
+              ))}
+            </ul>
             <div className="job-grid">
               {JOBS.map((j) => (
-                <button
-                  key={j.f}
-                  type="button"
-                  className={`${pickJob === j.f ? 'on' : ''}${job?.f === j.f ? ' cur' : ''}`}
-                  disabled={job ? job.f === j.f || changeLeft > 0 : !ready}
-                  onClick={() => setPickJob(j.f)}
-                >
+                <button key={j.f} type="button" className={pickJob === j.f ? 'on' : ''} disabled={!ready} onClick={() => setPickJob(j.f)}>
                   <span>{j.emoji}</span>
                   <b>{j.label}</b>
                   <small>{FAMILY_LABEL[j.f]}</small>
@@ -170,9 +151,9 @@ export function ArmoryPanel() {
                 <div>
                   <small>{JOB_MAP[pickJob].desc}</small>
                   <b>
-                    {JOB_MAP[pickJob].label}(으)로 {job ? '바꿀까요?' : '전직할까요?'} → ‘{tierName(pickJob, carry)}’
+                    {JOB_MAP[pickJob].label}(으)로 전직할까요? → ‘{tierName(pickJob, 1)}’
                   </b>
-                  <small>{job ? '한 달 동안 다시 바꿀 수 없어요' : '전직하면 다른 무기는 사라지고 이 무기 하나만 키워요'}</small>
+                  <small>한 번 고르면 바꿀 수 없어요. 잘 생각해서 골라요!</small>
                 </div>
                 <div className="armory-confirm-btns">
                   <button
@@ -185,7 +166,7 @@ export function ArmoryPanel() {
                       setJobView(false)
                     }}
                   >
-                    {job ? '바꾸기' : '전직!'}
+                    전직!
                   </button>
                   <button type="button" onClick={() => setPickJob(null)}>
                     아직이요
@@ -201,9 +182,11 @@ export function ArmoryPanel() {
 
         {!jobView && (
           <>
-          <button type="button" className={`job-open${!job && ready ? ' ready' : ''}`} onClick={() => setJobView(true)}>
-            {job ? '🔁 직업 바꾸기 (한 달에 한 번)' : ready ? '⭐ 1차 전직할 수 있어요!' : `⭐ 1차 전직 조건 보기 (${checks.filter((c) => c.ok).length}/${checks.length})`}
-          </button>
+          {!job && (
+            <button type="button" className={`job-open${ready ? ' ready' : ''}`} onClick={() => setJobView(true)}>
+              {ready ? '⭐ 1차 전직할 수 있어요!' : `⭐ 1차 전직 조건 보기 (${checks.filter((c) => c.ok).length}/${checks.length})`}
+            </button>
+          )}
 
         <div className="armory-tabs">
           {owned_.map((f) => (
@@ -235,14 +218,14 @@ export function ArmoryPanel() {
                 <span className="gd" style={{ color: gradeOf(t).color }}>
                   {gradeOf(t).name}
                 </span>
-                <span className="co">{state === 'done' || state === 'cur' ? '' : `🌰 ${cost.toLocaleString()}`}</span>
+                <span className="co">{state === 'done' || state === 'cur' || t === 1 ? '' : `🌰 ${cost.toLocaleString()}`}</span>
               </li>
             )
           })}
         </ol>
         <p className="armory-note">한 종류를 끝까지 키우려면 도토리가 모두 {totalCostToMax().toLocaleString()}개 필요해요. 천천히 모아서 키워 봐요!</p>
 
-        {confirm && owned && next != null && (
+        {confirm && job && owned && next != null && (
           <div className="armory-confirm">
             <div>
               <small>정말 진화시킬까요? 👀 도토리는 돌려받을 수 없어요</small>
@@ -274,7 +257,8 @@ export function ArmoryPanel() {
             <span className="armory-max">⭐ 1차 전직을 하면 직업 무기를 얻어요</span>
           ) : (
             <>
-              {next != null && (
+              {!job && <span className="armory-max">⭐ 1차 전직을 하면 무기를 강화할 수 있어요</span>}
+              {job && next != null && (
                 <>
                   <button type="button" onClick={() => setPeek((p) => !p)}>
                     {peek ? '지금 모습' : '다음 단계 보기 👀'}

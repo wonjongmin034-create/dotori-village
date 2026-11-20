@@ -60,8 +60,8 @@ import {
   stageLabel,
   type PetState,
 } from './pets'
-import { MAX_TIER, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
-import { JOB_CHANGE_MS, JOB_MAP, carriedTier, jobChecks, normalizeJob, type JobState } from './jobs'
+import { EVOLVE_COST, MAX_TIER, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
+import { JOB_MAP, jobChecks, normalizeJob, type JobState } from './jobs'
 
 export type { Avatar }
 
@@ -107,6 +107,7 @@ export type PlacedItem = {
   tower?: TowerData // (집에만) 도토리 탑 기록
   raid?: RaidData // (집에만) 학급 레이드 기록
   job?: JobState | null // (집에만) 1차 전직 — 직업(= 쓸 수 있는 무기 종류)과 전직한 시각
+  wref?: number // (집에만) 전직 도입 때 검 말고 다른 무기를 도토리로 돌려받았다는 표시 (한 번만)
   nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (한 달에 한 번만)
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
@@ -280,6 +281,30 @@ function storeProduce(items: PlacedItem[], pid: string, star: number): { items: 
     bonus,
     note,
   }
+}
+
+// 전직 도입: 예전에 무기에 쓴 도토리를 모두 돌려주고 나무 목검(1단계)으로 다시 시작한다 (한 번만).
+// 다른 무기는 얻는 값 150 + 진화에 쓴 도토리, 검은 진화에 쓴 도토리. 이미 전직한 학생은 직업 무기를 그대로 둔다.
+const OLD_NEW_WEAPON_COST = 150
+let refundNote = 0 // 방금 돌려준 도토리 (안내창용)
+function ensureWeaponRefund(items: PlacedItem[], coins: number): { items: PlacedItem[]; coins: number; gain: number } {
+  const h = items.find((i) => i.type === 'house')
+  if (!h || h.wref) return { items, coins, gain: 0 }
+  const job = normalizeJob(h.job)
+  if (job) return { items: items.map((i) => (i.type === 'house' ? { ...i, wref: 1 } : i)), coins, gain: 0 }
+  const w = weaponsOf(items)
+  let gain = 0
+  for (const [f, t] of Object.entries(w)) {
+    gain += (f === 'sword' ? 0 : OLD_NEW_WEAPON_COST) + EVOLVE_COST.slice(0, Math.max(0, t - 1)).reduce((a, b) => a + b, 0)
+  }
+  const sword = 1
+  const av = h.avatar ? { ...h.avatar } : undefined
+  if (av && av.weapon && av.weapon !== 'sword') {
+    av.weapon = 'sword'
+    av.wt = sword
+  }
+  const next = items.map((i) => (i.type === 'house' ? { ...i, weapons: { sword }, avatar: av ?? i.avatar, wref: 1 } : i))
+  return { items: next, coins: coins + gain, gain }
 }
 
 export const landHalf = (items: PlacedItem[]) =>
@@ -517,11 +542,13 @@ interface VillageState {
 }
 
 const initialRaw = load()
-const initialItems = ensureFarm(
-  ensureLayout(ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items)))))),
+const initialRef = ensureWeaponRefund(
+  ensureFarm(ensureLayout(ensureDaily(ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(initialRaw.items))))))),
+  initialRaw.coins,
 )
-const initial = { coins: initialRaw.coins, items: initialItems, homework: initialRaw.homework }
-if (initialItems !== initialRaw.items) save(initialRaw.coins, initialItems, initialRaw.homework)
+const initialItems = initialRef.items
+const initial = { coins: initialRef.coins, items: initialItems, homework: initialRaw.homework }
+if (initialItems !== initialRaw.items) save(initial.coins, initialItems, initialRaw.homework)
 let msgTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useVillage = create<VillageState>((set, get) => {
@@ -688,26 +715,18 @@ export const useVillage = create<VillageState>((set, get) => {
       return { coins: reward, clears: next.clears, titleUp: after && after.text !== before?.text ? after.text : null, mvpDay: won && mvp }
     },
 
-    // 1차 전직 (또는 한 달에 한 번 직업 바꾸기) — 직업 무기를 지금까지 키운 가장 높은 단계로 얻는다
+    // 1차 전직 (한 번만) — 직업 무기를 1단계로 얻고, 이때부터 강화할 수 있다
     chooseJob: (family) => {
-      const { weapons, items, job, bossCleared, pet } = get()
+      const { items, job, bossCleared, pet } = get()
       if (!isFamily(family)) return
-      if (job) {
-        if (job.f === family) return
-        const left = job.at + JOB_CHANGE_MS - serverNow()
-        if (left > 0) {
-          get().flash(`직업은 한 달에 한 번 바꿀 수 있어요 (${Math.ceil(left / 86_400_000)}일 남음)`)
-          return
-        }
-      } else {
-        const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
-        const miss = jobChecks(bossCleared, houseLv, pet?.st ?? 0).filter((c) => !c.ok)
-        if (miss.length) {
-          get().flash(`아직 전직할 수 없어요: ${miss.map((c) => c.label).join(', ')}`)
-          return
-        }
+      if (job) return // 직업은 한 번 고르면 바꿀 수 없다
+      const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
+      const miss = jobChecks(bossCleared, houseLv, pet?.st ?? 0).filter((c) => !c.ok)
+      if (miss.length) {
+        get().flash(`아직 전직할 수 없어요: ${miss.map((c) => c.label).join(', ')}`)
+        return
       }
-      const tier = carriedTier(weapons)
+      const tier = 1
       const nextW = { [family]: tier }
       const nextJob: JobState = { f: family, at: serverNow() }
       const avatar = { ...get().avatar, weapon: family, wt: tier }
@@ -720,7 +739,7 @@ export const useVillage = create<VillageState>((set, get) => {
         avatar: normalizeAvatar(avatar),
         evolveFx: { family, tier, at: Date.now(), job: true },
       })
-      get().flash(`${job ? '직업을 바꿨어요' : '전직 성공'}! 이제 나는 ${JOB_MAP[family].label} — ${tierName(family, tier)} ✨`)
+      get().flash(`전직 성공! 이제 나는 ${JOB_MAP[family].label} — ${tierName(family, tier)} ✨`)
     },
 
     // 한 단계 진화 (도토리를 쓴다. 실패는 없다)
@@ -730,7 +749,11 @@ export const useVillage = create<VillageState>((set, get) => {
       const cost = tier ? evolveCost(tier) : null
       if (!tier || cost == null) return
       const job = get().job
-      if (job && job.f !== family) return
+      if (!job) {
+        get().flash('1차 전직을 하면 무기를 강화할 수 있어요 ⭐')
+        return
+      }
+      if (job.f !== family) return
       if (coins < cost) {
         get().flash(`도토리가 ${cost - coins}개 모자라요`)
         return
@@ -868,15 +891,26 @@ export const useVillage = create<VillageState>((set, get) => {
       if (!has) get().flash(`${item.label} 구매! -${item.cost} 도토리`)
     },
 
-    hydrateFromCloud: (coins, items) => {
-      const merged = ensureFarm(
-        ensureLayout(
-          ensureDaily(
-            ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
-            get().classQuestions,
+    hydrateFromCloud: (rawCoins, items) => {
+      const ref = ensureWeaponRefund(
+        ensureFarm(
+          ensureLayout(
+            ensureDaily(
+              ensureWardrobe(ensureArcade(ensureBoard(ensureHouse(items)))),
+              get().classQuestions,
+            ),
           ),
         ),
+        rawCoins,
       )
+      const merged = ref.items
+      const coins = ref.coins
+      if (ref.gain > 0 && ref.gain !== refundNote) {
+        refundNote = ref.gain
+        setTimeout(() => get().setNotice(`⚔️ 무기가 바뀌었어요!
+이제 모두 나무 목검으로 시작하고, 1차 전직을 하면 직업 무기를 얻어 강화할 수 있어요.
+전에 무기에 쓴 도토리 ${ref.gain}개를 돌려받았어요 🌰`), 600)
+      }
       saveLocal(coins, merged, get().homework)
       set({
         coins,
