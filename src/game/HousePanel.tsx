@@ -1,6 +1,5 @@
 import { HOUSE_LEVELS, farmLimit, houseLevel, houseNeededForLand, landCapFor, landExpand, landPyeong, LAND_OLD } from './economy'
 import { unlockedAt } from './wardrobe'
-import { FAMILY_EMOJI, FAMILY_HOUSE, FAMILY_LABEL, WEAPON_FAMILIES } from './weapons'
 import { useVillage } from './store'
 
 export function HousePanel() {
@@ -22,8 +21,7 @@ export function HousePanel() {
   const perks = (lv: number) => {
     const cap = landCapFor(lv) * 2
     const gear = unlockedAt(lv)
-    const guns = WEAPON_FAMILIES.filter((f) => FAMILY_HOUSE[f] === lv && lv > 1)
-    return { cap, gear, guns, plot: farmLimit('plot', lv) ?? 0, coop: farmLimit('coop', lv) ?? 0 }
+    return { cap, gear, plot: farmLimit('plot', lv) ?? 0, coop: farmLimit('coop', lv) ?? 0 }
   }
 
   return (
@@ -63,11 +61,6 @@ export function HousePanel() {
                     <small> ({perks(next.level).gear.slice(0, 3).map((g) => g.label).join(', ')} 등)</small>
                   </li>
                 )}
-                {perks(next.level).guns.map((f) => (
-                  <li key={f}>
-                    {FAMILY_EMOJI[f]} 새 무기 <b>{FAMILY_LABEL[f]}</b> 얻기
-                  </li>
-                ))}
               </ul>
               <button
                 type="button"

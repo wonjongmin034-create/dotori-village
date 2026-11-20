@@ -1,6 +1,6 @@
 // 무기 — 여러 종류(계열)의 무기를 도토리로 단계별로 진화시킨다.
-// 처음에는 모두 "나무 목검"을 들고 있고, 도토리를 써서 한 단계씩 진화한다. 단계가 올라갈수록 훨씬 많은 도토리가 든다.
-// 무기는 모습만 멋진 장식이다 (싸우는 기능은 없음).
+// 처음에는 모두 "나무 목검"을 들고 있고, 1차 전직(jobs.ts)으로 직업의 무기를 얻는다. 도토리를 써서 한 단계씩 진화한다.
+// 무기 단계는 보스전 공격력이 된다 (bossData.ts).
 
 export type WeaponFamily = 'sword' | 'axe' | 'spear' | 'bow' | 'staff' | 'hammer'
 
@@ -45,8 +45,6 @@ export const GRADES = [
 
 // 한 단계 올리는 데 드는 도토리: [1→2, 2→3, 3→4, 4→5, 5→6]  (한 무기를 끝까지 키우면 합계 5,140개)
 export const EVOLVE_COST = [120, 320, 700, 1400, 2600]
-// 다른 종류의 무기를 새로 얻는 값 (1단계 나무 무기)
-export const NEW_WEAPON_COST = 150
 
 export const evolveCost = (tier: number): number | null => (tier >= 1 && tier < MAX_TIER ? EVOLVE_COST[tier - 1] : null)
 export const totalCostToMax = () => EVOLVE_COST.reduce((a, b) => a + b, 0)
@@ -57,8 +55,6 @@ export const HOLD_TILT: Record<WeaponFamily, number> = { sword: 1.05, axe: 1.0, 
 // 몸에서 바깥쪽으로 벌려 드는 정도 — 뒤에서 봐도 칼날·창끝이 몸에 가리지 않고 보이게
 export const HOLD_ROLL: Record<WeaponFamily, number> = { sword: 0.42, axe: 0.36, spear: 0.32, bow: 0.12, staff: 0.2, hammer: 0.36 }
 
-// 새 무기 종류를 얻으려면 필요한 집 단계 (검은 처음부터 가지고 있다). 이미 가진 무기는 그대로.
-export const FAMILY_HOUSE: Record<WeaponFamily, number> = { sword: 1, axe: 2, spear: 2, bow: 3, hammer: 3, staff: 4 }
 
 export const isFamily = (f: unknown): f is WeaponFamily => WEAPON_FAMILIES.includes(f as WeaponFamily)
 export const tierName = (f: WeaponFamily, tier: number) => TIER_NAMES[f][Math.max(1, Math.min(MAX_TIER, tier)) - 1]

@@ -4504,3 +4504,124 @@ canvas {
 .dex-name {
   font-weight: 700;
 }
+
+/* ── 1차 전직 ── */
+.job-tag {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #6b4a12;
+  background: #ffe7a6;
+  vertical-align: middle;
+}
+.job-open {
+  display: block;
+  width: 100%;
+  margin: 8px 0 6px;
+  padding: 9px;
+  border: 1px dashed #d9b45a;
+  border-radius: 12px;
+  background: #fff8e3;
+  font-size: 13px;
+  font-weight: 800;
+  color: #8a6420;
+  cursor: pointer;
+}
+.job-open.ready {
+  border-style: solid;
+  color: #fff;
+  background: linear-gradient(180deg, #ffb83d, #f08a1c);
+  box-shadow: 0 0 0 3px rgba(255, 184, 61, 0.3);
+  animation: job-pulse 1.6s ease-in-out infinite;
+}
+@keyframes job-pulse {
+  50% {
+    box-shadow: 0 0 0 7px rgba(255, 184, 61, 0.12);
+  }
+}
+.job-box {
+  margin: 8px 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff8e3;
+  border: 1px solid #f0d89a;
+}
+.job-box > b {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+  color: #6b4a12;
+}
+.job-checks {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 13px;
+  color: #6a6050;
+}
+.job-checks li {
+  padding: 3px 0;
+}
+.job-checks li.ok {
+  color: #2f7a40;
+  font-weight: 700;
+}
+.job-checks small {
+  color: #9a8f7e;
+  font-weight: 400;
+}
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.job-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 4px;
+  border: 1px solid #e8d6a8;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.job-grid button span {
+  font-size: 22px;
+}
+.job-grid button b {
+  font-size: 13px;
+  color: #4a3a1a;
+}
+.job-grid button small {
+  font-size: 11px;
+  color: #9a8f7e;
+}
+.job-grid button.on {
+  border-color: #f08a1c;
+  box-shadow: 0 0 0 2px rgba(240, 138, 28, 0.35);
+}
+.job-grid button.cur {
+  background: #ffe7a6;
+}
+.job-grid button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.job-grid button.cur:disabled {
+  opacity: 1;
+}
+.job-back {
+  display: block;
+  margin: 10px auto 0;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 10px;
+  background: #ece3cc;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #6b5a3a;
+  cursor: pointer;
+}

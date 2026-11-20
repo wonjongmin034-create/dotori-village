@@ -60,7 +60,8 @@ import {
   stageLabel,
   type PetState,
 } from './pets'
-import { FAMILY_HOUSE, MAX_TIER, NEW_WEAPON_COST, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
+import { MAX_TIER, evolveCost, isFamily, tierName, type WeaponFamily } from './weapons'
+import { JOB_CHANGE_MS, JOB_MAP, carriedTier, jobChecks, normalizeJob, type JobState } from './jobs'
 
 export type { Avatar }
 
@@ -105,6 +106,7 @@ export type PlacedItem = {
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   tower?: TowerData // (집에만) 도토리 탑 기록
   raid?: RaidData // (집에만) 학급 레이드 기록
+  job?: JobState | null // (집에만) 1차 전직 — 직업(= 쓸 수 있는 무기 종류)과 전직한 시각
   nameAt?: number // (집에만) 학생이 스스로 닉네임을 마지막으로 바꾼 시각 (한 달에 한 번만)
   petFed?: string // (집에만) 마지막으로 먹이를 준 날 — 펫을 버려도 남아서, 새로 키우며 하루에 두 번 주는 건 막는다
   daily?: DailyLearn // (집에만) 오늘의 학습 상태
@@ -322,6 +324,7 @@ const raidOf = (items: PlacedItem[]): RaidData => {
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0)
   return { clears: n(r?.clears), mvps: n(r?.mvps), part: n(r?.part), mvpAt: typeof r?.mvpAt === 'string' ? r.mvpAt : '', gid: n(r?.gid) }
 }
+const jobOf = (items: PlacedItem[]): JobState | null => normalizeJob(items.find((i) => i.type === 'house')?.job)
 const petOf = (items: PlacedItem[]): PetState | null => normalizePet(items.find((i) => i.type === 'house')?.pet)
 const wardrobeOf = (items: PlacedItem[]) => {
   const w = items.find((i) => i.type === 'house')?.wardrobe
@@ -422,8 +425,9 @@ interface VillageState {
   activeFarm: string | null // browse 모드에서 열어둔 밭/우리/게시판 key
   learnOpen: boolean // 오늘의 학습 패널 열림
   weapons: Record<string, number> // 가진 무기 { 종류: 단계 }
+  job: JobState | null // 1차 전직 (null = 아직 견습 검사)
   armoryOpen: boolean // 무기 창 열림
-  evolveFx: { family: string; tier: number; at: number } | null // 방금 진화한 무기 (반짝이는 화면용)
+  evolveFx: { family: string; tier: number; at: number; job?: boolean } | null // 방금 진화한 무기 (반짝이는 화면용)
   quiz: QuizRequest | null
   msg: string | null
   enhanceFx: EnhanceFx | null
@@ -440,7 +444,7 @@ interface VillageState {
   towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
   towerLog: (log: TowerLog) => void
   raidReward: (r: { gid: number; won: boolean; phases: number; mvp: boolean }) => { coins: number; clears: number; titleUp: string | null; mvpDay: boolean } | null
-  buyWeapon: (family: WeaponFamily) => void
+  chooseJob: (family: WeaponFamily) => void
   evolveWeapon: (family: WeaponFamily) => void
   openPet: () => void
   closePet: () => void
@@ -566,6 +570,7 @@ export const useVillage = create<VillageState>((set, get) => {
     activeFarm: null,
     learnOpen: false,
     weapons: weaponsOf(initial.items),
+    job: jobOf(initial.items),
     armoryOpen: false,
     evolveFx: null,
     quiz: null,
@@ -594,6 +599,8 @@ export const useVillage = create<VillageState>((set, get) => {
       const { items, weapons } = get()
       const tier = family ? (weapons[family] ?? 0) : 0
       if (family && !tier) return
+      const job = get().job
+      if (family && job && family !== job.f) return // 전직한 뒤에는 직업 무기만 든다
       const next = { ...get().avatar, weapon: family, wt: family ? tier : 1 }
       const nextItems = items.map((i) => (i.type === 'house' ? { ...i, avatar: next, weapons } : i))
       save(get().coins, nextItems, get().homework)
@@ -681,26 +688,39 @@ export const useVillage = create<VillageState>((set, get) => {
       return { coins: reward, clears: next.clears, titleUp: after && after.text !== before?.text ? after.text : null, mvpDay: won && mvp }
     },
 
-    // 다른 종류의 무기를 새로 얻는다 (1단계 나무 무기)
-    buyWeapon: (family) => {
-      const { weapons, coins, items } = get()
-      if (weapons[family]) return
-      const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
-      if (houseLv < FAMILY_HOUSE[family]) {
-        get().flash(`집이 ${FAMILY_HOUSE[family]}단계가 되면 얻을 수 있어요 🔒`)
-        return
+    // 1차 전직 (또는 한 달에 한 번 직업 바꾸기) — 직업 무기를 지금까지 키운 가장 높은 단계로 얻는다
+    chooseJob: (family) => {
+      const { weapons, items, job, bossCleared, pet } = get()
+      if (!isFamily(family)) return
+      if (job) {
+        if (job.f === family) return
+        const left = job.at + JOB_CHANGE_MS - serverNow()
+        if (left > 0) {
+          get().flash(`직업은 한 달에 한 번 바꿀 수 있어요 (${Math.ceil(left / 86_400_000)}일 남음)`)
+          return
+        }
+      } else {
+        const houseLv = items.find((i) => i.type === 'house')?.level ?? 1
+        const miss = jobChecks(bossCleared, houseLv, pet?.st ?? 0).filter((c) => !c.ok)
+        if (miss.length) {
+          get().flash(`아직 전직할 수 없어요: ${miss.map((c) => c.label).join(', ')}`)
+          return
+        }
       }
-      if (coins < NEW_WEAPON_COST) {
-        get().flash(`도토리가 ${NEW_WEAPON_COST - coins}개 모자라요`)
-        return
-      }
-      const nextW = { ...weapons, [family]: 1 }
-      const avatar = { ...get().avatar, weapon: family, wt: 1 }
-      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, weapons: nextW, avatar } : i))
-      const nextCoins = coins - NEW_WEAPON_COST
-      save(nextCoins, nextItems, get().homework)
-      set({ items: nextItems, coins: nextCoins, weapons: nextW, avatar: normalizeAvatar(avatar) })
-      get().flash(`${tierName(family, 1)}을(를) 얻었어요! -${NEW_WEAPON_COST} 도토리`)
+      const tier = carriedTier(weapons)
+      const nextW = { [family]: tier }
+      const nextJob: JobState = { f: family, at: serverNow() }
+      const avatar = { ...get().avatar, weapon: family, wt: tier }
+      const nextItems = items.map((i) => (i.type === 'house' ? { ...i, weapons: nextW, avatar, job: nextJob } : i))
+      save(get().coins, nextItems, get().homework)
+      set({
+        items: nextItems,
+        weapons: nextW,
+        job: nextJob,
+        avatar: normalizeAvatar(avatar),
+        evolveFx: { family, tier, at: Date.now(), job: true },
+      })
+      get().flash(`${job ? '직업을 바꿨어요' : '전직 성공'}! 이제 나는 ${JOB_MAP[family].label} — ${tierName(family, tier)} ✨`)
     },
 
     // 한 단계 진화 (도토리를 쓴다. 실패는 없다)
@@ -709,6 +729,8 @@ export const useVillage = create<VillageState>((set, get) => {
       const tier = weapons[family]
       const cost = tier ? evolveCost(tier) : null
       if (!tier || cost == null) return
+      const job = get().job
+      if (job && job.f !== family) return
       if (coins < cost) {
         get().flash(`도토리가 ${cost - coins}개 모자라요`)
         return
@@ -862,6 +884,7 @@ export const useVillage = create<VillageState>((set, get) => {
         avatar: avatarOf(merged),
         wardrobe: wardrobeOf(merged),
         weapons: weaponsOf(merged),
+        job: jobOf(merged),
         bossCleared: bossOf(merged),
         pet: petOf(merged),
         bossTry: bossTryOf(merged),
