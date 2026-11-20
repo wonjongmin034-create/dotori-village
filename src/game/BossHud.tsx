@@ -18,7 +18,7 @@ import {
   useBoss,
   type BossGame,
 } from './bossState'
-import { BOSS_ROOMS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, ROUND_NAMES, STAGES, ULT_EVERY, ULT_LIFE_LOSS, comboMult, dmgOf, soloTest, stageOf } from './bossData'
+import { BOSS_ROOMS, BOSS_DAILY, BOSS_HEAL_ON_MISS, HEAL_ON_PHASE, MAX_PARTY, MIN_PARTY, STAGES, ULT_EVERY, ULT_LIFE_LOSS, comboMult, dmgOf, soloTest, stageOf } from './bossData'
 import { ShapeFig } from './ShapeFig'
 import '../boss5.css'
 import { enterBoss, leaveBoss, useBossUi } from './boss'
@@ -567,7 +567,7 @@ export function BossHud() {
     }
     if (lv > lvRef.current) {
       const rounds = stageOf(game.stage).rounds
-      notifyBoss(rounds ? `⚡ ${lv}라운드 시작! ${ROUND_NAMES[lv]} (팀 생명 +${HEAL_ON_PHASE})` : `🔥 보스가 화났다! ${lv}페이즈 — 문제가 어려워져요 (팀 생명 +${HEAL_ON_PHASE})`)
+      notifyBoss(rounds ? `⚡ ${lv}라운드 시작! ${stageOf(game.stage).roundNames?.[lv] ?? ''} (팀 생명 +${HEAL_ON_PHASE})` : `🔥 보스가 화났다! ${lv}페이즈 — 문제가 어려워져요 (팀 생명 +${HEAL_ON_PHASE})`)
     }
     lvRef.current = lv
     // eslint-disable-next-line react-hooks/exhaustive-deps
