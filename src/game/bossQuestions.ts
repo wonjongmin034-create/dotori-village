@@ -6,6 +6,7 @@ import { orderQ } from './orderBank'
 import { formulaQ, shapeQ, ultShapeQs, type Figure } from './bossShapes'
 import { SPELLING } from './spellingBank'
 import { DAILY_ENGLISH } from './dailyEnglish'
+import { EVENTS2, HISTORY2, NAMES2, type Era } from './historyBank2'
 
 // 보스가 내는 문제.
 //  1단계: 계산 — 매번 새로 만든 4지선다
@@ -349,16 +350,107 @@ class RoundDeck {
   }
 }
 
+/* ---------- 6단계: 한국사 2부 (라운드제) ---------- */
+//  1라운드 조선 후기 · 2라운드 개항 ~ 일제 강점기 · 3라운드 광복 ~ 오늘날 + 앞 시대 섞기
+//  보기 고르기 + 일어난 순서 맞히기 + 인물 이름 글자 타일, 3번째마다 가위바위보·홀짝, 5번째마다 필살기(사람마다 다른 문제)
+class HistoryRoundDeck {
+  private era = new Map<Era, Cycler>(([1, 2, 3, 4] as Era[]).map((e) => [e, new Cycler(HISTORY2.flatMap((h, i) => (h.e === e ? [i] : [])))]))
+  private names = new Map<Era, Cycler>(([1, 2, 3, 4] as Era[]).map((e) => [e, new Cycler(NAMES2.flatMap((h, i) => (h[0] === e ? [i] : [])))]))
+
+  private mc(e: Era, lv: 1 | 2 | 3): BossQ {
+    const h = HISTORY2[this.era.get(e)!.next()]
+    const q = build(h.a, [...h.w], ['', '조선 후기', '개항 ~ 대한 제국', '일제 강점기', '광복 ~ 오늘날'][h.e], h.q, '한국사')
+    q.ms = [13_000, 11_000, 9_500][lv - 1] + (h.q.length > 38 ? 2000 : 0)
+    return q
+  }
+  // 인물 이름을 글자 타일로 (decoys = 다른 인물 이름에서 가져온 가짜 글자 수)
+  private name(eras: Era[], decoys: number, lv: 1 | 2 | 3): BossQ {
+    const e = eras[ri(0, eras.length - 1)]
+    const i = this.names.get(e)!.next()
+    if (i < 0) return this.mc(e, lv)
+    const [, word, hint] = NAMES2[i]
+    const letters = word.split('')
+    const pool = shuffle([...new Set(NAMES2.flatMap((n) => n[1].split('')))].filter((c) => !letters.includes(c)))
+    return {
+      k: 'tiles',
+      t: hint,
+      o: shuffle([...letters, ...pool.slice(0, decoys)]),
+      a: word,
+      sub: '글자 타일을 눌러 인물의 이름을 만들어 보세요',
+      ms: [15_000, 13_000, 11_000][lv - 1],
+      cat: '한국사 인물',
+      len: letters.length,
+    }
+  }
+  // 일어난 순서 맞히기 (upTo 년까지의 사건에서 n개)
+  private order(n: number, upTo: number, ms: number): BossQ {
+    const list = EVENTS2.filter((x) => x[0] <= upTo)
+    for (;;) {
+      const picked = shuffle(list).slice(0, n).sort((x, y) => x[0] - y[0])
+      if (picked.every((x, i) => i === 0 || x[0] - picked[i - 1][0] >= 5)) {
+        const inOrder = picked.map((x) => x[1])
+        const o = shuffle(inOrder)
+        return { k: 'order', t: '일어난 순서대로 눌러 보세요', o, a: inOrder.map((x) => o.indexOf(x)), sub: '먼저 일어난 일부터', cat: '한국사 순서', ms }
+      }
+    }
+  }
+  private mini(lv: 1 | 2 | 3): BossQ {
+    const m = Math.random() < 0.5 ? rpsQ() : oeQ()
+    m.ms = [6_000, 5_000, 4_000][lv - 1]
+    return m
+  }
+
+  next(lv: 1 | 2 | 3, n: number): BossQ {
+    if (n > 0 && n % 3 === 0) return this.mini(lv)
+    const table: [number, () => BossQ][] =
+      lv === 1
+        ? [
+            [0.7, () => this.mc(1, 1)],
+            [0.15, () => this.mc(2, 1)],
+            [0.15, () => this.name([1], 1, 1)],
+          ]
+        : lv === 2
+          ? [
+              [0.33, () => this.mc(2, 2)],
+              [0.33, () => this.mc(3, 2)],
+              [0.17, () => this.order(4, 1945, 20_000)],
+              [0.17, () => this.name([2, 3], 2, 2)],
+            ]
+          : [
+              [0.35, () => this.mc(4, 3)],
+              [0.2, () => this.mc(([1, 2, 3] as Era[])[ri(0, 2)], 3)],
+              [0.25, () => this.order(5, 3000, 24_000)],
+              [0.2, () => this.name([1, 2, 3, 4], 3, 3)],
+            ]
+    let r = Math.random()
+    for (const [w, fn] of table) {
+      if (r < w) return fn()
+      r -= w
+    }
+    return table[table.length - 1][1]()
+  }
+
+  // 필살기: 팀원마다 서로 다른 보기 고르기 문제 (모든 시대에서), 시간은 모두 같다
+  ult(n: number): BossQ[] {
+    return Array.from({ length: n }, (_, i) => {
+      const q = this.mc(((i % 4) + 1) as Era, 2)
+      q.ms = 13_000
+      return q
+    })
+  }
+}
+
 /* ---------- 한 판 동안 쓰는 "카드 더미" (같은 문제가 다시 나오지 않게) ---------- */
 export class Deck {
-  private rounds: RoundDeck | null = null
+  private rounds: RoundDeck | HistoryRoundDeck | null = null
   private order: number[] = []
   private pos = 0
   private stage: number
   private mixed: MixedDeck | null = null
   constructor(stage: number) {
     this.stage = stage
-    if (stage >= 5) this.rounds = new RoundDeck()
+    if (stage >= 6) this.rounds = new HistoryRoundDeck()
+    else if (stage >= 5) this.rounds = new RoundDeck()
     else if (stage >= 4) this.mixed = new MixedDeck()
     else this.refill()
   }

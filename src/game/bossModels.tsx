@@ -872,7 +872,151 @@ function Polygon() {
   )
 }
 
+/* ---------- 6단계: 시계탑 거인 크로노 (한국사 2부) ---------- */
+// 벽돌 시계탑 몸통 + 가슴의 큰 시계 + 톱니바퀴 주먹 + 종탑 머리. 틀리면(공격) 시곗바늘이 거꾸로 빙글빙글 돈다 = 시간을 되돌려 체력 회복.
+function Gear({ r, c, teeth = 8 }: { r: number; c: string; teeth?: number }) {
+  return (
+    <group>
+      <mesh>
+        <torusGeometry args={[r, r * 0.32, 8, 20]} />
+        <Toon color={c} emissive={c} ei={0.15} />
+      </mesh>
+      {Array.from({ length: teeth }, (_, i) => {
+        const a = (i / teeth) * Math.PI * 2
+        return <Bx key={i} p={[Math.cos(a) * r * 1.32, Math.sin(a) * r * 1.32, 0]} s={[r * 0.42, r * 0.42, r * 0.5]} rot={[0, 0, a]} c={c} />
+      })}
+      <Cyl p={[0, 0, 0]} r={r * 0.3} h={r * 0.5} c={c} rot={[Math.PI / 2, 0, 0]} />
+    </group>
+  )
+}
+
+function Chrono() {
+  const body = useRef<THREE.Group>(null)
+  const head = useRef<THREE.Group>(null)
+  const hourH = useRef<THREE.Group>(null)
+  const minH = useRef<THREE.Group>(null)
+  const pend = useRef<THREE.Group>(null)
+  const armL = useRef<THREE.Group>(null)
+  const armR = useRef<THREE.Group>(null)
+  const gearL = useRef<THREE.Group>(null)
+  const gearR = useRef<THREE.Group>(null)
+  const orbit = useRef<THREE.Group>(null)
+  const eyes = useRef<THREE.Group>(null)
+  const back = useRef(0) // 거꾸로 돈 각도 (공격할 때 쌓인다)
+
+  useFrame((_, dt) => {
+    const t = nowSec()
+    const atk = clamp01((t - bossFx.atkAt) / 0.95)
+    const hit = clamp01((t - bossFx.hitAt) / 0.5)
+    const roar = atk > 0 && atk < 1 ? Math.sin(atk * Math.PI) : 0
+    const lv = bossFx.lv
+    if (roar > 0) back.current += dt * 14 * roar
+    const spin = t * (0.35 + lv * 0.35) - back.current
+    if (minH.current) minH.current.rotation.z = -spin * 2
+    if (hourH.current) hourH.current.rotation.z = -spin / 6
+    if (pend.current) pend.current.rotation.z = Math.sin(t * (2 + lv * 0.8)) * 0.45
+    if (body.current) body.current.position.y = Math.abs(Math.sin(t * 1.3)) * 0.06
+    if (head.current) {
+      head.current.rotation.y = Math.sin(t * 0.7) * 0.25
+      head.current.rotation.x = -roar * 0.25 + Math.sin(hit * Math.PI) * 0.3
+    }
+    if (eyes.current) eyes.current.scale.setScalar(1 + (lv - 1) * 0.18 + roar * 0.5 + Math.sin(t * 5) * 0.05)
+    if (gearL.current) gearL.current.rotation.z = t * (1 + lv * 0.5)
+    if (gearR.current) gearR.current.rotation.z = -t * (1 + lv * 0.5)
+    if (armL.current) armL.current.rotation.z = 0.2 + roar * 1.2 + Math.sin(t * 1.3) * 0.06
+    if (armR.current) armR.current.rotation.z = -0.2 - roar * 1.2 - Math.sin(t * 1.3) * 0.06
+    if (orbit.current) orbit.current.rotation.y = -t * (0.4 + lv * 0.25)
+  })
+
+  const brick = '#a65a3f'
+  const brickD = '#7f4330'
+  const stone = '#e6dac2'
+  const copper = '#4f9b88'
+  const gold = '#f2c14e'
+  const iron = '#4a4f57'
+
+  return (
+    <group>
+      <group ref={body}>
+        {/* 발 (돌 받침) */}
+        {[-0.9, 0.9].map((x) => (
+          <Bx key={x} p={[x, 0.5, 0.1]} s={[1.05, 1.0, 1.3]} c="#8b7a66" />
+        ))}
+        {/* 몸통: 벽돌 시계탑 */}
+        <Bx p={[0, 1.15, 0]} s={[2.9, 0.3, 2.2]} c={stone} />
+        <Bx p={[0, 2.5, 0]} s={[2.6, 2.5, 2.0]} c={brick} />
+        {[-1.0, 1.0].map((x) => (
+          <Bx key={x} p={[x, 2.5, 1.02]} s={[0.28, 2.4, 0.08]} c={brickD} />
+        ))}
+        <Bx p={[0, 3.85, 0]} s={[2.9, 0.3, 2.2]} c={stone} />
+        {/* 가슴의 큰 시계 */}
+        <group position={[0, 2.65, 1.04]}>
+          <Cyl p={[0, 0, 0]} r={0.9} h={0.1} c="#fbf6e6" rot={[Math.PI / 2, 0, 0]} />
+          <Ring p={[0, 0, 0.05]} r={0.92} t={0.09} c={gold} e={gold} ei={0.35} />
+          {Array.from({ length: 12 }, (_, i) => {
+            const a = (i / 12) * Math.PI * 2
+            const big = i % 3 === 0
+            return <Bx key={i} p={[Math.sin(a) * 0.74, Math.cos(a) * 0.74, 0.07]} s={[big ? 0.09 : 0.05, big ? 0.2 : 0.12, 0.03]} rot={[0, 0, -a]} c={iron} />
+          })}
+          <group ref={hourH} position={[0, 0, 0.1]}>
+            <Bx p={[0, 0.24, 0]} s={[0.1, 0.5, 0.03]} c={iron} />
+          </group>
+          <group ref={minH} position={[0, 0, 0.13]}>
+            <Bx p={[0, 0.34, 0]} s={[0.06, 0.7, 0.03]} c="#c0392b" e="#c0392b" ei={0.3} />
+          </group>
+          <Ball p={[0, 0, 0.15]} r={0.08} c={gold} e={gold} ei={0.4} />
+        </group>
+        {/* 흔들리는 시계추 */}
+        <group ref={pend} position={[0, 1.65, 1.08]}>
+          <Bx p={[0, -0.25, 0]} s={[0.06, 0.5, 0.04]} c={gold} />
+          <Cyl p={[0, -0.55, 0]} r={0.2} h={0.08} c={gold} e={gold} ei={0.35} rot={[Math.PI / 2, 0, 0]} />
+        </group>
+        {/* 팔 + 톱니바퀴 주먹 */}
+        <group ref={armL} position={[-1.5, 3.4, 0]}>
+          <Cyl p={[-0.3, -0.95, 0]} r={0.36} h={2.0} c={brickD} />
+          <group ref={gearL} position={[-0.3, -2.15, 0.1]}>
+            <Gear r={0.42} c={gold} />
+          </group>
+        </group>
+        <group ref={armR} position={[1.5, 3.4, 0]}>
+          <Cyl p={[0.3, -0.95, 0]} r={0.36} h={2.0} c={brickD} />
+          <group ref={gearR} position={[0.3, -2.15, 0.1]}>
+            <Gear r={0.42} c={gold} />
+          </group>
+        </group>
+        {/* 머리: 종탑 + 구리 지붕 */}
+        <group ref={head} position={[0, 4.6, 0]}>
+          <Bx p={[0, 0, 0]} s={[1.7, 1.15, 1.5]} c={stone} />
+          <Bx p={[0, -0.05, 0.72]} s={[1.1, 0.7, 0.1]} c="#2b2230" />
+          <group ref={eyes} position={[0, 0, 0.8]}>
+            {[-0.27, 0.27].map((x) => (
+              <Ball key={x} p={[x, 0, 0]} r={0.13} c="#ffe08a" e="#ffb020" ei={1.0} />
+            ))}
+          </group>
+          <mesh position={[0, 1.0, 0]} rotation={[0, Math.PI / 4, 0]}>
+            <coneGeometry args={[1.35, 1.2, 4]} />
+            <Toon color={copper} emissive={copper} ei={0.1} />
+          </mesh>
+          <Cyl p={[0, 1.75, 0]} r={0.05} h={0.6} c={gold} />
+          <Ball p={[0, 2.08, 0]} r={0.12} c={gold} e={gold} ei={0.5} />
+        </group>
+      </group>
+      {/* 둘레를 도는 톱니바퀴들 */}
+      <group ref={orbit} position={[0, 3.0, 0]}>
+        {[0, 1, 2].map((i) => {
+          const a = (i / 3) * Math.PI * 2
+          return (
+            <group key={i} position={[Math.sin(a) * 3.5, Math.sin(a * 2) * 0.6, Math.cos(a) * 3.5]} rotation={[0, a, 0]}>
+              <Gear r={0.35} c={i === 1 ? '#c9a77a' : gold} teeth={7} />
+            </group>
+          )
+        })}
+      </group>
+    </group>
+  )
+}
+
 export function BossModel({ stage }: { stage: number }) {
-  const body = useMemo(() => (stage === 5 ? <Polygon /> : stage === 4 ? <Owl /> : stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
+  const body = useMemo(() => (stage === 6 ? <Chrono /> : stage === 5 ? <Polygon /> : stage === 4 ? <Owl /> : stage === 2 ? <Dragon /> : stage === 3 ? <Tiger /> : <Golem />), [stage])
   return <Shell key={stage}>{body}</Shell>
 }

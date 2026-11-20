@@ -63,7 +63,7 @@ function ArenaBase({ stage }: { stage: number }) {
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
           <circleGeometry args={[ARENA_R - 0.4, 56]} />
-          <Toon color={stage === 4 ? '#454b96' : stage === 3 ? '#d2c08e' : stage === 2 ? '#8c7fd0' : '#b9ae94'} />
+          <Toon color={stage === 6 ? '#b9a07c' : stage === 4 ? '#454b96' : stage === 3 ? '#d2c08e' : stage === 2 ? '#8c7fd0' : '#b9ae94'} />
         </mesh>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
           <ringGeometry args={[ARENA_R - 1.6, ARENA_R - 0.4, 56]} />
@@ -76,7 +76,27 @@ function ArenaBase({ stage }: { stage: number }) {
         {/* 기둥 */}
         {pillars.map(([x, , z], i) => (
           <group key={i} position={[x, 0, z]}>
-            {stage === 4 ? (
+            {stage === 6 ? (
+              <>
+                {/* 개화기 가스 가로등 */}
+                <mesh position={[0, 0.15, 0]}>
+                  <boxGeometry args={[0.7, 0.3, 0.7]} />
+                  <Toon color="#7d6b58" />
+                </mesh>
+                <mesh position={[0, 1.3, 0]}>
+                  <cylinderGeometry args={[0.1, 0.16, 2.3, 10]} />
+                  <Toon color="#2f3338" />
+                </mesh>
+                <mesh position={[0, 2.55, 0]}>
+                  <boxGeometry args={[0.42, 0.4, 0.42]} />
+                  <Toon color="#ffe7a6" emissive="#ffc95e" ei={0.6} />
+                </mesh>
+                <mesh position={[0, 2.86, 0]} rotation={[0, Math.PI / 4, 0]}>
+                  <coneGeometry args={[0.38, 0.3, 4]} />
+                  <Toon color="#2f3338" />
+                </mesh>
+              </>
+            ) : stage === 4 ? (
               <>
                 <mesh position={[0, 1.4, 0]}>
                   <boxGeometry args={[1.0, 2.8, 0.9]} />
@@ -162,8 +182,15 @@ function ArenaBase({ stage }: { stage: number }) {
               <meshBasicMaterial map={labelTex(['수', '국', '영', '과', '사', '史', '✎', '?'][i], '#ffe9a8', '#2b2f78')} />
             </mesh>
           ))}
+        {stage === 6 &&
+          ring(8, ARENA_R - 3.0, 0.4).map(([x, , z], i) => (
+            <mesh key={i} position={[x, 0.05, z]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[1.3, 1.3]} />
+              <meshBasicMaterial map={labelTex(['Ⅻ', 'Ⅰ', 'Ⅲ', 'Ⅳ', 'Ⅵ', 'Ⅷ', 'Ⅸ', 'Ⅺ'][i], '#ffe9a8', '#6b4a33')} />
+            </mesh>
+          ))}
       </Baked>
-      <Flames spots={flameSpots} color={stage === 5 ? '#5ee6ff' : stage === 4 ? '#8fd8ff' : stage === 2 ? '#b9a0ff' : '#ffb347'} />
+      <Flames spots={stage === 6 ? [] : flameSpots} color={stage === 5 ? '#5ee6ff' : stage === 4 ? '#8fd8ff' : stage === 2 ? '#b9a0ff' : '#ffb347'} />
     </>
   )
 }
@@ -199,6 +226,8 @@ function Backdrop({ stage }: { stage: number }) {
           ? ['#2b2a6a', '#3a3a86', '#24235a']
           : stage === 5
             ? ['#1f5f78', '#2a7a96', '#174d63']
+            : stage === 6
+              ? ['#a7825d', '#8f6e4f', '#b9946b']
             : ['#5c8f86', '#4d7f7a', '#6aa095']
   return (
     <Baked>
