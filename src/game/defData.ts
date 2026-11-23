@@ -10,7 +10,7 @@ export const DEF_OPEN = false
 export const defVisible = () => {
   if (DEF_OPEN) return true
   try {
-    return /[?&](def|solo)(|=)/.test(location.search)
+    return /[?&](def|solo)(\b|=)/.test(location.search)
   } catch {
     return false
   }
