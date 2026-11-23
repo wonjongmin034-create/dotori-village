@@ -38,6 +38,7 @@ import {
 } from './defState'
 import { enterDefense, leaveDefense, useDefUi } from './defense'
 import { colorOf } from './DefenseArena'
+import { KIND_COLOR } from './defModels'
 import { JOB_MAP, jobIcon } from './jobs'
 import { isFamily } from './weapons'
 import './defense.css'
@@ -208,7 +209,13 @@ function TopBar() {
     <div className="def-top">
       <div className="def-row">
         <span className="def-wave">
-          🌊 {snap.wave}/{DEF_WAVES} {snap.st === 'prep' ? `· 준비 ${left}초` : snap.st === 'break' ? `· 다음 웨이브 ${left}초` : ''}
+          <b>🌊 웨이브 {snap.wave}/{DEF_WAVES}</b>
+          <span className="pips">
+            {Array.from({ length: DEF_WAVES }, (_, i) => (
+              <i key={i} className={`${i < snap.wave ? 'on' : ''}${i === 4 || i === 9 ? ' boss' : ''}`} />
+            ))}
+          </span>
+          {snap.st === 'prep' ? <em>준비 {left}초</em> : snap.st === 'break' ? <em>다음 웨이브 {left}초</em> : null}
         </span>
         <span className="def-tree">
           🌳 <i style={{ width: `${(snap.tree / TREE_HP) * 100}%` }} />
@@ -301,7 +308,7 @@ function SelPanel() {
               const c = buildCost(k, job)
               const spec = job === k
               return (
-                <button key={k} type="button" className={spec ? 'spec' : ''} disabled={gold < c} onClick={() => requestBuild(sel.i, k)}>
+                <button key={k} type="button" className={spec ? 'spec' : ''} style={{ borderTopColor: KIND_COLOR[k] }} disabled={gold < c} onClick={() => requestBuild(sel.i, k)}>
                   <span className="ico">{t.emoji}</span>
                   <b>{t.name}</b>
                   <small>{t.role.split(' — ')[0]}</small>

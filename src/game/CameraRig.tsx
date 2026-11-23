@@ -49,10 +49,12 @@ export function CameraRig() {
 
     if (cs.defRoom != null) {
       // 수비대: 들판 전체를 위에서 비스듬히 내려다본다 (세로 화면은 더 물러난다)
+      // 정면으로 고정 (끌어서 돌리지 않는다) — 섬 전체가 한 화면에 들어오게
+      st.yaw = 0
       const tall = size.height > size.width
-      tmp.focus.set(0, 0, 0.6)
-      tmp.offset.set(0, tall ? 34 : 20, tall ? 16 : 12.5)
-      tmp.lookTarget.set(0, 0, -0.2)
+      tmp.focus.set(-0.5, 0, 1.2)
+      tmp.offset.set(0, tall ? 34 : 18, tall ? 17 : 13.5)
+      tmp.lookTarget.set(-0.5, 0, 0.3)
     } else if (cs.raidRoom) {
       // 레이드 대기실: 반 친구들이 늘어선 모습과 뒤쪽의 거대한 보스가 한 화면에 보이게 고정
       // 싸우는 동안은 거인(키 12)의 머리까지 보이게 조금 물러나 위를 본다

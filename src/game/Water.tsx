@@ -17,7 +17,7 @@ void main() {
 }`
 
 const frag = /* glsl */ `
-uniform float uTime; uniform float uHalf; uniform float uMode; uniform float uSparkle;
+uniform float uTime; uniform float uHalf; uniform float uHalfZ; uniform float uMode; uniform float uSparkle;
 uniform vec3 uFog; uniform float uLight; uniform float uRound;
 varying vec3 vWorld;
 
@@ -31,7 +31,7 @@ float vnoise(vec2 p) {
 // 섬 가장자리까지의 바깥쪽 거리 (사각 섬 / 원형 섬)
 float edgeDist(vec2 p) {
   if (uMode > 0.5) return length(p) - uHalf;
-  vec2 q = abs(p) - vec2(uHalf - uRound);
+  vec2 q = abs(p) - vec2(uHalf - uRound, uHalfZ - uRound);
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uRound;
 }
 
@@ -78,7 +78,7 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`
 
-export function Water({ half, round = false, rounded = 0.4 }: { half: number; round?: boolean; rounded?: number }) {
+export function Water({ half, halfZ, round = false, rounded = 0.4 }: { half: number; halfZ?: number; round?: boolean; rounded?: number }) {
   const sparkle = useGfx((s) => s.level === 'high')
   // 재질을 직접 만들어 끼운다 — JSX로 uniforms를 넘기면 갱신이 재질에 닿지 않는 경우가 있었다
   const material = useMemo(
@@ -89,6 +89,7 @@ export function Water({ half, round = false, rounded = 0.4 }: { half: number; ro
         uniforms: {
           uTime: { value: 0 },
           uHalf: { value: 0 },
+          uHalfZ: { value: 0 },
           uMode: { value: 0 },
           uRound: { value: 0 },
           uSparkle: { value: 0 },
@@ -100,10 +101,11 @@ export function Water({ half, round = false, rounded = 0.4 }: { half: number; ro
   )
   useEffect(() => {
     material.uniforms.uHalf.value = half
+    material.uniforms.uHalfZ.value = halfZ ?? half
     material.uniforms.uMode.value = round ? 1 : 0
     material.uniforms.uRound.value = rounded
     material.uniforms.uSparkle.value = sparkle ? 1 : 0
-  }, [material, half, round, rounded, sparkle])
+  }, [material, half, halfZ, round, rounded, sparkle])
   useFrame((s) => {
     material.uniforms.uTime.value = s.clock.elapsedTime
     material.uniforms.uFog.value.copy(skyLive.fog)
