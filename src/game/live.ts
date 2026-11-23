@@ -1,4 +1,7 @@
 import { create } from 'zustand'
+import { bindDefIO, defOnEvent, defOnPresence, defPresence, defReset, defResend, type DefPayload } from './defState'
+import { nextDefRoom } from './defense'
+import { DEF_MAX } from './defData'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useVillage, raidMvpActive, type RaidData } from './store'
@@ -102,7 +105,7 @@ function allowedOf(state: Record<string, Meta[]>, owner: string, cap = MAX_IN_RO
 const r2 = (n: number) => Math.round(n * 100) / 100
 
 // 방 종류별 최대 인원
-const capOf = (key: string) => (key.startsWith('raid:') ? RAID_MAX : key.startsWith('boss:') ? MAX_PARTY : MAX_IN_ROOM)
+const capOf = (key: string) => (key.startsWith('raid:') ? RAID_MAX : key.startsWith('boss:') ? MAX_PARTY : key.startsWith('def:') ? DEF_MAX : MAX_IN_ROOM)
 
 function setEmote(key: string, e: string) {
   useLive.setState((s) => ({ emotes: { ...s.emotes, [key]: e } }))
@@ -122,7 +125,7 @@ function setEmote(key: string, e: string) {
 
 function send() {
   const s = useVillage.getState()
-  if (!ready || !channel || channel.state !== 'joined' || !s.session || roomKey.startsWith('raid:')) return
+  if (!ready || !channel || channel.state !== 'joined' || !s.session || roomKey.startsWith('raid:') || roomKey.startsWith('def:')) return
   const moving = Math.hypot(playerMotion.vx, playerMotion.vz) > 0.05
   void channel.send({
     type: 'broadcast',
@@ -198,7 +201,7 @@ setInterval(() => {
 // 내 presence(누구인지·옷차림·오목 자리)를 방에 알린다
 function pushPresence() {
   if (!channel || !ready) return
-  void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence(), ...(roomKey.startsWith('boss:') ? bossPresence() : {}) })
+  void channel.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...omokPresence(), ...(roomKey.startsWith('boss:') ? bossPresence() : {}), ...(roomKey.startsWith('def:') ? defPresence() : {}) })
 }
 
 let removal: Promise<unknown> = Promise.resolve()
@@ -207,6 +210,7 @@ function leave() {
   omokReset()
   bossReset()
   raidReset()
+  defReset()
   if (timer) clearInterval(timer)
   timer = null
   // 먼저 비운 다음에 닫는다: 닫는 순간 "CLOSED"가 동기로 오는데, 그때 내가 스스로 나간 것을 "끊겼다"로 착각하면 안 된다
@@ -259,6 +263,7 @@ function open(owner: string, key: string, me: string) {
         kicked = true
         if (key.startsWith('plaza:')) nextPlazaRoom() // 광장이 꽉 찼으면 다음 번호 광장으로
         else if (key.startsWith('boss:')) nextBossRoom() // 보스 방이 꽉 찼으면 돌려보낸다
+        else if (key.startsWith('def:')) nextDefRoom() // 수비대 방이 꽉 찼으면 돌려보낸다
         else if (key.startsWith('raid:')) nextRaidFull() // 레이드 대기실이 꽉 찼으면 돌려보낸다
         else {
           endVisit()
@@ -292,6 +297,7 @@ function open(owner: string, key: string, me: string) {
     useLive.setState({ names, room: owner })
     if (key.startsWith('plaza:')) omokOnPresence(state, allowed)
     if (key.startsWith('boss:')) bossOnPresence(state, allowed)
+    if (key.startsWith('def:')) defOnPresence(state, allowed)
     if (key.startsWith('raid:')) raidOnPresence(allowed)
   })
     .on('presence', { event: 'join' }, ({ key: who }) => {
@@ -303,6 +309,7 @@ function open(owner: string, key: string, me: string) {
       if (key.startsWith('raid:')) setTimeout(raidResend, 600) // 지금 출발 준비 상황도 알려 준다
       if (key.startsWith('plaza:')) setTimeout(omokResend, 600) // 오목 판도 알려 준다
       if (key.startsWith('boss:')) setTimeout(bossResend, 600) // 보스방 상태도 알려 준다
+      if (key.startsWith('def:')) setTimeout(defResend, 600) // 수비대 상황도 알려 준다
       if (performance.now() < quietUntil) return
       useVillage
         .getState()
@@ -311,6 +318,8 @@ function open(owner: string, key: string, me: string) {
             ? `${who}님이 광장에 왔어요 👋`
             : key.startsWith('boss:')
               ? `${who}님이 보스 방에 왔어요 ⚔️`
+              : key.startsWith('def:')
+              ? `${who}님이 수비대에 왔어요 🌳`
               : key.startsWith('raid:')
                 ? `${who}님이 레이드에 왔어요 🐲`
                 : owner === me
@@ -350,6 +359,10 @@ function open(owner: string, key: string, me: string) {
       cntRecv++
       if (key.startsWith('boss:')) bossOnEvent(payload as BossPayload)
     })
+    .on('broadcast', { event: 'def' }, ({ payload }) => {
+      cntRecv++
+      if (key.startsWith('def:')) defOnEvent(payload as DefPayload)
+    })
     .on('broadcast', { event: 'raid' }, ({ payload }) => {
       cntRecv++
       if (key.startsWith('raid:')) raidOnEvent(payload as RaidPayload)
@@ -370,7 +383,19 @@ function open(owner: string, key: string, me: string) {
       ready = true
       if (!joinedAt) joinedAt = Date.now()
       if (timer) clearInterval(timer)
-      void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...(key.startsWith('boss:') ? bossPresence() : {}) })
+      void ch.track({ avatar: liveAvatar(useVillage.getState()), t: joinedAt, ...(key.startsWith('boss:') ? bossPresence() : {}), ...(key.startsWith('def:') ? defPresence() : {}) })
+      if (key.startsWith('def:')) {
+        bindDefIO(
+          {
+            send: (p) => {
+              cntSent++
+              void ch.send({ type: 'broadcast', event: 'def', payload: p })
+            },
+            track: pushPresence,
+          },
+          me,
+        )
+      }
       if (key.startsWith('boss:')) {
         bindBossIO(
           {
@@ -421,13 +446,15 @@ function syncRoom() {
     if (channel) leave()
     return
   }
-  const inRoom = s.bossRoom != null || s.plaza != null || s.raidRoom
+  const inRoom = s.bossRoom != null || s.plaza != null || s.raidRoom || s.defRoom != null
   const owner = inRoom ? '' : s.visiting ? s.visiting.name : s.session.name
   const key =
     s.raidRoom
       ? `raid:${s.session.classCode}`
       : s.bossRoom != null
       ? `boss:${s.session.classCode}:${s.bossRoom}`
+      : s.defRoom != null
+      ? `def:${s.session.classCode}:${s.defRoom}`
       : s.plaza != null
         ? `plaza:${s.session.classCode}:${s.plaza}`
         : `island:${s.session.classCode}:${owner}`
@@ -458,7 +485,7 @@ useCtl.subscribe((s, prev) => {
 })
 
 useVillage.subscribe((s, prev) => {
-  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom || s.raidRoom !== prev.raidRoom || s.towerOn !== prev.towerOn) syncRoom()
+  if (s.session !== prev.session || s.visiting !== prev.visiting || s.plaza !== prev.plaza || s.bossRoom !== prev.bossRoom || s.raidRoom !== prev.raidRoom || s.towerOn !== prev.towerOn || s.defRoom !== prev.defRoom) syncRoom()
   else if ((s.avatar !== prev.avatar || s.rideOn !== prev.rideOn || s.pet?.sp !== prev.pet?.sp || s.pet?.st !== prev.pet?.st || s.tower.best !== prev.tower.best || s.raid !== prev.raid || s.job !== prev.job) && ready && channel)
     pushPresence()
 })

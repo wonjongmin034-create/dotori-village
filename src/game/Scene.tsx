@@ -25,6 +25,7 @@ import { useTower } from './towerState'
 import { towerStage } from './towerData'
 import { useBoss } from './bossState'
 import { stageOf } from './bossData'
+import { DefenseArena } from './DefenseArena'
 
 // fps가 계속 떨어지면 화면 품질을 한 단계 낮춘다 (자동 모드일 때만 — 직접 고른 단계는 그대로 둔다).
 function AdaptiveQuality() {
@@ -43,6 +44,7 @@ export function Scene() {
   const inBoss = useVillage((s) => s.bossRoom != null)
   const inTower = useVillage((s) => s.towerOn)
   const inRaid = useVillage((s) => s.raidRoom)
+  const inDef = useVillage((s) => s.defRoom != null)
   const towerTheme = useTower((s) => towerStage(s.stage).theme)
   const bossTheme = useBoss((s) => stageOf(s.game?.stage ?? s.lobbyStage).theme)
 
@@ -78,9 +80,9 @@ export function Scene() {
         dir={open ? sunDir : FIXED_SUN}
         intensity={open ? sky.key : 1.15}
         color={open ? '#' + sky.sun.clone().lerp(new THREE.Color('#ffffff'), 0.4).getHexString() : '#fff2da'}
-        focus={inBoss || inRaid || editing ? 'center' : 'player'}
+        focus={inBoss || inRaid || inDef || editing ? 'center' : 'player'}
         shadow={level === 'high'}
-        range={editing ? 26 : inBoss ? 20 : 16}
+        range={editing || inDef ? 26 : inBoss ? 20 : 16}
       />
       <directionalLight position={[-6, 4, -6]} intensity={0.28} color="#bcd9ff" />
 
@@ -126,7 +128,9 @@ export function Scene() {
         />
       )}
 
-      {inTower ? (
+      {inDef ? (
+        <DefenseArena />
+      ) : inTower ? (
         <TowerArena />
       ) : inRaid ? (
         <RaidArena />
@@ -141,10 +145,14 @@ export function Scene() {
           <FriendStage />
         </>
       )}
-      <RemotePlayers />
-      <RemotePets />
-      <Player />
-      <MyPet />
+      {!inDef && (
+        <>
+          <RemotePlayers />
+          <RemotePets />
+          <Player />
+          <MyPet />
+        </>
+      )}
       <CameraRig />
       <EditorControls itemsRef={itemsRef} />
       <BrowseInteract itemsRef={itemsRef} />

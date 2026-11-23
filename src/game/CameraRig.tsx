@@ -47,7 +47,13 @@ export function CameraRig() {
     const half = cs.plaza != null ? 14 : landHalf(viewItems(cs))
     const zoomOut = 1 + Math.max(0, half - LAND_START) * 0.06
 
-    if (cs.raidRoom) {
+    if (cs.defRoom != null) {
+      // 수비대: 들판 전체를 위에서 비스듬히 내려다본다 (세로 화면은 더 물러난다)
+      const tall = size.height > size.width
+      tmp.focus.set(0, 0, 0.6)
+      tmp.offset.set(0, tall ? 34 : 20, tall ? 16 : 12.5)
+      tmp.lookTarget.set(0, 0, -0.2)
+    } else if (cs.raidRoom) {
       // 레이드 대기실: 반 친구들이 늘어선 모습과 뒤쪽의 거대한 보스가 한 화면에 보이게 고정
       // 싸우는 동안은 거인(키 12)의 머리까지 보이게 조금 물러나 위를 본다
       const fighting = useFight.getState().st !== 'idle'

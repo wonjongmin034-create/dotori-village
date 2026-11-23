@@ -10,6 +10,9 @@ import { Scene } from './game/Scene'
 import { Joystick } from './game/Joystick'
 import { Quiz } from './game/Quiz'
 import { FarmPanel } from './game/FarmPanel'
+import { DefenseHud, DefenseEntryButton, DefensePicker } from './game/DefenseHud'
+import { leaveDefense } from './game/defense'
+import { active as defActive, useDef } from './game/defState'
 import { BarnPanel } from './game/BarnPanel'
 import { HousePanel } from './game/HousePanel'
 import { BoardPanel } from './game/BoardPanel'
@@ -95,6 +98,8 @@ export default function App() {
   const plaza = useVillage((s) => s.plaza)
   const bossRoom = useVillage((s) => s.bossRoom)
   const raidRoom = useVillage((s) => s.raidRoom)
+  const defRoom = useVillage((s) => s.defRoom)
+  const defPlaying = useDef((s) => !!s.snap && defActive(s.snap))
   const towerOn = useVillage((s) => s.towerOn)
   const towerPhase = useTower((s) => s.phase)
   const towerBusy = towerOn && towerPhase !== 'fight' && towerPhase !== 'intro'
@@ -250,6 +255,8 @@ export default function App() {
           <span>
             {towerOn
               ? '도토리 탑'
+              : defRoom != null
+              ? `도토리 나무 수비대 ${defRoom}번 방`
               : raidRoom
               ? '학급 레이드 · 거인 토벌'
               : bossRoom != null
@@ -263,7 +270,7 @@ export default function App() {
               : session
                 ? `${session.name}${cloud === 'offline' ? ' · 📴 오프라인' : ''}`
                 : '둘러보는 중'}
-            {session && !towerOn && !raidRoom && bossRoom == null && plaza == null && !visiting && !editing && <NameChangeButton />}
+            {session && !towerOn && !raidRoom && defRoom == null && bossRoom == null && plaza == null && !visiting && !editing && <NameChangeButton />}
           </span>
         </div>
 
@@ -273,6 +280,7 @@ export default function App() {
         {plaza != null && <OmokHud />}
         {bossRoom != null && <BossHud />}
         {raidRoom && <RaidHud />}
+        {defRoom != null && <DefenseHud room={defRoom} />}
         {towerOn && <TowerHud />}
 
         {towerOn ? (
@@ -288,6 +296,17 @@ export default function App() {
               🏠 마을로 돌아가기
             </button>
           )
+        ) : defRoom != null ? (
+          <button
+            type="button"
+            className="mode-btn visit-back"
+            onClick={() => {
+              if (defPlaying && !window.confirm('지금 나가면 친구들이 힘들어져요. 정말 나갈까요?')) return
+              leaveDefense()
+            }}
+          >
+            🏠 마을로 돌아가기
+          </button>
         ) : raidRoom ? (
           <button type="button" className="mode-btn visit-back" onClick={leaveRaid}>
             🏠 마을로 돌아가기
@@ -321,7 +340,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !visiting && plaza == null && bossRoom == null && !raidRoom && !towerOn && (
+        {!editing && !visiting && plaza == null && bossRoom == null && !raidRoom && !towerOn && defRoom == null && (
           <div className="hud-stack">
             {daily &&
               (() => {
@@ -371,10 +390,11 @@ export default function App() {
             <BossEntryButton />
             <TowerEntryButton />
             <RaidEntryButton />
+            <DefenseEntryButton />
           </div>
         )}
 
-        {!editing && !visiting && bossRoom == null && !towerOn && avatar.ride && (
+        {!editing && !visiting && bossRoom == null && !towerOn && defRoom == null && avatar.ride && (
           <button
             type="button"
             className="ride-btn"
@@ -388,7 +408,7 @@ export default function App() {
           </button>
         )}
 
-        {!editing && !inFight && !towerBusy && (
+        {!editing && !inFight && !towerBusy && defRoom == null && (
           <button
             type="button"
             className="jump-btn"
@@ -406,6 +426,8 @@ export default function App() {
           <div className="hint">
             {towerOn
               ? '몬스터를 모두 잡으면 보물상자가 나와요 · 상자 문제 3개를 모두 맞혀야 클리어!'
+              : defRoom != null
+              ? '빈 터를 눌러 탑을 지어요 · 내 탑을 눌러 진화 · 친구 이름을 눌러 돈 보내기'
               : raidRoom
               ? '반 친구들이 모이면 대장이 출발을 눌러요 · 대장은 가장 먼저 들어온 사람이에요'
               : bossRoom != null
@@ -512,9 +534,10 @@ export default function App() {
         {msg && <div className="flash">{msg}</div>}
       </div>
 
-      {!editing && !inFight && !towerBusy && <Joystick />}
+      {!editing && !inFight && !towerBusy && defRoom == null && <Joystick />}
 
       <FarmPanel />
+      <DefensePicker />
       <BarnPanel />
       <HousePanel />
       <BoardPanel />

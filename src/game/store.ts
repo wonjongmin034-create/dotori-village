@@ -24,6 +24,7 @@ import {
   farmLimit,
 } from './economy'
 import { BOSS_DAILY } from './bossData'
+import { DEF_DAILY, defStage } from './defData'
 import { STAGE_COUNT, TOWER_DAILY, towerStage } from './towerData'
 import { RAID_REWARD_CLEAR, RAID_REWARD_MVP, RAID_REWARD_PHASE, RAID_REWARD_PHASE_MAX, raidTitleOf } from './raidData'
 import { dailySet, type Question } from './questions'
@@ -105,6 +106,7 @@ export type PlacedItem = {
   pet?: PetState | null // (집에만) 키우는 펫 (한 마리)
   bossTry?: BossTry // (집에만) 오늘 보스 도전 횟수
   tower?: TowerData // (집에만) 도토리 탑 기록
+  def?: DefData // (집에만) 도토리 나무 수비대 기록
   raid?: RaidData // (집에만) 학급 레이드 기록
   job?: JobState | null // (집에만) 1차 전직 — 직업(= 쓸 수 있는 무기 종류)과 전직한 시각
   wref?: number // (집에만) 전직 도입 때 검 말고 다른 무기를 도토리로 돌려받았다는 표시 (한 번만)
@@ -129,6 +131,20 @@ export const bossLeftOf = (t: BossTry | null | undefined): number =>
 // 도토리 탑 기록 — best: 깬 가장 높은 단계, day/n: 오늘 쓴 입장권, log: 최근 도전 기록 (선생님이 볼 수 있게)
 export type TowerLog = { t: number; s: number; r: 'dead' | 'quiz' | 'clear'; ok?: boolean[]; sec?: number[] }
 export type TowerData = { best: number; day: string; n: number; log: TowerLog[] }
+// 수비대 기록 — st: 단계별로 받은 별(0~3), day/n: 오늘 쓴 입장, gid: 마지막으로 센 전투
+export type DefData = { st: number[]; day: string; n: number; gid: number }
+export const defOf = (items: PlacedItem[]): DefData => {
+  const d = items.find((i) => i.type === 'house')?.def
+  const st = Array.isArray(d?.st) ? d!.st.map((v) => Math.max(0, Math.min(3, Math.round(Number(v) || 0)))) : []
+  return { st, day: typeof d?.day === 'string' ? d.day : '', n: Math.max(0, Number(d?.n) || 0), gid: Math.max(0, Number(d?.gid) || 0) }
+}
+export const defLeftOf = (d: DefData): number => Math.max(0, DEF_DAILY - (d.day === dateKey() ? d.n : 0))
+export const defClearedOf = (d: DefData): number => {
+  let c = 0
+  while (c < d.st.length && d.st[c] >= 1) c++
+  return c
+}
+
 export const towerLeftOf = (t: TowerData | null | undefined): number =>
   Math.max(0, TOWER_DAILY - (t && t.day === dateKey() ? t.n : 0))
 
@@ -428,6 +444,7 @@ interface VillageState {
   plaza: number | null // 광장 번호 (null = 내 마을에 있음)
   bossRoom: number | null // 보스 방 번호 (null = 보스 방에 있지 않음)
   raidRoom: boolean // 학급 레이드(수·금요일) 대기실에 있는지
+  defRoom: number | null // 도토리 나무 수비대 방 번호 (null = 수비대 방에 있지 않음)
   bossCleared: number // 클리어한 가장 높은 보스 단계
   pet: PetState | null // 키우는 펫
   bossTry: BossTry | null // 오늘 보스 도전 횟수
@@ -464,6 +481,8 @@ interface VillageState {
   equipWeapon: (family: WeaponFamily | null) => void
   markBossCleared: (stage: number) => void
   spendBossTry: (gid: number) => boolean
+  spendDefTry: (gid: number) => void
+  defReward: (gid: number, stage: number, stars: number) => { coins: number; newStars: number }
   spendTowerTry: () => void
   markNameChanged: () => void
   towerClear: (stage: number, log: TowerLog) => { first: boolean; reward: number }
@@ -576,6 +595,7 @@ export const useVillage = create<VillageState>((set, get) => {
     plaza: null,
     bossRoom: null,
     raidRoom: false,
+    defRoom: null,
     bossCleared: bossOf(initial.items),
     pet: petOf(initial.items),
     bossTry: bossTryOf(initial.items),
@@ -644,6 +664,33 @@ export const useVillage = create<VillageState>((set, get) => {
     },
 
     // 보스 전투를 시작할 때 오늘 도전 횟수를 1 쓴다 (같은 판은 한 번만)
+    // 수비대 전투를 시작할 때 오늘 입장을 1번 쓴다 (같은 판은 한 번만)
+    spendDefTry: (gid) => {
+      const { items } = get()
+      const d = defOf(items)
+      if (d.gid >= gid) return
+      const today = dateKey()
+      const next: DefData = { ...d, day: today, n: (d.day === today ? d.n : 0) + 1, gid }
+      commit(items.map((i) => (i.type === 'house' ? { ...i, def: next } : i)))
+    },
+
+    // 수비 성공 — 그 단계에서 처음 받은 별만큼 도토리
+    defReward: (gid, stage, stars) => {
+      const { items, coins } = get()
+      const d = defOf(items)
+      const st = [...d.st]
+      while (st.length < stage) st.push(0)
+      const before = st[stage - 1]
+      if (stars <= before) return { coins: 0, newStars: 0 }
+      const rw = defStage(stage).reward
+      let gain = 0
+      for (let k = before + 1; k <= stars; k++) gain += rw[k - 1]
+      st[stage - 1] = stars
+      commit(items.map((i) => (i.type === 'house' ? { ...i, def: { ...d, st } } : i)), coins + gain)
+      void gid
+      return { coins: gain, newStars: stars - before }
+    },
+
     spendBossTry: (gid) => {
       const { items, bossTry } = get()
       if (bossTry && bossTry.gid === gid) return false // 같은 판은 한 번만 센다
