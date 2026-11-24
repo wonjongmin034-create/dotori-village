@@ -56,12 +56,33 @@ export function DefenseEntryButton() {
   )
 }
 
+const GUIDE_KEY = 'dotori.defGuide.v1'
+const seenGuide = () => {
+  try {
+    return localStorage.getItem(GUIDE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function DefensePicker() {
   const open = useDefUi((s) => s.picker)
   const items = useVillage((s) => s.items)
+  const [tab, setTab] = useState<'guide' | 'rooms'>(() => (seenGuide() ? 'rooms' : 'guide'))
+  useEffect(() => {
+    if (open) setTab(seenGuide() ? 'rooms' : 'guide')
+  }, [open])
   if (!open) return null
   const d = defOf(items)
   const close = () => useDefUi.setState({ picker: false })
+  const toRooms = () => {
+    try {
+      localStorage.setItem(GUIDE_KEY, '1')
+    } catch {
+      /* noop */
+    }
+    setTab('rooms')
+  }
   return (
     <div className="farm-overlay" onPointerDown={(e) => e.target === e.currentTarget && close()}>
       <div className="farm-card def-picker">
@@ -69,36 +90,163 @@ export function DefensePicker() {
           ✕
         </button>
         <h3>🌳 도토리 나무 수비대</h3>
-        <p className="farm-note">
-          친구 {DEF_MIN}~{DEF_MAX}명이 <b>같은 번호의 방</b>에 모여요. 빈 터에 탑을 지어 몰려오는 몬스터로부터 도토리 나무를 지켜요!
-          <br />
-          탑을 지을 때마다 문제를 풀어요 (7초, 틀리면 돈을 잃어요). 오늘 남은 입장 {defLeftOf(d)}/{DEF_DAILY}
-        </p>
-        <div className="def-prog">
-          {DEF_STAGE_LIST.map((s) => (
-            <span key={s.id}>
-              {s.id}단계 {s.name} <b>{stars(d.st[s.id - 1] ?? 0)}</b>
-            </span>
-          ))}
+        <div className="def-tabs">
+          <button type="button" className={tab === 'guide' ? 'on' : ''} onClick={() => setTab('guide')}>
+            📖 어떻게 해요?
+          </button>
+          <button type="button" className={tab === 'rooms' ? 'on' : ''} onClick={toRooms}>
+            🚪 방 고르기
+          </button>
         </div>
-        <div className="boss-rooms">
-          {Array.from({ length: DEF_ROOMS }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => {
-                close()
-                enterDefense(n)
-              }}
-            >
-              {n}번 방
-            </button>
-          ))}
-        </div>
+        {tab === 'guide' ? (
+          <DefenseGuide onDone={toRooms} />
+        ) : (
+          <>
+            <p className="farm-note">
+              친구 {DEF_MIN}~{DEF_MAX}명이 <b>같은 번호의 방</b>에 모여요. 먼저 들어온 친구가 방장(👑)이 되어 시작을 눌러요.
+              <br />
+              오늘 남은 입장 <b>{defLeftOf(d)}/{DEF_DAILY}</b>
+            </p>
+            <div className="def-prog">
+              {DEF_STAGE_LIST.map((s) => (
+                <span key={s.id}>
+                  {s.id}단계 {s.name} <b>{stars(d.st[s.id - 1] ?? 0)}</b>
+                </span>
+              ))}
+            </div>
+            <div className="boss-rooms">
+              {Array.from({ length: DEF_ROOMS }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    close()
+                    enterDefense(n)
+                  }}
+                >
+                  {n}번 방
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
 }
+
+/* ---------- 처음 하는 친구를 위한 안내 ---------- */
+const MON_TIPS: [MonKindT, string][] = [
+  ['bat', '🏹 궁수탑 · 🪄 마법탑만 맞힐 수 있어요'],
+  ['turtle', '🪓 투석기가 잘 뚫어요'],
+  ['fox', '🔱 창 함정으로 붙잡아요'],
+  ['goblin', '🗡️ 검사 초소로 막고 🔨 대장간으로 고쳐요'],
+  ['bomb', '🗡️ 검사 초소가 대신 맞아 줘요'],
+  ['blob', '🪄 마법탑으로 한꺼번에 쓸어요'],
+  ['king', '모두 함께! 긴급 퀴즈를 다 맞히면 기절해요'],
+]
+type MonKindT = keyof typeof MONSTERS
+
+function DefenseGuide({ onDone }: { onDone: () => void }) {
+  const job = useVillage((s) => s.job)
+  const mine = job && isFamily(job.f) ? job.f : null
+  return (
+    <div className="def-guide">
+      <section>
+        <h4>🎯 무엇을 하나요?</h4>
+        <p>
+          몬스터들이 길을 따라 <b>도토리 나무</b>로 몰려와요. 친구들과 길옆에 <b>탑</b>을 지어서 나무를 지켜요! 몬스터가 나무에 닿으면 나무 체력이 줄어요. 웨이브 {DEF_WAVES}번을 버티면 승리예요.
+        </p>
+      </section>
+
+      <section>
+        <h4>🏗️ 이렇게 해요</h4>
+        <ol>
+          <li>
+            빈 터 <b>(＋ 표시)</b>를 눌러요.
+          </li>
+          <li>지을 탑을 골라요.</li>
+          <li>
+            <b>문제가 나와요 (7초)</b> — 맞히면 탑이 지어져요. <span className="warn">틀리거나 시간이 지나면 낸 돈을 잃어요!</span> 친구에게 묻지 말고 스스로 풀어요.
+          </li>
+          <li>
+            몬스터를 잡으면 💰 돈이 생겨요. <b>내 탑을 눌러 진화</b>시켜요 (1~5단계). 3단계에서는 두 갈래 중 하나를 골라요.
+          </li>
+        </ol>
+        <p className="tip">⭐ 5초 안에 맞히면 "완벽 시공" — 그 탑이 더 세져요!</p>
+      </section>
+
+      <section>
+        <h4>💰 돈은 어떻게 나눠요?</h4>
+        <p>
+          몬스터를 잡은 <b>탑 주인이 70%</b>, 나머지 <b>30%는 팀 모두</b>가 나눠 가져요. 위쪽의 친구 이름을 누르면 내 돈을 친구에게 보낼 수 있어요. 💝
+        </p>
+      </section>
+
+      <section className="def-guide-job">
+        <h4>🎖️ 내 직업 = 내 전문 탑</h4>
+        {mine ? (
+          <p className="me">
+            나는 <b>{JOB_MAP[mine].emoji} {JOB_MAP[mine].label}</b> → <b>{TOWERS[mine].emoji} {TOWERS[mine].name}</b> 전문가예요!
+          </p>
+        ) : (
+          <p className="me">
+            나는 아직 <b>견습 검사</b>예요. 무기고에서 <b>1차 전직</b>을 하면 내 전문 탑이 생겨요!
+          </p>
+        )}
+        <p>
+          누구나 모든 탑을 지을 수 있어요. 그런데 <b>내 직업의 탑</b>은 특별해요:
+        </p>
+        <ul>
+          <li>💸 짓기·진화가 <b>30% 싸요</b></li>
+          <li>⬆️ 처음부터 <b>2단계</b>로 지어져요</li>
+          <li>💪 3단계부터 그 탑의 <b>특기가 30% 더 강해져요</b></li>
+        </ul>
+        <div className="def-guide-jobs">
+          {(Object.keys(TOWERS) as TowerKindT[]).map((k) => (
+            <div key={k} className={mine === k ? 'mine' : ''}>
+              <span>
+                {JOB_MAP[k].emoji} {JOB_MAP[k].label}
+              </span>
+              <b>
+                {TOWERS[k].emoji} {TOWERS[k].name}
+              </b>
+              <small>{TOWERS[k].role}</small>
+            </div>
+          ))}
+        </div>
+        <p className="tip">팀에 여러 직업이 섞여 있을수록 강해요. 친구들과 누가 어떤 탑을 지을지 정해 봐요!</p>
+      </section>
+
+      <section>
+        <h4>👾 몬스터마다 필요한 탑이 달라요</h4>
+        <p>웨이브 사이에 위쪽 "다음:"에 다음 몬스터가 보여요. 미리 맞는 탑을 지어요!</p>
+        <ul className="def-guide-mons">
+          {MON_TIPS.map(([k, tip]) => (
+            <li key={k}>
+              <b>
+                {MONSTERS[k].emoji} {MONSTERS[k].name}
+              </b>{' '}
+              {tip}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h4>⭐ 별과 보상</h4>
+        <p>
+          나무 체력이 많이 남을수록 별을 많이 받아요 (★1~3). <b>처음 받은 별</b>만큼 도토리를 받아요. 하루에 {DEF_DAILY}번 도전할 수 있어요. 🎁 쉬는 시간에 길에 보급 상자가 나오면 먼저 눌러 보세요!
+        </p>
+      </section>
+
+      <button type="button" className="boss-go" onClick={onDone}>
+        알겠어요! 방 고르러 가기 🚪
+      </button>
+    </div>
+  )
+}
+type TowerKindT = keyof typeof TOWERS
 
 /* ---------- 수비대 방 화면 ---------- */
 export function DefenseHud({ room }: { room: number }) {
