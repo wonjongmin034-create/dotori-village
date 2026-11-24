@@ -6,7 +6,7 @@
 import type { WeaponFamily } from './weapons'
 
 // 아직 학생들에게 공개하지 않았다 — 주소 끝에 ?def 를 붙이면 들어가는 버튼이 보인다 (선생님 시험용). 공개하려면 true 로.
-export const DEF_OPEN = false
+export const DEF_OPEN = true
 export const defVisible = () => {
   if (DEF_OPEN) return true
   try {
