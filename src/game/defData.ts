@@ -133,6 +133,8 @@ export const SPEC_BOOST = 1.3
 export const TIER_DMG = [0, 1, 1.5, 2.2, 3.2, 4.6]
 export const TIER_HP = [0, 1, 1.4, 1.9, 2.6, 3.5]
 export const TIER_RANGE = [0, 0, 0.2, 0.4, 0.6, 0.9]
+// 탑의 공격 범위 (방장 계산 · 화면 표시가 같은 값을 쓴다)
+export const rangeOf = (kind: TowerKind, tier: number, br: number) => TOWERS[kind].range + TIER_RANGE[tier] + (kind === 'bow' && br === 2 ? 2 : 0)
 export const MAX_TOWER_TIER = 5
 export const HOLD_S = 0.7 // 창 함정이 붙잡는 시간
 export const HEAL_PER_S = 5 // 대장간 기본 수리량 (초당)

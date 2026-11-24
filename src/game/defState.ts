@@ -24,7 +24,7 @@ import {
   TEAM_HP,
   TIER_DMG,
   TIER_HP,
-  TIER_RANGE,
+  rangeOf,
   TOWERS,
   TOWER_KINDS,
   TREE_HP,
@@ -318,7 +318,7 @@ class Sim {
     const spec = x.spec && x.tier >= 3 ? SPEC_BOOST : 1
     let dmg = def.dmg * TIER_DMG[x.tier]
     let rate = def.rate
-    let range = def.range + TIER_RANGE[x.tier]
+    const range = rangeOf(x.kind, x.tier, x.br)
     let splash = def.splash ?? 0
     let air = def.air
     let taunt = TAUNT_R
@@ -335,10 +335,7 @@ class Sim {
     }
     if (x.kind === 'bow') {
       if (x.br === 1) rate /= 1.8
-      if (x.br === 2) {
-        range += 2
-        dmg *= 1.8
-      }
+      if (x.br === 2) dmg *= 1.8
       air *= spec
     }
     if (x.kind === 'staff') splash *= spec

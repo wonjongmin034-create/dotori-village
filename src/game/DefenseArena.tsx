@@ -7,7 +7,7 @@ import { toonGradient } from './toon'
 import { Baked } from './Baked'
 import { Water } from './Water'
 import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
-import { PATH, SPOTS, TREE_HP, TREE_POS, pathPos, type MonKind, type TowerKind } from './defData'
+import { PATH, SPOTS, TREE_HP, TREE_POS, pathPos, rangeOf, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
 import { AcornTree, BuildPad, MonModel, MonsterDen, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
 
@@ -442,6 +442,53 @@ function Bar({ pct, y, w = 1.0, color }: { pct: number; y: number; w?: number; c
   )
 }
 
+/* ---------- 고른 탑의 공격 범위 ---------- */
+function RangeCircle({ r, color }: { r: number; color: string }) {
+  const wave = useRef<THREE.Mesh>(null)
+  const born = useRef(performance.now())
+  useEffect(() => {
+    born.current = performance.now()
+  }, [r])
+  useFrame(() => {
+    const m = wave.current
+    if (!m) return
+    const t = performance.now() - born.current
+    // 처음엔 범위가 쫙 펼쳐지고, 그 뒤로는 안에서 밖으로 물결이 퍼진다
+    const k = ((t % 1600) / 1600)
+    m.scale.setScalar(Math.max(0.05, k) * r)
+    ;(m.material as THREE.MeshBasicMaterial).opacity = 0.5 * (1 - k)
+  })
+  const open = useRef<THREE.Group>(null)
+  useFrame(() => {
+    const g = open.current
+    if (!g) return
+    const a = Math.min(1, (performance.now() - born.current) / 260)
+    g.scale.setScalar(0.3 + 0.7 * (1 - (1 - a) * (1 - a)))
+  })
+  return (
+    <group position={[0, 0.1, 0]} rotation={[-PI / 2, 0, 0]}>
+      <group ref={open}>
+        <mesh renderOrder={2}>
+          <circleGeometry args={[r, 48]} />
+          <meshBasicMaterial color={color} transparent opacity={0.26} depthWrite={false} />
+        </mesh>
+        <mesh renderOrder={3}>
+          <ringGeometry args={[r - 0.12, r, 64]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.95} depthWrite={false} />
+        </mesh>
+        <mesh renderOrder={3}>
+          <ringGeometry args={[r - 0.3, r - 0.12, 64]} />
+          <meshBasicMaterial color={color} transparent opacity={0.8} depthWrite={false} />
+        </mesh>
+      </group>
+      <mesh ref={wave} renderOrder={3}>
+        <ringGeometry args={[0.94, 1, 48]} />
+        <meshBasicMaterial color={color} transparent opacity={0.4} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
 function Tower({ row, members, selected }: { row: TowerRow; members: string[]; selected: boolean }) {
   const [id, spot, kind, tier, br, owner, hp, spec, perfect] = row
   const g = useRef<THREE.Group>(null)
@@ -500,6 +547,7 @@ function Tower({ row, members, selected }: { row: TowerRow; members: string[]; s
         <ringGeometry args={[0.98, selected ? 1.18 : 1.06, 32]} />
         <meshBasicMaterial color={selected ? '#ffd23c' : spec ? KIND_COLOR[kind] : color} transparent opacity={selected ? 1 : 0.55} depthWrite={false} />
       </mesh>
+      {selected && <RangeCircle r={rangeOf(kind, tier, br)} color={KIND_COLOR[kind]} />}
       {perfect ? (
         <mesh position={[0.72, 0.3, 0.6]}>
           <octahedronGeometry args={[0.11]} />
