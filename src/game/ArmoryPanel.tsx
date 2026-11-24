@@ -16,6 +16,7 @@ import {
   type WeaponFamily,
 } from './weapons'
 import { JOBS, JOB_MAP, jobChecks, jobLabel } from './jobs'
+import { JOB_COLOR } from './JobAura'
 
 // 무기고: 가진 무기를 고르고, 도토리를 써서 한 단계씩 진화시킨다.
 // 처음에는 검으로 시작하고, 조건을 채우면 1차 전직으로 직업 무기를 얻는다 (jobs.ts).
@@ -32,14 +33,27 @@ export function ArmoryButton({ className = '' }: { className?: string }) {
   )
 }
 
-// 전직 버튼: 아직 전직하지 않은 학생에게만 보인다. 누르면 무기고의 전직 화면이 바로 열린다.
+// 전직 버튼: 전직 전에는 조건·전직 화면을 열고, 전직한 뒤에는 내 직업 버튼이 되어 직업 무기·기술을 보여 준다.
 export function JobButton() {
   const open = useVillage((s) => s.openArmory)
   const job = useVillage((s) => s.job)
   const bossCleared = useVillage((s) => s.bossCleared)
   const petSt = useVillage((s) => s.pet?.st ?? 0)
   const houseLv = useVillage((s) => s.items.find((i) => i.type === 'house')?.level ?? 1)
-  if (job) return null
+  if (job) {
+    const j = JOB_MAP[job.f]
+    const c = JOB_COLOR[job.f]
+    return (
+      <button
+        type="button"
+        className="job-btn mine"
+        style={{ borderColor: c, background: `linear-gradient(180deg, #fff, ${c}40)`, boxShadow: `0 3px 10px ${c}66` }}
+        onClick={() => open(true)}
+      >
+        {j.emoji} {j.label} <small>· 내 직업</small>
+      </button>
+    )
+  }
   const checks = jobChecks(bossCleared, houseLv, petSt)
   const done = checks.filter((c) => c.ok).length
   const ready = done === checks.length
@@ -75,7 +89,8 @@ export function ArmoryPanel() {
 
   // 처음 열 때는 지금 들고 있는 무기 종류를 보여 준다
   useEffect(() => {
-    if (isOpen && avatar.weapon && WEAPON_FAMILIES.includes(avatar.weapon as WeaponFamily) && weapons[avatar.weapon]) setFam(avatar.weapon as WeaponFamily)
+    if (isOpen && openJob && job && weapons[job.f]) setFam(job.f)
+    else if (isOpen && avatar.weapon && WEAPON_FAMILIES.includes(avatar.weapon as WeaponFamily) && weapons[avatar.weapon]) setFam(avatar.weapon as WeaponFamily)
     else if (isOpen) setFam((WEAPON_FAMILIES.find((f) => weapons[f]) ?? 'sword') as WeaponFamily)
     setPeek(false)
     setConfirm(false)
