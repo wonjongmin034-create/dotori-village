@@ -8,6 +8,7 @@ import {
   DEF_MIN,
   DEF_ROOMS,
   DEF_STAGE_LIST,
+  mapOf,
   DEF_WAVES,
   MAX_TOWER_TIER,
   MONSTERS,
@@ -236,6 +237,8 @@ function DefenseGuide({ onDone }: { onDone: () => void }) {
       <section>
         <h4>⭐ 별과 보상</h4>
         <p>
+          단계마다 맵이 달라요: 1단계는 한 갈래 길, <b>2단계는 길이 두 갈래</b>, <b>3단계는 양쪽 굴에서 동시에</b> 몰려와요. 단계가 오를수록 어려워요!
+          <br />
           나무 체력이 많이 남을수록 별을 많이 받아요 (★1~3). <b>처음 받은 별</b>만큼 도토리를 받아요. 하루에 {DEF_DAILY}번 도전할 수 있어요. 🎁 쉬는 시간에 길에 보급 상자가 나오면 먼저 눌러 보세요!
         </p>
       </section>
@@ -317,6 +320,7 @@ function Lobby({ room }: { room: number }) {
           )
         })}
       </div>
+      <p className="def-map-tip">🗺️ {stage}단계 맵: {mapOf(stage).tip}</p>
       <p className="def-rules">
         🏗️ 빈 터를 눌러 탑 짓기 → 문제 7초 (틀리면 돈을 잃어요) · 💰 몬스터를 잡은 탑 주인 70%, 나머지는 모두가 나눠 가져요 · ⬆️ 내 탑을 눌러 진화 (3단계에서 갈림길) ·
         🎖️ 내 직업 탑은 30% 싸고 2단계로 지어져요

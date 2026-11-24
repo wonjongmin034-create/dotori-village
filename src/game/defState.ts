@@ -13,10 +13,8 @@ import {
   MAX_TOWER_TIER,
   MONSTERS,
   OWNER_SHARE,
-  PATH_LEN,
   PREP_MS,
   SPEC_BOOST,
-  SPOTS,
   START_GOLD,
   SYNERGY,
   SYNERGY_R,
@@ -30,7 +28,9 @@ import {
   TREE_HP,
   buildCost,
   evolveCost,
-  pathPos,
+  lanePos,
+  mapOf,
+  type DefMap,
   waveHpMult,
   waveOf,
   type MonKind,
@@ -47,8 +47,8 @@ export type DefMember = { n: string; jb: string | null; cl: number; tl: number }
 export type DefSt = 'prep' | 'wave' | 'break' | 'won' | 'lost' | 'aborted'
 // 탑: [id, 빈 터 번호, 종류, 단계, 갈림길(0·1·2), 주인, 체력 %, 전문가(1/0), 완벽 시공(1/0)]
 export type TowerRow = [number, number, TowerKind, number, number, string, number, number, number]
-// 몬스터: [id, 종류, 길 위 거리, 체력 %, 상태(1 느림 · 2 붙잡힘 · 4 불탐 · 8 중독 · 16 기절 · 32 공격 중)]
-export type MonRow = [number, MonKind, number, number, number]
+// 몬스터: [id, 종류, 길 위 거리, 체력 %, 상태(1 느림 · 2 붙잡힘 · 4 불탐 · 8 중독 · 16 기절 · 32 공격 중), 길 번호]
+export type MonRow = [number, MonKind, number, number, number, number]
 export type Snap = {
   gid: number
   host: string
@@ -194,6 +194,7 @@ type Tower = { id: number; spot: number; kind: TowerKind; tier: number; br: numb
 type Mon = {
   id: number
   kind: MonKind
+  l: number // 몇 번째 길
   d: number
   hp: number
   max: number
@@ -214,6 +215,8 @@ class Sim {
   gid: number
   host: string
   stage: number
+  map: DefMap
+  laneTurn = 0
   members: string[]
   jobs: Record<string, string | null>
   st: DefSt = 'prep'
@@ -240,6 +243,7 @@ class Sim {
     this.gid = gid
     this.host = host
     this.stage = stage
+    this.map = mapOf(stage)
     this.members = members
     this.jobs = jobs
     for (const n of members) {
@@ -271,6 +275,7 @@ class Sim {
         Math.round(m.d * 10) / 10,
         Math.max(0, Math.round((m.hp / m.max) * 100)),
         (m.slowUntil > this.t ? 1 : 0) | (m.holdUntil > this.t ? 2 : 0) | (m.burnUntil > this.t ? 4 : 0) | (m.poisonUntil > this.t ? 8 : 0) | (m.stunUntil > this.t ? 16 : 0) | (m.target >= 0 ? 32 : 0),
+        m.l,
       ]),
       shots: this.shots.slice(-30),
       booms: this.booms.slice(-12),
@@ -302,10 +307,20 @@ class Sim {
     this.queue = q
   }
 
-  spawn(kind: MonKind, d = 0, hpScale = 1) {
+  // 몬스터 위치 · 남은 거리
+  pos(m: Mon) {
+    return lanePos(this.map.lanes[m.l] ?? this.map.lanes[0], m.d)
+  }
+  leftOf(m: Mon) {
+    return (this.map.lanes[m.l] ?? this.map.lanes[0]).len - m.d
+  }
+
+  spawn(kind: MonKind, d = 0, hpScale = 1, lane = -1) {
     const def = MONSTERS[kind]
+    // 길이 여러 갈래면 번갈아 나온다
+    const l = lane >= 0 ? lane : this.laneTurn++ % this.map.lanes.length
     const hp = Math.round(def.hp * waveHpMult(this.stage, Math.max(1, this.wave)) * hpScale * TEAM_HP[Math.min(4, this.members.length)])
-    this.mons.push({ id: this.nextId++, kind, d, hp, max: hp, slowUntil: 0, slowF: 1, holdUntil: 0, burnUntil: 0, burnDps: 0, poisonUntil: 0, poisonDps: 0, stunUntil: 0, target: -1, lastBy: -1 })
+    this.mons.push({ id: this.nextId++, kind, l, d, hp, max: hp, slowUntil: 0, slowF: 1, holdUntil: 0, burnUntil: 0, burnDps: 0, poisonUntil: 0, poisonDps: 0, stunUntil: 0, target: -1, lastBy: -1 })
     if (kind === 'king' && this.kingWave !== this.wave) {
       this.kingWave = this.wave
       this.startEmergency()
@@ -360,12 +375,12 @@ class Sim {
 
   // 주변 대장간(전투)·연계 보너스
   dmgBonus(x: Tower): number {
-    const [sx, sz] = SPOTS[x.spot]
+    const [sx, sz] = this.map.spots[x.spot]
     let b = 1
     const kinds = new Set<TowerKind>()
     let forge = false
     for (const o of this.towers) {
-      const [ox, oz] = SPOTS[o.spot]
+      const [ox, oz] = this.map.spots[o.spot]
       const d = Math.hypot(ox - sx, oz - sz)
       if (d <= SYNERGY_R) kinds.add(o.kind)
       if (o !== x && o.kind === 'hammer' && o.br === 2 && d <= this.towerStats(o).range) forge = true
@@ -392,7 +407,7 @@ class Sim {
     }
     const share = (by ? g * (1 - OWNER_SHARE) : g) / Math.max(1, this.members.length)
     for (const n of this.members) this.gold[n] = (this.gold[n] ?? 0) + share
-    if (def.split) for (let i = 0; i < def.split; i++) this.spawn('slime', Math.max(0, m.d - 0.4 * i), 0.55)
+    if (def.split) for (let i = 0; i < def.split; i++) this.spawn('slime', Math.max(0, m.d - 0.4 * i), 0.55, m.l)
   }
 
   tick(dt: number) {
@@ -411,7 +426,7 @@ class Sim {
       if (m.burnUntil > t) this.hurt(m, m.burnDps * dt, null)
       if (m.poisonUntil > t) this.hurt(m, m.poisonDps * dt, null)
       if (m.hp <= 0) continue
-      const [mx, mz] = pathPos(m.d)
+      const [mx, mz] = this.pos(m)
       const stunned = m.stunUntil > t
       // 탑을 노리는 몬스터 (도끼 고블린 · 대왕 · 폭탄벌레)
       if ((def.attack || def.bomb) && !def.air && !stunned) {
@@ -420,7 +435,7 @@ class Sim {
           m.target = -1
           // 검사 초소가 끌어온다
           const near = this.towers
-            .map((x) => ({ x, d: Math.hypot(SPOTS[x.spot][0] - mx, SPOTS[x.spot][1] - mz) }))
+            .map((x) => ({ x, d: Math.hypot(this.map.spots[x.spot][0] - mx, this.map.spots[x.spot][1] - mz) }))
             .filter((o) => o.d <= (o.x.kind === 'sword' ? this.towerStats(o.x).taunt : 2.8))
             .sort((a, b) => (a.x.kind === 'sword' ? 0 : 1) - (b.x.kind === 'sword' ? 0 : 1) || a.d - b.d)
           tgt = near[0]?.x
@@ -429,7 +444,7 @@ class Sim {
         if (tgt) {
           if (def.bomb) {
             tgt.hp -= def.bomb
-            this.booms.push([SPOTS[tgt.spot][0], SPOTS[tgt.spot][1], 1.2])
+            this.booms.push([this.map.spots[tgt.spot][0], this.map.spots[tgt.spot][1], 1.2])
             m.hp = 0
             m.target = -1
           } else {
@@ -444,28 +459,28 @@ class Sim {
       if (stunned || m.holdUntil > t) continue
       const slow = m.slowUntil > t ? m.slowF : 1
       m.d += def.spd * slow * dt
-      if (m.d >= PATH_LEN) {
+      if (this.leftOf(m) <= 0) {
         this.tree -= def.leak
         m.hp = 0
         m.lastBy = -1
-        this.booms.push([...pathPos(PATH_LEN), 0.8])
+        this.booms.push([...this.pos(m), 0.8])
       }
     }
     // 부서진 탑 치우기
     const broken = this.towers.filter((x) => x.hp <= 0)
     if (broken.length) {
-      for (const b of broken) this.booms.push([SPOTS[b.spot][0], SPOTS[b.spot][1], 1.4])
+      for (const b of broken) this.booms.push([this.map.spots[b.spot][0], this.map.spots[b.spot][1], 1.4])
       this.towers = this.towers.filter((x) => x.hp > 0)
     }
 
     // 탑 공격 · 수리
     for (const x of this.towers) {
       const s = this.towerStats(x)
-      const [sx, sz] = SPOTS[x.spot]
+      const [sx, sz] = this.map.spots[x.spot]
       if (x.kind === 'hammer') {
         for (const o of this.towers) {
           if (o.hp >= o.max) continue
-          if (Math.hypot(SPOTS[o.spot][0] - sx, SPOTS[o.spot][1] - sz) <= s.range) o.hp = Math.min(o.max, o.hp + s.heal * dt)
+          if (Math.hypot(this.map.spots[o.spot][0] - sx, this.map.spots[o.spot][1] - sz) <= s.range) o.hp = Math.min(o.max, o.hp + s.heal * dt)
         }
       }
       x.cd -= dt
@@ -476,9 +491,9 @@ class Sim {
         if (m.hp <= 0) continue
         const air = MONSTERS[m.kind].air
         if (air && s.air <= 0) continue
-        const [mx, mz] = pathPos(m.d)
+        const [mx, mz] = this.pos(m)
         if (Math.hypot(mx - sx, mz - sz) > s.range) continue
-        if (!best || m.d > best.d) best = m
+        if (!best || this.leftOf(m) < this.leftOf(best)) best = m
       }
       if (!best) continue
       x.cd = s.rate
@@ -511,12 +526,12 @@ class Sim {
         }
       }
       if (s.splash > 0) {
-        const [bx, bz] = pathPos(best.d)
+        const [bx, bz] = this.pos(best)
         this.booms.push([bx, bz, s.splash])
         for (const m of this.mons) {
           if (m.hp <= 0) continue
           if (MONSTERS[m.kind].air && s.air <= 0) continue
-          const [mx, mz] = pathPos(m.d)
+          const [mx, mz] = this.pos(m)
           if (Math.hypot(mx - bx, mz - bz) <= s.splash) hitOne(m, m === best ? 1 : 0.7)
         }
       } else hitOne(best)
@@ -538,7 +553,7 @@ class Sim {
       }
       this.st = 'break'
       this.phaseEnd = t + BREAK_MS / 1000
-      this.box = Math.random() < BOX_CHANCE ? 6 + Math.random() * (PATH_LEN - 14) : -1
+      this.box = Math.random() < BOX_CHANCE ? 6 + Math.random() * (this.map.lanes[0].len - 14) : -1
     }
   }
 
@@ -613,7 +628,7 @@ class Sim {
 
   /* ----- 요청 ----- */
   request(n: string, spot: number, kind: TowerKind) {
-    if (!active(this) || !TOWER_KINDS.includes(kind) || spot < 0 || spot >= SPOTS.length) return
+    if (!active(this) || !TOWER_KINDS.includes(kind) || spot < 0 || spot >= this.map.spots.length) return
     if (this.towers.some((x) => x.spot === spot)) return
     if ([...this.pend.values()].some((p) => p.why === 'build' && (p.spot === spot || p.n === n))) return
     const cost = buildCost(kind, this.jobs[n] ?? null)

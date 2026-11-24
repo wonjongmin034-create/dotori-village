@@ -719,3 +719,14 @@
   padding: 3px 0;
   border-bottom: 1px dashed #ece9dc;
 }
+
+.def-map-tip {
+  margin: 8px 0 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #eaf4ff;
+  color: #2b4f78;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}

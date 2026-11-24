@@ -29,42 +29,138 @@ export const PREP_MS = 15_000 // 첫 웨이브 전 준비 시간
 export const BREAK_MS = 9000 // 웨이브 사이 쉬는 시간
 export const OWNER_SHARE = 0.7 // 잡은 탑 주인 몫
 
-/* ---------- 맵 (월드 좌표: x 왼→오, z 위→아래, 카메라는 +z 쪽에서 내려다본다) ---------- */
-export const PATH: [number, number][] = [
-  [-13.5, -5.5],
-  [7, -5.5],
-  [7, -0.5],
-  [-7, -0.5],
-  [-7, 4.5],
-  [9, 4.5],
-  [9, 7.6],
-]
-export const TREE_POS: [number, number] = [9, 8.4]
-// 탑을 지을 수 있는 빈 터
-export const SPOTS: [number, number][] = [
-  [-9, -8.2], [-3, -8.2], [3, -8.2],
-  [-10, -3], [-5, -3], [-1, -3], [3, -3], [9.6, -3],
-  [-9.6, 2], [-3, 2], [1, 2], [5, 2],
-  [-3, 7.2], [1.5, 7.2], [5.5, 7.2], [11.5, 3.6],
-]
+/* ---------- 맵 (월드 좌표: x 왼→오, z 위→아래, 카메라는 +z 쪽에서 내려다본다) ----------
+   단계마다 맵이 다르다. 단계가 오를수록 길이 짧아지고 갈래가 늘어 더 어려워진다.
+   · 1단계: 한 줄로 길게 굽은 길
+   · 2단계: 길이 두 갈래로 나뉘었다가 나무 앞에서 다시 만난다 (몬스터가 번갈아 양쪽으로)
+   · 3단계: 왼쪽·오른쪽 두 굴에서 동시에 몰려온다 */
+export type Pt = [number, number]
+type Seg = { a: Pt; b: Pt; len: number }
+export type Lane = { pts: Pt[]; segs: Seg[]; len: number }
+export type DefMap = { id: number; tip: string; lanes: Lane[]; spots: Pt[]; tree: Pt; dens: { p: Pt; rot: number }[] }
 
-const segs = PATH.slice(1).map((p, i) => {
-  const a = PATH[i]
-  const len = Math.hypot(p[0] - a[0], p[1] - a[1])
-  return { a, b: p, len }
-})
-export const PATH_LEN = segs.reduce((s, x) => s + x.len, 0)
+const lane = (pts: Pt[]): Lane => {
+  const segs = pts.slice(1).map((b, i) => {
+    const a = pts[i]
+    return { a, b, len: Math.hypot(b[0] - a[0], b[1] - a[1]) }
+  })
+  return { pts, segs, len: segs.reduce((s, x) => s + x.len, 0) }
+}
+
+export const DEF_MAPS: DefMap[] = [
+  {
+    id: 1,
+    tip: '한 갈래로 길게 굽은 길이에요.',
+    lanes: [
+      lane([
+        [-13.5, -5.5],
+        [7, -5.5],
+        [7, -0.5],
+        [-7, -0.5],
+        [-7, 4.5],
+        [9, 4.5],
+        [9, 7.6],
+      ]),
+    ],
+    tree: [9, 8.4],
+    dens: [{ p: [-15.2, -5.5], rot: 0 }],
+    spots: [
+      [-9, -8.2], [-3, -8.2], [3, -8.2],
+      [-10, -3], [-5, -3], [-1, -3], [3, -3], [9.6, -3],
+      [-9.6, 2], [-3, 2], [1, 2], [5, 2],
+      [-3, 7.2], [1.5, 7.2], [5.5, 7.2], [11.5, 3.6],
+    ],
+  },
+  {
+    id: 2,
+    tip: '길이 두 갈래로 나뉘어요! 몬스터가 번갈아 양쪽 길로 와요. 길도 더 짧아요.',
+    lanes: [
+      lane([
+        [-13.5, -6.5],
+        [11, -6.5],
+        [11, 4],
+        [-1, 4],
+        [-1, 7.6],
+      ]),
+      lane([
+        [-13.5, -6.5],
+        [-1, -6.5],
+        [-1, -1],
+        [-11, -1],
+        [-11, 4],
+        [-1, 4],
+        [-1, 7.6],
+      ]),
+    ],
+    tree: [-1, 8.4],
+    dens: [{ p: [-15.2, -6.5], rot: 0 }],
+    spots: [
+      [-9, -9], [-4, -9], [3, -9], [8, -9],
+      [-8, -3.75], [-4, -3.75], [2, -3.75], [8, -3.75],
+      [-13.5, 1.5], [-8, 1.5], [-4, 1.5], [1.5, 1.5], [5, 1.5], [8.5, 1.5], [13.5, -1],
+      [-6, 6.8], [4, 6.8],
+    ],
+  },
+  {
+    id: 3,
+    tip: '왼쪽·오른쪽 두 굴에서 동시에 몰려와요! 팀을 나눠서 양쪽을 막아요.',
+    lanes: [
+      lane([
+        [-13.5, -7],
+        [-6, -7],
+        [-6, -1],
+        [-12, -1],
+        [-12, 5],
+        [-0.5, 5],
+        [-0.5, 7.6],
+      ]),
+      lane([
+        [12.5, -7],
+        [5, -7],
+        [5, -1],
+        [11, -1],
+        [11, 5],
+        [-0.5, 5],
+        [-0.5, 7.6],
+      ]),
+    ],
+    tree: [-0.5, 8.4],
+    dens: [
+      { p: [-15.2, -7], rot: 0 },
+      { p: [14.2, -7], rot: Math.PI },
+    ],
+    spots: [
+      [-10, -9.5], [-9, -4], [-3.5, -4], [-14.5, 2], [-9, 2], [-4, 2], [-6, 7.5],
+      [9, -9.5], [8, -4], [2.5, -4], [13.5, 2], [8, 2], [3, 2], [5, 7.5],
+      [-0.5, 1.5],
+    ],
+  },
+]
+export const mapOf = (stage: number) => DEF_MAPS[Math.max(1, Math.min(DEF_MAPS.length, Math.round(stage) || 1)) - 1]
+
 // 길 위 거리 d 의 위치
-export function pathPos(d: number): [number, number] {
-  let r = Math.max(0, Math.min(PATH_LEN, d))
-  for (const s of segs) {
+export function lanePos(L: Lane, d: number): Pt {
+  let r = Math.max(0, Math.min(L.len, d))
+  for (const s of L.segs) {
     if (r <= s.len) {
       const t = s.len ? r / s.len : 0
       return [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t]
     }
     r -= s.len
   }
-  return PATH[PATH.length - 1]
+  return L.pts[L.pts.length - 1]
+}
+// 가장 가까운 길까지의 거리
+export function distToLanes(lanes: Lane[], x: number, z: number) {
+  let best = 1e9
+  for (const L of lanes)
+    for (const { a, b } of L.segs) {
+      const dx = b[0] - a[0]
+      const dz = b[1] - a[1]
+      const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)))
+      best = Math.min(best, Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz))
+    }
+  return best
 }
 
 /* ---------- 탑 ---------- */
@@ -178,9 +274,9 @@ export const MONSTERS: Record<MonKind, MonDef> = {
 /* ---------- 단계 · 웨이브 ---------- */
 export type StageDef = { id: number; name: string; hpMult: number; reward: [number, number, number] } // ★1·★2·★3 처음 달성 보상
 export const DEF_STAGE_LIST: StageDef[] = [
-  { id: 1, name: '들판 입구', hpMult: 1, reward: [30, 20, 30] },
-  { id: 2, name: '들판 한가운데', hpMult: 1.35, reward: [40, 30, 40] },
-  { id: 3, name: '들판 끝 언덕', hpMult: 1.4, reward: [50, 40, 60] },
+  { id: 1, name: '들판 오솔길', hpMult: 1, reward: [30, 20, 30] },
+  { id: 2, name: '갈림길 숲', hpMult: 1.2, reward: [40, 30, 40] },
+  { id: 3, name: '쌍둥이 굴', hpMult: 1.65, reward: [50, 40, 60] },
 ]
 export const defStage = (s: number) => DEF_STAGE_LIST[Math.max(1, Math.min(DEF_STAGES, s)) - 1]
 // 남은 나무 체력 → 별

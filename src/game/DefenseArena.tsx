@@ -7,7 +7,7 @@ import { toonGradient } from './toon'
 import { Baked } from './Baked'
 import { Water } from './Water'
 import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
-import { PATH, SPOTS, TREE_HP, TREE_POS, pathPos, rangeOf, type MonKind, type TowerKind } from './defData'
+import { TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
 import { AcornTree, BuildPad, MonModel, MonsterDen, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
 
@@ -20,10 +20,12 @@ const PI = Math.PI
 const CX = -0.5
 const HX = 16.5
 const HZ = 11.6
-const DEN_POS: [number, number] = [-15.2, PATH[0][1]]
+// 지금 보여 줄 맵: 싸우는 중이면 그 단계, 아니면 방장이 고른 단계
+export const useDefMap = () => useDef((s) => mapOf(s.snap?.stage ?? s.lobbyStage))
+const laneOf = (map: DefMap, l: number | undefined): Lane => map.lanes[l ?? 0] ?? map.lanes[0]
 
 /* ---------- 장면 상태 (리렌더 없이 매 프레임 읽는 값) ---------- */
-const monTrack = new Map<number, { d0: number; d1: number; t0: number; hp: number }>()
+const monTrack = new Map<number, { d0: number; d1: number; t0: number; hp: number; l: number }>()
 const monAnim = new Map<number, MonAnim>()
 const towerAnim = new Map<number, TowerAnim>()
 const towerHp = new Map<number, number>() // 대장간 수리 연출용: 지난 장면의 탑 체력
@@ -38,20 +40,21 @@ function useSnapTracking() {
   useEffect(() => {
     if (!snap) return
     const now = performance.now()
+    const map = mapOf(snap.stage)
     if (snap.tree < lastTree.current) treeHit.v = now
     lastTree.current = snap.tree
     const seen = new Set<number>()
     for (const m of snap.mons) {
       seen.add(m[0])
       const tr = monTrack.get(m[0])
-      if (!tr) monTrack.set(m[0], { d0: m[2], d1: m[2], t0: now, hp: m[3] })
+      if (!tr || tr.l !== m[5]) monTrack.set(m[0], { d0: m[2], d1: m[2], t0: now, hp: m[3], l: m[5] })
       else {
         const cur = tr.d0 + (tr.d1 - tr.d0) * Math.min(1, (now - tr.t0) / 260)
         if (m[3] < tr.hp) {
           const a = monAnim.get(m[0])
           if (a) a.hitAt = now
         }
-        monTrack.set(m[0], { d0: cur, d1: m[2], t0: now, hp: m[3] })
+        monTrack.set(m[0], { d0: cur, d1: m[2], t0: now, hp: m[3], l: m[5] })
       }
     }
     for (const id of [...monTrack.keys()])
@@ -65,9 +68,8 @@ function useSnapTracking() {
       if (!t) continue
       const [, spot, kind, , br] = t
       const m = snap.mons.find((x) => x[0] === mid)
-      const [sx, sz] = SPOTS[spot]
-      const d = m ? m[2] : 0
-      const [mx, mz] = m ? pathPos(d) : [sx, sz]
+      const [sx, sz] = map.spots[spot]
+      const [mx, mz] = m ? lanePos(laneOf(map, m[5]), m[2]) : [sx, sz]
       const mh = m ? MON_H[m[1]] : 0.4
       const an = towerAnim.get(tid)
       if (an) {
@@ -85,7 +87,7 @@ function useSnapTracking() {
     const hasForge = snap.towers.some((t) => t[2] === 'hammer')
     for (const t of snap.towers) {
       const prev = towerHp.get(t[0])
-      if (hasForge && prev != null && t[6] > prev) pushHeal(SPOTS[t[1]][0], SPOTS[t[1]][1])
+      if (hasForge && prev != null && t[6] > prev) pushHeal(map.spots[t[1]][0], map.spots[t[1]][1])
       towerHp.set(t[0], t[6])
     }
     for (const id of [...towerHp.keys()]) if (!towers.has(id)) towerHp.delete(id)
@@ -103,23 +105,11 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
 }
-function distToPath(x: number, z: number) {
-  let best = 1e9
-  for (let i = 1; i < PATH.length; i++) {
-    const [ax, az] = PATH[i - 1]
-    const [bx, bz] = PATH[i]
-    const dx = bx - ax
-    const dz = bz - az
-    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
-    best = Math.min(best, Math.hypot(x - ax - t * dx, z - az - t * dz))
-  }
-  return best
-}
-const freeAt = (x: number, z: number, pathGap: number, spotGap: number) =>
-  distToPath(x, z) > pathGap &&
-  SPOTS.every(([sx, sz]) => Math.hypot(sx - x, sz - z) > spotGap) &&
-  Math.hypot(x - TREE_POS[0], z - TREE_POS[1]) > 2.8 &&
-  Math.hypot(x - DEN_POS[0], z - DEN_POS[1]) > 3.2
+const freeAt = (map: DefMap, x: number, z: number, pathGap: number, spotGap: number) =>
+  distToLanes(map.lanes, x, z) > pathGap &&
+  map.spots.every(([sx, sz]) => Math.hypot(sx - x, sz - z) > spotGap) &&
+  Math.hypot(x - map.tree[0], z - map.tree[1]) > 2.8 &&
+  map.dens.every((dn) => Math.hypot(x - dn.p[0], z - dn.p[1]) > 3.2)
 
 // 같은 모양 여러 개를 한 번에 (풀·꽃·자갈)
 function Instances({ geo, items, flat = false }: { geo: THREE.BufferGeometry; items: { p: [number, number, number]; s: [number, number, number]; r: number; c: string }[]; flat?: boolean }) {
@@ -144,56 +134,65 @@ function Instances({ geo, items, flat = false }: { geo: THREE.BufferGeometry; it
   return <instancedMesh ref={ref} args={[geo, mat, items.length]} userData={{ noBake: true }} />
 }
 
-function Ground() {
+// 여러 갈래 길을 따라 일정 간격으로 점을 찍는다 (앞의 길과 겹치는 곳은 건너뛴다)
+function walkLanes(map: DefMap, start: number, step: number, fn: (x: number, z: number, nx: number, nz: number) => void) {
+  map.lanes.forEach((L, li) => {
+    const before = map.lanes.slice(0, li)
+    for (let d = start; d < L.len; d += step) {
+      const [x, z] = lanePos(L, d)
+      if (before.length && distToLanes(before, x, z) < 0.3) continue
+      const [x2, z2] = lanePos(L, d + 0.1)
+      const nl = Math.hypot(z2 - z, x2 - x) || 1
+      fn(x, z, -(z2 - z) / nl, (x2 - x) / nl)
+    }
+  })
+}
+
+function Ground({ map }: { map: DefMap }) {
   const clear = () => useDef.getState().sel && useDef.setState({ sel: null })
-  const segs = useMemo(
-    () =>
-      PATH.slice(1).map((b, i) => {
-        const a = PATH[i]
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1])
-        return { x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, len, rot: Math.atan2(b[0] - a[0], b[1] - a[1]) }
-      }),
-    [],
-  )
+  const segs = useMemo(() => {
+    const seen = new Set<string>()
+    const out: { x: number; z: number; len: number; rot: number }[] = []
+    for (const L of map.lanes)
+      for (const { a, b, len } of L.segs) {
+        const k = [a, b].map((p) => p.join(',')).sort().join('|')
+        if (seen.has(k)) continue
+        seen.add(k)
+        out.push({ x: (a[0] + b[0]) / 2, z: (a[1] + b[1]) / 2, len, rot: Math.atan2(b[0] - a[0], b[1] - a[1]) })
+      }
+    return out
+  }, [map])
+  const corners = useMemo(() => {
+    const seen = new Set<string>()
+    return map.lanes.flatMap((L) => L.pts).filter((p) => (seen.has(p.join(',')) ? false : (seen.add(p.join(',')), true)))
+  }, [map])
   // 돌길의 자갈과 가장자리 돌
   const cobbles = useMemo(() => {
     const r = rng(7)
     const out: { p: [number, number, number]; s: [number, number, number]; r: number; c: string }[] = []
     const cols = ['#c9b48e', '#bba680', '#d4c19a', '#b09a74']
-    const total = PATH.slice(1).reduce((s, b, i) => s + Math.hypot(b[0] - PATH[i][0], b[1] - PATH[i][1]), 0)
-    for (let d = 0.3; d < total; d += 0.34) {
-      const [x, z] = pathPos(d)
-      const [x2, z2] = pathPos(d + 0.1)
-      const nx = -(z2 - z)
-      const nz = x2 - x
-      const nl = Math.hypot(nx, nz) || 1
+    walkLanes(map, 0.3, 0.34, (x, z, nx, nz) => {
       for (let k = 0; k < 2; k++) {
         const off = (r() - 0.5) * 1.3
-        out.push({ p: [x + (nx / nl) * off, 0.035, z + (nz / nl) * off], s: [0.2 + r() * 0.12, 0.05, 0.16 + r() * 0.1], r: r() * PI, c: cols[Math.floor(r() * cols.length)] })
+        out.push({ p: [x + nx * off, 0.035, z + nz * off], s: [0.2 + r() * 0.12, 0.05, 0.16 + r() * 0.1], r: r() * PI, c: cols[Math.floor(r() * cols.length)] })
       }
-    }
+    })
     return out
-  }, [])
+  }, [map])
   const edges = useMemo(() => {
     const r = rng(11)
     const out: { p: [number, number, number]; s: [number, number, number]; r: number; c: string }[] = []
-    const total = PATH.slice(1).reduce((s, b, i) => s + Math.hypot(b[0] - PATH[i][0], b[1] - PATH[i][1]), 0)
-    for (let d = 0.2; d < total; d += 0.62) {
-      const [x, z] = pathPos(d)
-      const [x2, z2] = pathPos(d + 0.1)
-      const nx = -(z2 - z)
-      const nz = x2 - x
-      const nl = Math.hypot(nx, nz) || 1
+    walkLanes(map, 0.2, 0.62, (x, z, nx, nz) => {
       for (const side of [-1, 1]) {
-        const px = x + (nx / nl) * 1.02 * side
-        const pz = z + (nz / nl) * 1.02 * side
-        if (distToPath(px, pz) < 0.95) continue
+        const px = x + nx * 1.02 * side
+        const pz = z + nz * 1.02 * side
+        if (distToLanes(map.lanes, px, pz) < 0.95) continue
         const sc = 0.14 + r() * 0.1
         out.push({ p: [px, 0.06, pz], s: [sc * 1.3, sc * 0.8, sc], r: r() * PI, c: r() < 0.5 ? '#a8a094' : '#968e82' })
       }
-    }
+    })
     return out
-  }, [])
+  }, [map])
   const sphere = useMemo(() => new THREE.SphereGeometry(1, 8, 6), [])
   return (
     <group>
@@ -241,7 +240,7 @@ function Ground() {
             </mesh>
           </group>
         ))}
-        {PATH.map(([x, z], i) => (
+        {corners.map(([x, z], i) => (
           <group key={i}>
             <mesh position={[x, 0.012, z]}>
               <cylinderGeometry args={[1.0, 1.0, 0.025, 20]} />
@@ -261,7 +260,7 @@ function Ground() {
 }
 
 /* ---------- 장식: 나무 · 덤불 · 바위 · 꽃 · 풀 ---------- */
-function Decor() {
+function Decor({ map }: { map: DefMap }) {
   const d = useMemo(() => {
     const r = rng(42)
     const trees: [number, number, number, number][] = []
@@ -274,7 +273,7 @@ function Decor() {
         const x = CX + (r() * 2 - 1) * (HX - 0.6)
         const z = (r() * 2 - 1) * (HZ - 0.6)
         if (edge && !(z < -HZ + 2.8 || (Math.abs(x - CX) > HX - 3.0 && z < 5))) continue
-        if (freeAt(x, z, gapPath, gapSpot)) return [x, z] as [number, number]
+        if (freeAt(map, x, z, gapPath, gapSpot)) return [x, z] as [number, number]
       }
       return null
     }
@@ -302,7 +301,7 @@ function Decor() {
       if (p) tufts.push({ p: [p[0], 0.1, p[1]], s: [0.08, 0.22 + r() * 0.12, 0.08], r: r() * PI, c: gc[Math.floor(r() * gc.length)] })
     }
     return { trees, bushes, rocks, flowers, tufts }
-  }, [])
+  }, [map])
   const flowerGeo = useMemo(() => new THREE.SphereGeometry(1, 6, 4), [])
   const tuftGeo = useMemo(() => new THREE.ConeGeometry(1, 1, 4), [])
   const LEAF = ['#4fa24a', '#5bb257', '#3f8f45']
@@ -377,21 +376,6 @@ function Decor() {
             <meshToonMaterial gradientMap={toonGradient} color={i % 2 ? '#a8a094' : '#b8b0a4'} />
           </mesh>
         ))}
-        {/* 몬스터 굴 쪽 울타리 표지판 */}
-        <group position={[-12.2, 0, -7.6]} rotation={[0, 0.3, 0]}>
-          <mesh position={[0, 0.5, 0]}>
-            <boxGeometry args={[0.1, 1.0, 0.1]} />
-            <meshToonMaterial gradientMap={toonGradient} color="#7a5232" />
-          </mesh>
-          <mesh position={[0, 0.95, 0.04]}>
-            <boxGeometry args={[0.8, 0.4, 0.06]} />
-            <meshToonMaterial gradientMap={toonGradient} color="#c9a46a" />
-          </mesh>
-          <mesh position={[0, 0.95, 0.08]}>
-            <boxGeometry args={[0.5, 0.08, 0.02]} />
-            <meshToonMaterial gradientMap={toonGradient} color="#c0433f" />
-          </mesh>
-        </group>
       </Baked>
       <Instances geo={flowerGeo} items={d.flowers} flat />
       <Instances geo={tuftGeo} items={d.tufts} />
@@ -400,7 +384,7 @@ function Decor() {
 }
 
 /* ---------- 빈 터 ---------- */
-function Spots() {
+function Spots({ map }: { map: DefMap }) {
   const snap = useDef((s) => s.snap)
   const sel = useDef((s) => s.sel)
   const used = new Set(snap?.towers.map((t) => t[1]) ?? [])
@@ -413,7 +397,7 @@ function Spots() {
   }
   return (
     <group>
-      {SPOTS.map(([x, z], i) => {
+      {map.spots.map(([x, z], i) => {
         if (used.has(i)) return null
         const b = busy.get(i)
         return (
@@ -489,11 +473,11 @@ function RangeCircle({ r, color }: { r: number; color: string }) {
   )
 }
 
-function Tower({ row, members, selected }: { row: TowerRow; members: string[]; selected: boolean }) {
+function Tower({ row, members, selected, map }: { row: TowerRow; members: string[]; selected: boolean; map: DefMap }) {
   const [id, spot, kind, tier, br, owner, hp, spec, perfect] = row
   const g = useRef<THREE.Group>(null)
   const born = useRef(performance.now())
-  const [x, z] = SPOTS[spot]
+  const [x, z] = map.spots[spot] ?? [0, 0]
   let anim = towerAnim.get(id)
   if (!anim) {
     anim = { aim: Math.atan2(-x, -z), fireAt: 0 }
@@ -568,7 +552,7 @@ function Tower({ row, members, selected }: { row: TowerRow; members: string[]; s
 
 /* ---------- 몬스터 ---------- */
 const SPEED_ANIM: Record<MonKind, number> = { slime: 9, blob: 7, bat: 10, turtle: 5, fox: 16, goblin: 10, bomb: 13, king: 5 }
-function Monster({ row }: { row: MonRow }) {
+function Monster({ row, map }: { row: MonRow; map: DefMap }) {
   const [id, kind, , hp, fx] = row
   const g = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
@@ -583,8 +567,9 @@ function Monster({ row }: { row: MonRow }) {
     if (!tr || !g.current) return
     const now = performance.now()
     const d = tr.d0 + (tr.d1 - tr.d0) * Math.min(1, (now - tr.t0) / 260)
-    const [x, z] = pathPos(d)
-    const [x2, z2] = pathPos(d + 0.3)
+    const L = laneOf(map, tr.l)
+    const [x, z] = lanePos(L, d)
+    const [x2, z2] = lanePos(L, d + 0.3)
     const moving = Math.abs(tr.d1 - tr.d0) > 0.01 && !(fx & (2 | 16 | 32))
     if (moving) a.phase += dt * SPEED_ANIM[kind]
     g.current.position.set(x, 0, z)
@@ -652,7 +637,7 @@ function Monster({ row }: { row: MonRow }) {
 }
 
 /* ---------- 보급 상자 ---------- */
-function SupplyBox() {
+function SupplyBox({ map }: { map: DefMap }) {
   const box = useDef((s) => s.snap?.box ?? -1)
   const g = useRef<THREE.Group>(null)
   useFrame((s) => {
@@ -662,7 +647,7 @@ function SupplyBox() {
     }
   })
   if (box < 0) return null
-  const [x, z] = pathPos(box)
+  const [x, z] = lanePos(map.lanes[0], box)
   return (
     <group
       position={[x, 0, z]}
@@ -701,11 +686,31 @@ function SupplyBox() {
   )
 }
 
-function Tree() {
+function Tree({ map }: { map: DefMap }) {
   const tree = useDef((s) => s.snap?.tree ?? TREE_HP)
   return (
-    <group position={[TREE_POS[0], 0, TREE_POS[1] + 0.3]}>
+    <group position={[map.tree[0], 0, map.tree[1] + 0.3]}>
       <AcornTree hp={tree / TREE_HP} hitAt={treeHit} />
+    </group>
+  )
+}
+
+// 몬스터 굴 옆 표지판
+function DenSign() {
+  return (
+    <group position={[3, 0, -2.1]} rotation={[0, 0.3, 0]}>
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[0.1, 1.0, 0.1]} />
+        <meshToonMaterial gradientMap={toonGradient} color="#7a5232" />
+      </mesh>
+      <mesh position={[0, 0.95, 0.04]}>
+        <boxGeometry args={[0.8, 0.4, 0.06]} />
+        <meshToonMaterial gradientMap={toonGradient} color="#c9a46a" />
+      </mesh>
+      <mesh position={[0, 0.95, 0.08]}>
+        <boxGeometry args={[0.5, 0.08, 0.02]} />
+        <meshToonMaterial gradientMap={toonGradient} color="#c0433f" />
+      </mesh>
     </group>
   )
 }
@@ -715,19 +720,23 @@ export function DefenseArena() {
   const snap = useDef((s) => s.snap)
   const sel = useDef((s) => s.sel)
   const members = snap?.members ?? []
+  const map = useDefMap()
   return (
     <group>
-      <Ground />
-      <Decor />
-      <group position={[DEN_POS[0], 0, DEN_POS[1]]}>
-        <MonsterDen />
-      </group>
-      <Tree />
-      <Spots />
-      {snap?.towers.map((t) => <Tower key={t[0]} row={t} members={members} selected={sel?.t === 'tower' && sel.id === t[0]} />)}
-      {snap?.mons.map((m) => <Monster key={m[0]} row={m} />)}
+      <Ground key={'g' + map.id} map={map} />
+      <Decor key={'d' + map.id} map={map} />
+      {map.dens.map((dn, i) => (
+        <group key={map.id * 10 + i} position={[dn.p[0], 0, dn.p[1]]} rotation={[0, dn.rot, 0]}>
+          <MonsterDen />
+          <DenSign />
+        </group>
+      ))}
+      <Tree map={map} />
+      <Spots map={map} />
+      {snap?.towers.map((t) => <Tower key={t[0]} row={t} members={members} map={map} selected={sel?.t === 'tower' && sel.id === t[0]} />)}
+      {snap?.mons.map((m) => <Monster key={m[0]} row={m} map={map} />)}
       <DefEffects />
-      <SupplyBox />
+      <SupplyBox map={map} />
     </group>
   )
 }
