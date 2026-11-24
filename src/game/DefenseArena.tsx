@@ -6,7 +6,7 @@ import { Toon } from './wearKit'
 import { toonGradient } from './toon'
 import { Baked } from './Baked'
 import { Water } from './Water'
-import { ArrowModel } from './ArrowModel'
+import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
 import { PATH, SPOTS, TREE_HP, TREE_POS, pathPos, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
 import { AcornTree, BuildPad, MonModel, MonsterDen, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
@@ -26,12 +26,10 @@ const DEN_POS: [number, number] = [-15.2, PATH[0][1]]
 const monTrack = new Map<number, { d0: number; d1: number; t0: number; hp: number }>()
 const monAnim = new Map<number, MonAnim>()
 const towerAnim = new Map<number, TowerAnim>()
-type Fx = { k: 'arrow' | 'orb' | 'rock' | 'slash' | 'boom'; color: string; from: THREE.Vector3; to: THREE.Vector3; at: number; dur: number; r: number }
-const fxList: Fx[] = []
+const towerHp = new Map<number, number>() // 대장간 수리 연출용: 지난 장면의 탑 체력
 const treeHit = { v: 0 }
 
 const SHOT_H: Record<TowerKind, number> = { sword: 1.6, hammer: 1.0, bow: 2.3, staff: 2.6, axe: 1.6, spear: 0.9 }
-const ORB_COLOR = ['#d8b4ff', '#ff7a3a', '#8fdcff']
 const MON_H: Record<MonKind, number> = { slime: 0.35, blob: 0.5, bat: 1.5, turtle: 0.4, fox: 0.5, goblin: 0.7, bomb: 0.4, king: 1.2 }
 
 function useSnapTracking() {
@@ -78,13 +76,19 @@ function useSnapTracking() {
       }
       const from = new THREE.Vector3(sx, SHOT_H[kind], sz)
       const to = new THREE.Vector3(mx, mh, mz)
-      if (kind === 'bow') fxList.push({ k: 'arrow', color: br === 2 ? '#3a7f8a' : '#ff6a6a', from, to, at: now, dur: 230, r: 0 })
-      else if (kind === 'staff') fxList.push({ k: 'orb', color: ORB_COLOR[br] ?? ORB_COLOR[0], from, to, at: now, dur: 300, r: 0 })
-      else if (kind === 'axe') fxList.push({ k: 'rock', color: br === 1 ? '#3a3a42' : '#9a9286', from, to, at: now, dur: 480, r: 0 })
-      else fxList.push({ k: 'slash', color: kind === 'sword' ? '#bfe0ff' : kind === 'spear' ? '#f6f0c8' : '#ffb84d', from: to.clone(), to, at: now, dur: 240, r: kind === 'sword' ? 0.7 : 0.5 })
+      const spec = t[7] === 1 && t[3] >= 3 ? 1.3 : 1
+      const splash = kind === 'staff' ? 1.4 * spec : kind === 'axe' ? 0.7 * (br === 1 ? 2.4 : 1) : 0
+      pushShot(kind, br, from, to, splash)
     }
-    for (const [x, z, r] of snap.booms) fxList.push({ k: 'boom', color: '#ffd27a', from: new THREE.Vector3(x, 0.2, z), to: new THREE.Vector3(x, 0.2, z), at: now + 0, dur: 480, r })
-    while (fxList.length > 120) fxList.shift()
+    for (const [x, z, r] of snap.booms) pushBoom(x, z, r)
+    // 대장간이 고친 탑: 체력이 늘었으면 초록 ＋
+    const hasForge = snap.towers.some((t) => t[2] === 'hammer')
+    for (const t of snap.towers) {
+      const prev = towerHp.get(t[0])
+      if (hasForge && prev != null && t[6] > prev) pushHeal(SPOTS[t[1]][0], SPOTS[t[1]][1])
+      towerHp.set(t[0], t[6])
+    }
+    for (const id of [...towerHp.keys()]) if (!towers.has(id)) towerHp.delete(id)
   }, [snap])
 }
 
@@ -599,132 +603,6 @@ function Monster({ row }: { row: MonRow }) {
   )
 }
 
-/* ---------- 공격 연출 ---------- */
-const tv = new THREE.Vector3()
-function Effects() {
-  const arrows = useRef<(THREE.Group | null)[]>([])
-  const orbs = useRef<(THREE.Group | null)[]>([])
-  const rocks = useRef<(THREE.Mesh | null)[]>([])
-  const slashes = useRef<(THREE.Mesh | null)[]>([])
-  const rings = useRef<(THREE.Mesh | null)[]>([])
-  const debris = useRef<(THREE.Mesh | null)[]>([])
-  useFrame(() => {
-    const now = performance.now()
-    const idx = { arrow: 0, orb: 0, rock: 0, slash: 0, boom: 0, deb: 0 }
-    for (const f of fxList) {
-      const age = (now - f.at) / f.dur
-      if (age < 0 || age >= 1) continue
-      if (f.k === 'arrow') {
-        const m = arrows.current[idx.arrow++]
-        if (!m) continue
-        tv.lerpVectors(f.from, f.to, age)
-        tv.y += Math.sin(age * PI) * 0.4
-        m.position.copy(tv)
-        m.lookAt(f.to.x, f.to.y + Math.sin(Math.min(1, age + 0.1) * PI) * 0.4, f.to.z)
-        m.visible = true
-      } else if (f.k === 'orb') {
-        const m = orbs.current[idx.orb++]
-        if (!m) continue
-        tv.lerpVectors(f.from, f.to, age * age)
-        m.position.copy(tv)
-        m.visible = true
-        ;((m.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(f.color)
-        ;((m.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.set(f.color)
-      } else if (f.k === 'rock') {
-        const m = rocks.current[idx.rock++]
-        if (!m) continue
-        tv.lerpVectors(f.from, f.to, age)
-        tv.y += Math.sin(age * PI) * 2.6
-        m.position.copy(tv)
-        m.rotation.set(age * 9, age * 6, 0)
-        m.visible = true
-        ;(m.material as THREE.MeshToonMaterial).color.set(f.color)
-      } else if (f.k === 'slash') {
-        const m = slashes.current[idx.slash++]
-        if (!m) continue
-        m.position.set(f.to.x, f.to.y + 0.2, f.to.z)
-        m.rotation.set(-PI / 2 + 0.6, 0, age * 3)
-        m.scale.setScalar(f.r * (0.7 + age * 0.8))
-        m.visible = true
-        const mt = m.material as THREE.MeshBasicMaterial
-        mt.color.set(f.color)
-        mt.opacity = 0.9 * (1 - age)
-      } else {
-        const m = rings.current[idx.boom++]
-        if (m) {
-          m.position.set(f.from.x, 0.15, f.from.z)
-          m.scale.setScalar(0.3 + age * Math.max(0.8, f.r))
-          m.visible = true
-          ;(m.material as THREE.MeshBasicMaterial).opacity = 0.75 * (1 - age)
-        }
-        for (let k = 0; k < 5; k++) {
-          const dm = debris.current[idx.deb++]
-          if (!dm) continue
-          const a = k * 1.26 + f.at * 0.001
-          const sp = 1.2 + (k % 3) * 0.5
-          dm.position.set(f.from.x + Math.cos(a) * sp * age, 0.2 + Math.sin(age * PI) * (0.9 + (k % 2) * 0.5), f.from.z + Math.sin(a) * sp * age)
-          dm.scale.setScalar(1 - age * 0.7)
-          dm.visible = true
-        }
-      }
-    }
-    const hide = (arr: (THREE.Object3D | null)[], from: number) => {
-      for (let i = from; i < arr.length; i++) if (arr[i]) arr[i]!.visible = false
-    }
-    hide(arrows.current, idx.arrow)
-    hide(orbs.current, idx.orb)
-    hide(rocks.current, idx.rock)
-    hide(slashes.current, idx.slash)
-    hide(rings.current, idx.boom)
-    hide(debris.current, idx.deb)
-  })
-  return (
-    <group>
-      {Array.from({ length: 24 }, (_, i) => (
-        <group key={i} ref={(el) => void (arrows.current[i] = el)} visible={false}>
-          <ArrowModel feather="#ff6a6a" len={0.9} scale={0.9} />
-        </group>
-      ))}
-      {Array.from({ length: 20 }, (_, i) => (
-        <group key={i} ref={(el) => void (orbs.current[i] = el)} visible={false}>
-          <mesh>
-            <sphereGeometry args={[0.16, 10, 8]} />
-            <meshBasicMaterial color="#d8b4ff" />
-          </mesh>
-          <mesh scale={2}>
-            <sphereGeometry args={[0.16, 10, 8]} />
-            <meshBasicMaterial color="#d8b4ff" transparent opacity={0.3} depthWrite={false} />
-          </mesh>
-        </group>
-      ))}
-      {Array.from({ length: 12 }, (_, i) => (
-        <mesh key={i} ref={(el) => void (rocks.current[i] = el)} visible={false}>
-          <dodecahedronGeometry args={[0.22, 0]} />
-          <meshToonMaterial gradientMap={toonGradient} color="#9a9286" />
-        </mesh>
-      ))}
-      {Array.from({ length: 16 }, (_, i) => (
-        <mesh key={i} ref={(el) => void (slashes.current[i] = el)} visible={false}>
-          <torusGeometry args={[1, 0.09, 6, 20, PI * 0.9]} />
-          <meshBasicMaterial color="#bfe0ff" transparent opacity={0.9} depthWrite={false} />
-        </mesh>
-      ))}
-      {Array.from({ length: 16 }, (_, i) => (
-        <mesh key={i} ref={(el) => void (rings.current[i] = el)} rotation={[-PI / 2, 0, 0]} visible={false}>
-          <ringGeometry args={[0.75, 1, 28]} />
-          <meshBasicMaterial color="#ffd27a" transparent opacity={0.7} depthWrite={false} />
-        </mesh>
-      ))}
-      {Array.from({ length: 60 }, (_, i) => (
-        <mesh key={i} ref={(el) => void (debris.current[i] = el)} visible={false}>
-          <boxGeometry args={[0.12, 0.12, 0.12]} />
-          <meshBasicMaterial color={i % 3 ? '#ffcf6a' : '#c9b48e'} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
 /* ---------- 보급 상자 ---------- */
 function SupplyBox() {
   const box = useDef((s) => s.snap?.box ?? -1)
@@ -800,7 +678,7 @@ export function DefenseArena() {
       <Spots />
       {snap?.towers.map((t) => <Tower key={t[0]} row={t} members={members} selected={sel?.t === 'tower' && sel.id === t[0]} />)}
       {snap?.mons.map((m) => <Monster key={m[0]} row={m} />)}
-      <Effects />
+      <DefEffects />
       <SupplyBox />
     </group>
   )
