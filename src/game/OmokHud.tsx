@@ -32,7 +32,7 @@ import {
   type RewardResult,
 } from './omokStats'
 import { untilAward } from './omokWeek'
-import { ArmoryButton } from './ArmoryPanel'
+import { ArmoryButton, JobButton } from './ArmoryPanel'
 import { PetButton } from './PetPanel'
 import { NetStats } from './NetStats'
 import { BossEntryButton } from './BossHud'
@@ -417,6 +417,7 @@ export function OmokHud() {
           🏆 오목 순위
         </button>
         <ArmoryButton />
+        <JobButton />
         <PetButton />
         <BossEntryButton />
       </div>

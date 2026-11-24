@@ -4692,3 +4692,34 @@ canvas {
     opacity: 1;
   }
 }
+
+/* 전직 버튼 (전직 전에만 보임) */
+.job-btn {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: 2px dashed #d9b45a;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #8a6420;
+  background: #fff8e3;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+.job-btn.ready {
+  border: 2px solid #fff3c4;
+  color: #fff;
+  background: linear-gradient(180deg, #ffb83d, #f08a1c);
+  animation: job-btn-pulse 1.4s ease-in-out infinite;
+}
+@keyframes job-btn-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 170, 40, 0.55), 0 3px 10px rgba(240, 138, 28, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 170, 40, 0), 0 3px 10px rgba(240, 138, 28, 0.35);
+  }
+}

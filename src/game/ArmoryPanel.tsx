@@ -26,14 +26,33 @@ export function ArmoryButton({ className = '' }: { className?: string }) {
   const label =
     avatar.weapon && WEAPON_FAMILIES.includes(avatar.weapon as WeaponFamily) ? tierName(avatar.weapon as WeaponFamily, avatar.wt) : '무기'
   return (
-    <button type="button" className={`armory-btn ${className}`} onClick={open}>
+    <button type="button" className={`armory-btn ${className}`} onClick={() => open()}>
       ⚔️ {label}
+    </button>
+  )
+}
+
+// 전직 버튼: 아직 전직하지 않은 학생에게만 보인다. 누르면 무기고의 전직 화면이 바로 열린다.
+export function JobButton() {
+  const open = useVillage((s) => s.openArmory)
+  const job = useVillage((s) => s.job)
+  const bossCleared = useVillage((s) => s.bossCleared)
+  const petSt = useVillage((s) => s.pet?.st ?? 0)
+  const houseLv = useVillage((s) => s.items.find((i) => i.type === 'house')?.level ?? 1)
+  if (job) return null
+  const checks = jobChecks(bossCleared, houseLv, petSt)
+  const done = checks.filter((c) => c.ok).length
+  const ready = done === checks.length
+  return (
+    <button type="button" className={`job-btn${ready ? ' ready' : ''}`} onClick={() => open(true)}>
+      {ready ? '⭐ 전직할 수 있어요!' : `⭐ 1차 전직 ${done}/${checks.length}`}
     </button>
   )
 }
 
 export function ArmoryPanel() {
   const isOpen = useVillage((s) => s.armoryOpen)
+  const openJob = useVillage((s) => s.armoryJob)
   const close = useVillage((s) => s.closeArmory)
   const weapons = useVillage((s) => s.weapons)
   const avatar = useVillage((s) => s.avatar)
@@ -60,7 +79,7 @@ export function ArmoryPanel() {
     else if (isOpen) setFam((WEAPON_FAMILIES.find((f) => weapons[f]) ?? 'sword') as WeaponFamily)
     setPeek(false)
     setConfirm(false)
-    setJobView(false)
+    setJobView(isOpen && openJob && !job)
     setPickJob(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])

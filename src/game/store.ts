@@ -469,6 +469,7 @@ interface VillageState {
   weapons: Record<string, number> // 가진 무기 { 종류: 단계 }
   job: JobState | null // 1차 전직 (null = 아직 견습 검사)
   armoryOpen: boolean // 무기 창 열림
+  armoryJob: boolean // 열 때 전직 화면부터 보여 줄지
   evolveFx: { family: string; tier: number; at: number; job?: boolean } | null // 방금 진화한 무기 (반짝이는 화면용)
   quiz: QuizRequest | null
   msg: string | null
@@ -476,7 +477,7 @@ interface VillageState {
 
   setHomework: (text: string) => void
   setAvatar: (a: Avatar) => void
-  openArmory: () => void
+  openArmory: (job?: boolean) => void
   closeArmory: () => void
   equipWeapon: (family: WeaponFamily | null) => void
   markBossCleared: (stage: number) => void
@@ -619,6 +620,7 @@ export const useVillage = create<VillageState>((set, get) => {
     weapons: weaponsOf(initial.items),
     job: jobOf(initial.items),
     armoryOpen: false,
+    armoryJob: false,
     evolveFx: null,
     quiz: null,
     msg: null,
@@ -638,7 +640,7 @@ export const useVillage = create<VillageState>((set, get) => {
 
     toggleRide: () => set({ rideOn: !get().rideOn }),
 
-    openArmory: () => set({ armoryOpen: true }),
+    openArmory: (job) => set({ armoryOpen: true, armoryJob: !!job }),
     closeArmory: () => set({ armoryOpen: false, evolveFx: null }),
 
     // 들고 다닐 무기를 고른다 (null = 내려놓기)
