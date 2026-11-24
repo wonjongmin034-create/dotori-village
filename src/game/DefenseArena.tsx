@@ -9,7 +9,7 @@ import { Water } from './Water'
 import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
 import { TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
-import { AcornTree, BuildPad, MonModel, MonsterDen, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
+import { AcornTree, BuildPad, MonModel, MonsterDen, SpecMark, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
 
 // 수비대 3D 장면 — 바다 위의 섬 · 돌길 · 빈 터 · 큰 도토리 나무 · 몬스터 굴 · 탑 · 몬스터 · 공격 연출
 export const PLAYER_COLORS = ['#e8524a', '#3a8fe0', '#3cb85a', '#f0b429']
@@ -531,6 +531,7 @@ function Tower({ row, members, selected, map }: { row: TowerRow; members: string
         <ringGeometry args={[0.98, selected ? 1.18 : 1.06, 32]} />
         <meshBasicMaterial color={selected ? '#ffd23c' : spec ? KIND_COLOR[kind] : color} transparent opacity={selected ? 1 : 0.55} depthWrite={false} />
       </mesh>
+      {spec ? <SpecMark color={KIND_COLOR[kind]} top={(kind === 'staff' ? 3.0 : kind === 'bow' ? 2.9 : 2.3) * (1.12 + tier * 0.06)} /> : null}
       {selected && <RangeCircle r={rangeOf(kind, tier, br)} color={KIND_COLOR[kind]} />}
       {perfect ? (
         <mesh position={[0.72, 0.3, 0.6]}>

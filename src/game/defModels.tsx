@@ -127,6 +127,94 @@ function Awaken({ color, y }: { color: string; y: number }) {
   )
 }
 
+/* ---------- 전문가 탑 표시: 내 직업의 탑은 한눈에 달라 보이게 ----------
+   금빛 받침 · 직업 색 빛기둥 · 올라가는 반짝이 · 머리 위에서 도는 금 별 훈장 */
+const STAR_GEO = (() => {
+  const s = new THREE.Shape()
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * PI * 2 + PI / 2
+    const r = i % 2 ? 0.13 : 0.3
+    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r)
+  }
+  s.closePath()
+  return new THREE.ExtrudeGeometry(s, { depth: 0.08, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 1 })
+})()
+STAR_GEO.center()
+
+export function SpecMark({ color, top }: { color: string; top: number }) {
+  const pillar = useRef<THREE.Mesh>(null)
+  const crest = useRef<THREE.Group>(null)
+  const star = useRef<THREE.Mesh>(null)
+  const sparks = useRef<THREE.Group>(null)
+  useFrame((s) => {
+    const t = s.clock.elapsedTime
+    if (pillar.current) (pillar.current.material as THREE.MeshBasicMaterial).opacity = 0.24 + Math.sin(t * 2.4) * 0.08
+    if (crest.current) crest.current.position.y = top + 0.8 + Math.sin(t * 2.2) * 0.1
+    // 카메라 쪽을 본 채로 빙글빙글 (옆으로 돌면 위에서 얇게 보인다)
+    if (star.current) star.current.rotation.y = Math.sin(t * 1.8) * 0.5
+    if (sparks.current)
+      sparks.current.children.forEach((c, i) => {
+        const k = (t * 0.45 + i / 6) % 1
+        const a = i * 1.05 + t * 0.6
+        c.position.set(Math.cos(a) * 0.82, 0.2 + k * 2.8, Math.sin(a) * 0.82)
+        c.scale.setScalar(1 - k * 0.7)
+      })
+  })
+  return (
+    <group>
+      {/* 금빛 받침 */}
+      <mesh position={[0, 0.03, 0]} rotation={[-PI / 2, 0, 0]}>
+        <ringGeometry args={[0.92, 1.32, 6]} />
+        <meshBasicMaterial color={GOLD} />
+      </mesh>
+      <mesh position={[0, 0.035, 0]} rotation={[-PI / 2, 0, 0]}>
+        <ringGeometry args={[1.0, 1.22, 6]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+      {[0, 1, 2, 3, 4, 5].map((i) => {
+        const a = (i / 6) * PI * 2
+        return (
+          <mesh key={i} position={[Math.cos(a) * 1.27, 0.12, Math.sin(a) * 1.27]}>
+            <octahedronGeometry args={[0.11]} />
+            <meshBasicMaterial color={GOLD} />
+          </mesh>
+        )
+      })}
+      {/* 빛기둥 */}
+      <mesh ref={pillar} position={[0, 1.6, 0]}>
+        <cylinderGeometry args={[0.95, 1.05, 3.2, 20, 1, true]} />
+        <meshBasicMaterial color={color} transparent opacity={0.18} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
+      </mesh>
+      {/* 올라가는 반짝이 */}
+      <group ref={sparks}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <mesh key={i}>
+            <octahedronGeometry args={[0.08]} />
+            <meshBasicMaterial color={i % 2 ? GOLD : color} />
+          </mesh>
+        ))}
+      </group>
+      {/* 머리 위 금 별 훈장 */}
+      <group ref={crest} position={[0, top + 0.8, 0]}>
+        <group rotation={[-0.75, 0, 0]} scale={1.5}>
+          <mesh>
+            <circleGeometry args={[0.42, 24]} />
+            <meshBasicMaterial color={color} transparent opacity={0.85} depthWrite={false} />
+          </mesh>
+          <mesh>
+            <ringGeometry args={[0.42, 0.5, 24]} />
+            <meshBasicMaterial color={GOLD} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh ref={star} geometry={STAR_GEO} position={[0, 0, 0.06]}>
+            <meshToonMaterial color={GOLD} emissive={GOLD} emissiveIntensity={0.5} />
+          </mesh>
+        </group>
+      </group>
+    </group>
+  )
+}
+
 export type TowerAnim = { aim: number; fireAt: number } // 조준 방향(라디안, 월드 기준) · 마지막 발사 시각
 const kick = (anim: TowerAnim, ms: number) => Math.max(0, 1 - (performance.now() - anim.fireAt) / ms)
 
