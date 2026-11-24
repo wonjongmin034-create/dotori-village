@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { GFX_LABEL, setGfxPref, useGfx, type GfxPref } from './gfx'
 import { refreshMine } from './cloud'
 import { useVillage } from './store'
+import { BUILD_ID, hardReload } from '../version'
 import './gfx.css'
 
 const OPTIONS: { id: GfxPref; label: string; desc: string }[] = [
@@ -14,6 +15,7 @@ const OPTIONS: { id: GfxPref; label: string; desc: string }[] = [
 export function GfxButton() {
   const [open, setOpen] = useState(false)
   const [sync, setSync] = useState<'idle' | 'busy' | 'ok' | 'bad'>('idle')
+  const [fresh, setFresh] = useState(false)
   const session = useVillage((s) => s.session)
   const pref = useGfx((s) => s.pref)
   const level = useGfx((s) => s.level)
@@ -54,6 +56,19 @@ export function GfxButton() {
                 </small>
               </div>
             )}
+            <div className="gfx-sync">
+              <button
+                type="button"
+                disabled={fresh}
+                onClick={() => {
+                  setFresh(true)
+                  void hardReload()
+                }}
+              >
+                {fresh ? '새로 받는 중…' : '🧹 최신 버전으로 새로 받기'}
+              </button>
+              <small>새 기능이 안 보이면 눌러요. 내 기록은 그대로예요. (버전 {BUILD_ID})</small>
+            </div>
             <button type="button" className="gfx-close" onClick={() => setOpen(false)}>
               닫기
             </button>

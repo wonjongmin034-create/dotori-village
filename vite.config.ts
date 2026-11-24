@@ -2,14 +2,25 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// 배포 번호: 앱이 version.json 과 비교해서 다르면 스스로 최신으로 바꾼다 (src/version.ts)
+const BUILD_ID = Date.now().toString(36)
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // GitHub Pages 프로젝트 사이트 경로: https://<user>.github.io/dotori-village/
   base: '/dotori-village/',
   // 학교의 오래된 아이패드·크롬북에서도 열리도록 문법을 낮춘다 (three.js의 static 블록 등은 Safari 16.4 미만에서 통째로 오류)
   build: { target: ['es2020', 'safari14', 'chrome87', 'firefox78'] },
   plugins: [
     react(),
+    {
+      name: 'version-file',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id: BUILD_ID }) })
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       // 새 배포가 있으면 백그라운드로 받아서 자동 적용 (main.tsx에서 새로고침)
