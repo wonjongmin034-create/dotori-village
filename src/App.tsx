@@ -34,7 +34,7 @@ import { NameChangeButton, NameChangePanel } from './game/NameChange'
 import { useTower, inTowerFight, exitTower } from './game/towerState'
 import { leaveBoss } from './game/boss'
 import { useBoss, isActive } from './game/bossState'
-import { ArmoryButton, ArmoryPanel } from './game/ArmoryPanel'
+import { ArmoryButton, ArmoryPanel, JobButton } from './game/ArmoryPanel'
 import { PetButton, PetPanel } from './game/PetPanel'
 import { refreshTitles } from './game/omokStats'
 import { DPR, useGfx } from './game/gfx'
@@ -376,6 +376,7 @@ export default function App() {
               🧺 창고
             </button>
             <ArmoryButton />
+            <JobButton />
             <PetButton />
             {session && (
               <button type="button" className="friends-btn" onClick={openFriends}>
