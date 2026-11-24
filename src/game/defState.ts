@@ -9,6 +9,7 @@ import {
   DEF_WAVES,
   EMERGENCY_STUN_S,
   HEAL_PER_S,
+  HEAL_R,
   HOLD_S,
   MAX_TOWER_TIER,
   MONSTERS,
@@ -16,10 +17,12 @@ import {
   PREP_MS,
   SPEC_BOOST,
   START_GOLD,
+  STAGE_GOLD,
   SYNERGY,
   SYNERGY_R,
   TAUNT_R,
   TEAM_HP,
+  TEAM_GOLD,
   TIER_DMG,
   TIER_HP,
   rangeOf,
@@ -194,6 +197,7 @@ type Tower = { id: number; spot: number; kind: TowerKind; tier: number; br: numb
 type Mon = {
   id: number
   kind: MonKind
+  hs: number // 체력 배율 (치료량도 같이 커진다)
   l: number // 몇 번째 길
   d: number
   hp: number
@@ -247,7 +251,7 @@ class Sim {
     this.members = members
     this.jobs = jobs
     for (const n of members) {
-      this.gold[n] = START_GOLD
+      this.gold[n] = START_GOLD + (stage - 1) * STAGE_GOLD
       this.kills[n] = 0
     }
     this.phaseEnd = PREP_MS / 1000
@@ -320,7 +324,7 @@ class Sim {
     // 길이 여러 갈래면 번갈아 나온다
     const l = lane >= 0 ? lane : this.laneTurn++ % this.map.lanes.length
     const hp = Math.round(def.hp * waveHpMult(this.stage, Math.max(1, this.wave)) * hpScale * TEAM_HP[Math.min(4, this.members.length)])
-    this.mons.push({ id: this.nextId++, kind, l, d, hp, max: hp, slowUntil: 0, slowF: 1, holdUntil: 0, burnUntil: 0, burnDps: 0, poisonUntil: 0, poisonDps: 0, stunUntil: 0, target: -1, lastBy: -1 })
+    this.mons.push({ id: this.nextId++, kind, hs: hp / def.hp, l, d, hp, max: hp, slowUntil: 0, slowF: 1, holdUntil: 0, burnUntil: 0, burnDps: 0, poisonUntil: 0, poisonDps: 0, stunUntil: 0, target: -1, lastBy: -1 })
     if (kind === 'king' && this.kingWave !== this.wave) {
       this.kingWave = this.wave
       this.startEmergency()
@@ -400,7 +404,7 @@ class Sim {
   kill(m: Mon) {
     const def = MONSTERS[m.kind]
     const by = this.towers.find((t) => t.id === m.lastBy)
-    const g = def.gold
+    const g = def.gold * TEAM_GOLD[Math.min(4, this.members.length)]
     if (by) {
       this.gold[by.owner] = (this.gold[by.owner] ?? 0) + g * OWNER_SHARE
       this.kills[by.owner] = (this.kills[by.owner] ?? 0) + 1
@@ -466,6 +470,17 @@ class Sim {
         this.booms.push([...this.pos(m), 0.8])
       }
     }
+    // 치유 주술사: 주변 몬스터를 치료한다
+    for (const h of this.mons) {
+      const heal = MONSTERS[h.kind].heal
+      if (!heal || h.hp <= 0 || h.stunUntil > t) continue
+      const [hx, hz] = this.pos(h)
+      for (const m of this.mons) {
+        if (m === h || m.hp <= 0 || m.hp >= m.max) continue
+        const [mx, mz] = this.pos(m)
+        if (Math.hypot(mx - hx, mz - hz) <= HEAL_R) m.hp = Math.min(m.max, m.hp + heal * h.hs * dt)
+      }
+    }
     // 부서진 탑 치우기
     const broken = this.towers.filter((x) => x.hp <= 0)
     if (broken.length) {
@@ -493,7 +508,10 @@ class Sim {
         if (air && s.air <= 0) continue
         const [mx, mz] = this.pos(m)
         if (Math.hypot(mx - sx, mz - sz) > s.range) continue
-        if (!best || this.leftOf(m) < this.leftOf(best)) best = m
+        // 약점인 몬스터(예: 궁수탑 → 치유 주술사)를 먼저, 그다음 가장 앞서 가는 몬스터
+        const wk = MONSTERS[m.kind].weak?.[0] === x.kind
+        const bwk = best ? MONSTERS[best.kind].weak?.[0] === x.kind : false
+        if (!best || (wk && !bwk) || (wk === bwk && this.leftOf(m) < this.leftOf(best))) best = m
       }
       if (!best) continue
       x.cd = s.rate
@@ -505,8 +523,10 @@ class Sim {
         if (md.evasive && !def.melee && Math.random() < md.evasive) return
         let d = s.dmg * bonus * mult
         if (md.air) d *= s.air
-        if (md.armor && x.kind !== 'axe') d *= md.armor
-        if (md.armor && x.kind === 'axe') d *= s.spec
+        const pierce = (md.pierce ?? ['axe']).includes(x.kind)
+        if (md.armor && !pierce) d *= md.armor
+        if (md.armor && pierce) d *= s.spec
+        if (md.weak?.[0] === x.kind) d *= md.weak[1]
         this.hurt(m, d, x)
         if (m.hp <= 0) return
         if (x.kind === 'staff' && x.br === 1) {

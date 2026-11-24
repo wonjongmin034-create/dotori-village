@@ -7,9 +7,9 @@ import { toonGradient } from './toon'
 import { Baked } from './Baked'
 import { Water } from './Water'
 import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
-import { TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
+import { HEAL_R, TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
-import { AcornTree, BuildPad, MonModel, MonsterDen, SpecMark, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
+import { AcornTree, BuildPad, HealAura, MonModel, MonsterDen, SpecMark, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
 
 // 수비대 3D 장면 — 바다 위의 섬 · 돌길 · 빈 터 · 큰 도토리 나무 · 몬스터 굴 · 탑 · 몬스터 · 공격 연출
 export const PLAYER_COLORS = ['#e8524a', '#3a8fe0', '#3cb85a', '#f0b429']
@@ -32,7 +32,7 @@ const towerHp = new Map<number, number>() // 대장간 수리 연출용: 지난 
 const treeHit = { v: 0 }
 
 const SHOT_H: Record<TowerKind, number> = { sword: 1.6, hammer: 1.0, bow: 2.3, staff: 2.6, axe: 1.6, spear: 0.9 }
-const MON_H: Record<MonKind, number> = { slime: 0.35, blob: 0.5, bat: 1.5, turtle: 0.4, fox: 0.5, goblin: 0.7, bomb: 0.4, king: 1.2 }
+const MON_H: Record<MonKind, number> = { slime: 0.35, blob: 0.5, bat: 1.5, turtle: 0.4, fox: 0.5, goblin: 0.7, bomb: 0.4, king: 1.2, golem: 0.8, shaman: 0.6, drake: 1.6 }
 
 function useSnapTracking() {
   const snap = useDef((s) => s.snap)
@@ -552,7 +552,7 @@ function Tower({ row, members, selected, map }: { row: TowerRow; members: string
 }
 
 /* ---------- 몬스터 ---------- */
-const SPEED_ANIM: Record<MonKind, number> = { slime: 9, blob: 7, bat: 10, turtle: 5, fox: 16, goblin: 10, bomb: 13, king: 5 }
+const SPEED_ANIM: Record<MonKind, number> = { slime: 9, blob: 7, bat: 10, turtle: 5, fox: 16, goblin: 10, bomb: 13, king: 5, golem: 5, shaman: 9, drake: 8 }
 function Monster({ row, map }: { row: MonRow; map: DefMap }) {
   const [id, kind, , hp, fx] = row
   const g = useRef<THREE.Group>(null)
@@ -584,16 +584,17 @@ function Monster({ row, map }: { row: MonRow; map: DefMap }) {
       body.current.rotation.z = fx & 16 ? Math.sin(now / 80) * 0.15 : 0
     }
   })
-  const top = kind === 'king' ? 3.0 : kind === 'bat' ? 2.8 : kind === 'blob' ? 1.7 : kind === 'goblin' ? 1.9 : 1.5
+  const top = kind === 'king' ? 3.0 : kind === 'bat' ? 2.8 : kind === 'drake' ? 3.1 : kind === 'golem' ? 2.4 : kind === 'shaman' ? 2.0 : kind === 'blob' ? 1.7 : kind === 'goblin' ? 1.9 : 1.5
   return (
     <group ref={g}>
       <mesh position={[0, 0.03, 0]} rotation={[-PI / 2, 0, 0]}>
-        <circleGeometry args={[kind === 'king' ? 1.2 : kind === 'blob' ? 0.75 : 0.52, 14]} />
+        <circleGeometry args={[kind === 'king' ? 1.2 : kind === 'golem' ? 0.85 : kind === 'blob' || kind === 'drake' ? 0.75 : 0.52, 14]} />
         <meshBasicMaterial color="#000" transparent opacity={0.18} depthWrite={false} />
       </mesh>
       <group ref={body}>
         <MonModel kind={kind} anim={a} />
       </group>
+      {kind === 'shaman' && <HealAura r={HEAL_R} />}
       {fx & 16 ? (
         <group position={[0, top + 0.15, 0]}>
           {[0, 1, 2].map((i) => (
@@ -729,7 +730,7 @@ export function DefenseArena() {
       {map.dens.map((dn, i) => (
         <group key={map.id * 10 + i} position={[dn.p[0], 0, dn.p[1]]} rotation={[0, dn.rot, 0]}>
           <MonsterDen />
-          <DenSign />
+          {i === 0 && <DenSign />}
         </group>
       ))}
       <Tree map={map} />

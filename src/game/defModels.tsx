@@ -717,6 +717,131 @@ function King({ anim }: { anim: MonAnim }) {
   )
 }
 
+// 돌 골렘: 네모난 돌 몸 + 보라 마법 무늬 (마법이 약점이라는 힌트)
+function Golem({ anim }: { anim: MonAnim }) {
+  const arms = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (arms.current) arms.current.rotation.x = Math.sin(anim.phase) * 0.22
+  })
+  const RUNE = '#c08cff'
+  return (
+    <group scale={1.15}>
+      <Legs anim={anim} x={0.2} z={0} c="#7d766c" len={0.24} r={0.12} />
+      <Bx p={[0, 0.62, 0]} s={[0.8, 0.62, 0.56]} c="#9a9286" />
+      <Bx p={[0, 0.5, 0.29]} s={[0.56, 0.28, 0.04]} c="#8a8276" />
+      <Bx p={[0, 1.1, 0.02]} s={[0.46, 0.36, 0.42]} c="#aaa296" />
+      <Bx p={[0, 1.3, 0.02]} s={[0.5, 0.06, 0.46]} c="#8a8276" />
+      {/* 빛나는 눈 · 가슴 무늬 */}
+      <Bx p={[-0.1, 1.12, 0.235]} s={[0.1, 0.05, 0.02]} c={RUNE} e={RUNE} ei={1} />
+      <Bx p={[0.1, 1.12, 0.235]} s={[0.1, 0.05, 0.02]} c={RUNE} e={RUNE} ei={1} />
+      <Bx p={[0, 0.72, 0.29]} s={[0.06, 0.26, 0.02]} c={RUNE} e={RUNE} ei={1} />
+      <Bx p={[0, 0.72, 0.29]} s={[0.22, 0.06, 0.02]} c={RUNE} e={RUNE} ei={1} />
+      {/* 이끼 */}
+      <Ball p={[-0.3, 0.95, -0.05]} r={0.14} s={[1, 0.45, 1]} c="#6aa84f" />
+      <Ball p={[0.22, 1.3, -0.1]} r={0.12} s={[1, 0.4, 1]} c="#6aa84f" />
+      <group ref={arms} position={[0, 0.85, 0]}>
+        <Ball p={[-0.55, -0.15, 0]} r={0.2} s={[1, 1.5, 1]} c="#8a8276" />
+        <Ball p={[0.55, -0.15, 0]} r={0.2} s={[1, 1.5, 1]} c="#8a8276" />
+        <Ball p={[-0.58, -0.52, 0.06]} r={0.19} c="#a59d91" />
+        <Ball p={[0.58, -0.52, 0.06]} r={0.19} c="#a59d91" />
+      </group>
+    </group>
+  )
+}
+
+// 치유 주술사: 두건 쓴 작은 고블린 + 초록 구슬 지팡이
+function Shaman({ anim }: { anim: MonAnim }) {
+  const orb = useRef<THREE.Mesh>(null)
+  const staff = useRef<THREE.Group>(null)
+  useFrame((s) => {
+    const t = s.clock.elapsedTime
+    if (orb.current) orb.current.scale.setScalar(1 + Math.sin(t * 5) * 0.22)
+    if (staff.current) staff.current.rotation.z = Math.sin(anim.phase * 0.5) * 0.12
+  })
+  return (
+    <group>
+      <Legs anim={anim} x={0.1} z={0} c="#3d5a2e" len={0.2} r={0.06} />
+      <Cone p={[0, 0.52, 0]} r={0.33} h={0.72} c="#3f7a4a" seg={8} />
+      <Ring p={[0, 0.3, 0]} r={0.27} t={0.04} c="#e8c25a" rot={[PI / 2, 0, 0]} />
+      <Ball p={[0, 0.9, 0.02]} r={0.2} c="#7cbf5a" />
+      <Cone p={[0, 1.14, -0.03]} r={0.25} h={0.38} c="#2f5f3a" seg={8} />
+      <Bx p={[0, 0.88, 0.19]} s={[0.26, 0.22, 0.04]} c="#efe2bc" />
+      <Bx p={[0, 0.82, 0.215]} s={[0.12, 0.03, 0.01]} c="#c0433f" />
+      <Eyes y={0.92} z={0.215} gap={0.07} r={0.035} />
+      <group ref={staff} position={[0.32, 0.1, 0.1]}>
+        <Cyl p={[0, 0.58, 0]} r={0.028} h={1.16} c={WOOD} seg={6} />
+        <mesh ref={orb} position={[0, 1.22, 0]}>
+          <sphereGeometry args={[0.12, 12, 10]} />
+          <meshBasicMaterial color="#7dff9a" />
+        </mesh>
+        <Ring p={[0, 1.22, 0]} r={0.16} t={0.025} c="#e8c25a" rot={[PI / 2, 0, 0]} />
+      </group>
+    </group>
+  )
+}
+
+// 새끼 용: 날개 달린 빨간 용 (하늘 · 단단한 비늘)
+function Drake({ anim }: { anim: MonAnim }) {
+  const wl = useRef<THREE.Group>(null)
+  const wr = useRef<THREE.Group>(null)
+  const tail = useRef<THREE.Group>(null)
+  useFrame((s) => {
+    const t = s.clock.elapsedTime
+    const a = Math.sin(t * 9 + anim.phase) * 0.6
+    if (wl.current) wl.current.rotation.z = a
+    if (wr.current) wr.current.rotation.z = -a
+    if (tail.current) tail.current.rotation.y = Math.sin(t * 3) * 0.35
+  })
+  return (
+    <group position={[0, 1.6, 0]}>
+      <Ball p={[0, 0, 0]} r={0.32} s={[1, 0.9, 1.4]} c="#d0483c" />
+      <Ball p={[0, -0.1, 0.12]} r={0.22} s={[0.9, 0.6, 1.2]} c="#f2c38a" />
+      {/* 등 비늘 */}
+      {[0.2, 0, -0.2].map((z, i) => (
+        <Cone key={i} p={[0, 0.28, z]} r={0.07} h={0.18} c="#8a2a26" seg={4} />
+      ))}
+      <Ball p={[0, 0.2, 0.5]} r={0.22} s={[1, 0.9, 1.15]} c="#d8503f" />
+      <Ball p={[0, 0.12, 0.7]} r={0.12} c="#e0604a" />
+      <Cone p={[-0.1, 0.42, 0.42]} r={0.04} h={0.2} c="#f2e6c8" seg={5} rot={[-0.5, 0, 0]} />
+      <Cone p={[0.1, 0.42, 0.42]} r={0.04} h={0.2} c="#f2e6c8" seg={5} rot={[-0.5, 0, 0]} />
+      <Eyes y={0.28} z={0.66} gap={0.09} r={0.04} angry />
+      <group ref={tail} position={[0, -0.02, -0.4]}>
+        <Cone p={[0, 0, -0.25]} r={0.12} h={0.5} c="#c0403a" seg={6} rot={[-PI / 2, 0, 0]} />
+      </group>
+      <group ref={wl} position={[-0.25, 0.12, 0]}>
+        <Ball p={[-0.42, 0, 0]} r={0.46} s={[1, 0.12, 0.72]} c="#f08a3a" />
+      </group>
+      <group ref={wr} position={[0.25, 0.12, 0]}>
+        <Ball p={[0.42, 0, 0]} r={0.46} s={[1, 0.12, 0.72]} c="#f08a3a" />
+      </group>
+      <Legs anim={anim} x={0.14} z={0.05} c="#a8382e" len={0.16} r={0.05} />
+    </group>
+  )
+}
+
+// 치유 주술사 주변: 치료 범위 (초록 고리가 숨 쉬듯)
+export function HealAura({ r }: { r: number }) {
+  const m = useRef<THREE.Mesh>(null)
+  useFrame((s) => {
+    if (!m.current) return
+    const k = (s.clock.elapsedTime * 0.8) % 1
+    m.current.scale.setScalar(0.3 + k * 0.7)
+    ;(m.current.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - k)
+  })
+  return (
+    <group position={[0, 0.06, 0]} rotation={[-PI / 2, 0, 0]}>
+      <mesh>
+        <ringGeometry args={[r - 0.08, r, 40]} />
+        <meshBasicMaterial color="#7dff9a" transparent opacity={0.35} depthWrite={false} />
+      </mesh>
+      <mesh ref={m}>
+        <ringGeometry args={[r * 0.9, r, 40]} />
+        <meshBasicMaterial color="#7dff9a" transparent opacity={0.5} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
 export function MonModel({ kind, anim }: { kind: MonKind; anim: MonAnim }) {
   switch (kind) {
     case 'slime':
@@ -733,6 +858,12 @@ export function MonModel({ kind, anim }: { kind: MonKind; anim: MonAnim }) {
       return <Goblin anim={anim} />
     case 'bomb':
       return <Bomb anim={anim} />
+    case 'golem':
+      return <Golem anim={anim} />
+    case 'shaman':
+      return <Shaman anim={anim} />
+    case 'drake':
+      return <Drake anim={anim} />
     default:
       return <King anim={anim} />
   }
