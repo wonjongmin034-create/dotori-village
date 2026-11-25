@@ -842,6 +842,108 @@ export function HealAura({ r }: { r: number }) {
   )
 }
 
+// 그림자 유령: 반투명한 보랏빛 천 유령 (둥실둥실 · 흐릿하게 깜빡)
+function Ghost({ anim }: { anim: MonAnim }) {
+  const g = useRef<THREE.Group>(null)
+  const mat = useRef<THREE.MeshBasicMaterial>(null)
+  const tails = useRef<THREE.Group>(null)
+  useFrame((s) => {
+    const t = s.clock.elapsedTime + anim.phase * 0.1
+    if (g.current) g.current.position.y = 0.55 + Math.sin(t * 3) * 0.12
+    if (mat.current) mat.current.opacity = 0.55 + Math.sin(t * 4.5) * 0.15
+    if (tails.current) tails.current.rotation.y = t * 1.5
+  })
+  return (
+    <group ref={g}>
+      <mesh position={[0, 0.3, 0]}>
+        <sphereGeometry args={[0.36, 16, 12, 0, PI * 2, 0, PI * 0.62]} />
+        <meshBasicMaterial ref={mat} color="#d9d2ff" transparent opacity={0.6} depthWrite={false} />
+      </mesh>
+      <mesh position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.3, 0.36, 0.45, 16, 1, true]} />
+        <meshBasicMaterial color="#c4baff" transparent opacity={0.45} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <group ref={tails}>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const a = (i / 5) * PI * 2
+          return (
+            <mesh key={i} position={[Math.cos(a) * 0.26, -0.24, Math.sin(a) * 0.26]} rotation={[PI, 0, 0]}>
+              <coneGeometry args={[0.1, 0.22, 6]} />
+              <meshBasicMaterial color="#b3a8f5" transparent opacity={0.4} depthWrite={false} />
+            </mesh>
+          )
+        })}
+      </group>
+      {/* 빛나는 눈과 입 */}
+      {[-1, 1].map((sx) => (
+        <mesh key={sx} position={[sx * 0.12, 0.36, 0.31]}>
+          <sphereGeometry args={[0.065, 10, 8]} />
+          <meshBasicMaterial color="#6b2cff" />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.2, 0.33]} scale={[1, 0.6, 0.4]}>
+        <sphereGeometry args={[0.07, 10, 8]} />
+        <meshBasicMaterial color="#3a1580" />
+      </mesh>
+    </group>
+  )
+}
+
+// 방패 기사: 은빛 갑옷 + 커다란 파란 방패
+function Knight({ anim }: { anim: MonAnim }) {
+  const shield = useRef<THREE.Group>(null)
+  useFrame((s) => {
+    if (shield.current) shield.current.position.y = 0.62 + Math.sin(s.clock.elapsedTime * 2 + anim.phase * 0.2) * 0.03
+  })
+  return (
+    <group>
+      <Legs anim={anim} x={0.14} z={0} c="#7d8592" len={0.24} r={0.08} />
+      <Cyl p={[0, 0.58, 0]} r={0.3} r2={0.26} h={0.58} c="#b9c2cf" seg={10} />
+      <Bx p={[0, 0.62, 0.21]} s={[0.4, 0.3, 0.1]} c="#d3dae4" />
+      <Ring p={[0, 0.34, 0]} r={0.3} t={0.04} c="#6e5a3a" rot={[PI / 2, 0, 0]} />
+      {/* 투구 */}
+      <Ball p={[0, 1.07, 0]} r={0.24} c="#c7cfdb" />
+      <Bx p={[0, 1.04, 0.2]} s={[0.3, 0.06, 0.06]} c="#2a2f38" />
+      <Cone p={[0, 1.36, -0.02]} r={0.06} h={0.22} c="#d64545" seg={6} />
+      {/* 어깨 */}
+      {[-1, 1].map((sx) => (
+        <Ball key={sx} p={[sx * 0.33, 0.82, 0]} r={0.12} c="#9aa3b0" />
+      ))}
+      {/* 칼 */}
+      <Cyl p={[-0.4, 0.62, 0.12]} r={0.025} h={0.7} c="#e6ebf2" seg={6} rot={[0.3, 0, 0]} />
+      {/* 큰 방패 */}
+      <group ref={shield} position={[0.28, 0.62, 0.38]}>
+        <Bx p={[0, 0, 0]} s={[0.5, 0.66, 0.07]} c="#3f6fd8" />
+        <Bx p={[0, 0, 0.04]} s={[0.36, 0.5, 0.03]} c="#5d8cf0" />
+        <Bx p={[0, 0, 0.06]} s={[0.07, 0.42, 0.02]} c="#f2c14e" />
+        <Bx p={[0, 0.06, 0.06]} s={[0.28, 0.07, 0.02]} c="#f2c14e" />
+      </group>
+    </group>
+  )
+}
+
+// 방패 기사 둘레의 파란 보호막
+export function ShieldAura({ r }: { r: number }) {
+  const m = useRef<THREE.Mesh>(null)
+  useFrame((s) => {
+    if (!m.current) return
+    const k = (s.clock.elapsedTime * 0.6) % 1
+    ;(m.current.material as THREE.MeshBasicMaterial).opacity = 0.16 + Math.sin(k * PI * 2) * 0.06
+  })
+  return (
+    <group position={[0, 0.07, 0]} rotation={[-PI / 2, 0, 0]}>
+      <mesh>
+        <ringGeometry args={[r - 0.1, r, 40]} />
+        <meshBasicMaterial color="#6fa8ff" transparent opacity={0.55} depthWrite={false} />
+      </mesh>
+      <mesh ref={m}>
+        <circleGeometry args={[r - 0.1, 40]} />
+        <meshBasicMaterial color="#6fa8ff" transparent opacity={0.16} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
 export function MonModel({ kind, anim }: { kind: MonKind; anim: MonAnim }) {
   switch (kind) {
     case 'slime':
@@ -864,6 +966,10 @@ export function MonModel({ kind, anim }: { kind: MonKind; anim: MonAnim }) {
       return <Shaman anim={anim} />
     case 'drake':
       return <Drake anim={anim} />
+    case 'ghost':
+      return <Ghost anim={anim} />
+    case 'knight':
+      return <Knight anim={anim} />
     default:
       return <King anim={anim} />
   }

@@ -21,6 +21,8 @@ import {
   SYNERGY,
   SYNERGY_R,
   TAUNT_R,
+  SHIELD_R,
+  SHIELD_F,
   TEAM_HP,
   TEAM_GOLD,
   TIER_DMG,
@@ -481,6 +483,17 @@ class Sim {
         if (Math.hypot(mx - hx, mz - hz) <= HEAL_R) m.hp = Math.min(m.max, m.hp + heal * h.hs * dt)
       }
     }
+    // 방패 기사: 주변 몬스터를 지켜 준다 (기사 자신은 빼고)
+    const shielded = new Set<Mon>()
+    for (const k of this.mons) {
+      if (!MONSTERS[k.kind].shield || k.hp <= 0 || k.stunUntil > t) continue
+      const [kx, kz] = this.pos(k)
+      for (const m of this.mons) {
+        if (m === k || m.hp <= 0) continue
+        const [mx, mz] = this.pos(m)
+        if (Math.hypot(mx - kx, mz - kz) <= SHIELD_R) shielded.add(m)
+      }
+    }
     // 부서진 탑 치우기
     const broken = this.towers.filter((x) => x.hp <= 0)
     if (broken.length) {
@@ -507,7 +520,8 @@ class Sim {
         const air = MONSTERS[m.kind].air
         if (air && s.air <= 0) continue
         const [mx, mz] = this.pos(m)
-        if (Math.hypot(mx - sx, mz - sz) > s.range) continue
+        // 나를 때리고 있는 몬스터는 사거리 밖이어도 되받아친다 (끌려온 고블린과 끝없이 버티는 일 막기)
+        if (Math.hypot(mx - sx, mz - sz) > s.range && m.target !== x.id) continue
         // 약점인 몬스터(예: 궁수탑 → 치유 주술사)를 먼저, 그다음 가장 앞서 가는 몬스터
         const wk = MONSTERS[m.kind].weak?.[0] === x.kind
         const bwk = best ? MONSTERS[best.kind].weak?.[0] === x.kind : false
@@ -527,6 +541,7 @@ class Sim {
         if (md.armor && !pierce) d *= md.armor
         if (md.armor && pierce) d *= s.spec
         if (md.weak?.[0] === x.kind) d *= md.weak[1]
+        if (shielded.has(m)) d *= SHIELD_F
         this.hurt(m, d, x)
         if (m.hp <= 0) return
         if (x.kind === 'staff' && x.br === 1) {
