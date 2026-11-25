@@ -19,6 +19,10 @@ import {
   buildCost,
   defVisible,
   evolveCost,
+  evolveBlock,
+  BEASTS,
+  JOB_TIER,
+  TIER_TITLE,
 } from './defData'
 import {
   active,
@@ -28,6 +32,7 @@ import {
   giveUpDef,
   maxStageFor,
   myDefJob,
+  myDefWt,
   requestBuild,
   requestEvolve,
   sendGift,
@@ -176,7 +181,7 @@ function DefenseGuide({ onDone }: { onDone: () => void }) {
             <b>문제가 나와요 (7초)</b> — 맞히면 탑이 지어져요. <span className="warn">틀리거나 시간이 지나면 낸 돈을 잃어요!</span> 친구에게 묻지 말고 스스로 풀어요.
           </li>
           <li>
-            몬스터를 잡으면 💰 돈이 생겨요. <b>내 탑을 눌러 진화</b>시켜요 (1~5단계). 3단계에서는 두 갈래 중 하나를 골라요.
+            몬스터를 잡으면 💰 돈이 생겨요. <b>내 탑을 눌러 진화</b>시켜요 (1~6단계). 3단계에서는 두 갈래 중 하나를 골라요. <b>4단계부터는 내 직업 탑만</b> 키울 수 있고 수호 신수가 나타나요 (5단계 각성은 직업 무기 영웅↑, 6단계 전설은 전설↑).
           </li>
         </ol>
         <p className="tip">⭐ 5초 안에 맞히면 "완벽 시공" — 그 탑이 더 세져요!</p>
@@ -441,6 +446,7 @@ function SelPanel() {
   const myQ = useDef((s) => s.myQ)
   const me = defMe()
   const job = myDefJob()
+  const wt = myDefWt()
   const [pickBr, setPickBr] = useState(false)
   useEffect(() => setPickBr(false), [sel])
   if (!sel || myQ) return null
@@ -487,10 +493,13 @@ function SelPanel() {
   const t = TOWERS[kind]
   const mineT = owner === me
   const cost = evolveCost(kind, tier, mineT ? job : null)
+  const block = mineT && tier < MAX_TOWER_TIER ? evolveBlock(kind, tier, job, wt) : null
+  const beast = tier >= JOB_TIER ? BEASTS[kind] : null
+  const nextTitle = TIER_TITLE[tier + 1]
   return (
     <div className="def-sel">
       <div className="def-sel-head">
-        {t.emoji} {br ? t.branches[br - 1] : t.name} <b>{tier}단계</b> <small style={{ color: colorOf(snap.members, owner) }}>· {owner}의 탑</small>
+        {t.emoji} {br ? t.branches[br - 1] : t.name} <b>{tier}단계{TIER_TITLE[tier] ? ` · ${TIER_TITLE[tier]}` : ''}</b> <small style={{ color: colorOf(snap.members, owner) }}>· {owner}의 탑</small>
         <button type="button" onClick={close}>
           ✕
         </button>
@@ -498,9 +507,17 @@ function SelPanel() {
       <p className="def-sel-note">
         {t.role} · 체력 {hp}%{spec ? ` · 🎖️ 전문가 (3단계부터 ${t.spec})` : ''}
       </p>
+      {beast ? (
+        <p className="def-sel-note small">
+          {beast.emoji} 수호 신수 <b>{beast.name}</b>
+          {tier >= MAX_TOWER_TIER ? '가 탑 대신 제단에서 싸워요!' : '가 함께 지켜요'}
+        </p>
+      ) : null}
       {mineT ? (
         tier >= MAX_TOWER_TIER ? (
-          <p className="def-sel-note">🏆 최고 단계 (각성)!</p>
+          <p className="def-sel-note">🏆 최고 단계 — 전설의 수호 신수!</p>
+        ) : block ? (
+          <p className="def-sel-note def-lock">{block}</p>
         ) : tier === 2 ? (
           pickBr ? (
             <div className="def-branch">
@@ -519,7 +536,7 @@ function SelPanel() {
         ) : (
           <button type="button" className="def-evo" disabled={cost == null || gold < cost} onClick={() => requestEvolve(id)}>
             ⬆️ {tier + 1}단계로 진화 · 💰{cost}
-            {tier + 1 === MAX_TOWER_TIER ? ' (각성!)' : ''}
+            {nextTitle ? ` (${nextTitle}!)` : tier + 1 === JOB_TIER && BEASTS[kind] ? ` (${BEASTS[kind].emoji} 신수 등장)` : ''}
           </button>
         )
       ) : (

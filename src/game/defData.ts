@@ -1,9 +1,10 @@
 // 도토리 나무 수비대 (디펜스) — 규칙과 숫자. 여기 숫자만 바꾸면 난이도가 조절된다.
 //  · 2~4명이 한 방에서 함께. 길을 따라 몰려오는 몬스터로부터 도토리 나무를 지킨다.
-//  · 빈 터에 탑을 지으려면 문제를 맞혀야 한다 (틀리면 낸 돈을 잃는다). 몬스터를 잡으면 돈 → 탑 진화(1~5단계).
+//  · 빈 터에 탑을 지으려면 문제를 맞혀야 한다 (틀리면 낸 돈을 잃는다). 몬스터를 잡으면 돈 → 탑 진화(1~6단계).
+//  · 4단계부터는 내 직업 탑만, 5단계(각성)는 직업 무기 영웅(4단계)↑, 6단계(전설 · 수호 신수)는 전설(5단계)↑.
 //  · 몬스터를 잡은 탑의 주인이 70%, 나머지 30%는 팀원 모두가 나눠 갖는다.
 //  · 직업 = 전문 탑: 내 직업의 탑은 30% 싸고 2단계로 지어지며, 3단계부터 핵심 능력 +30%.
-import type { WeaponFamily } from './weapons'
+import { FAMILY_LABEL, gradeOf, type WeaponFamily } from './weapons'
 
 // 아직 학생들에게 공개하지 않았다 — 주소 끝에 ?def 를 붙이면 들어가는 버튼이 보인다 (선생님 시험용). 공개하려면 true 로.
 export const DEF_OPEN = true
@@ -389,15 +390,38 @@ export const TOWERS: Record<TowerKind, TowerDef> = {
 export const TOWER_KINDS: TowerKind[] = ['sword', 'hammer', 'bow', 'staff', 'axe', 'spear']
 
 export const BUILD_COST = 40
-export const EVOLVE_COST = [0, 0, 40, 80, 140, 220] // [_, _, →2, →3, →4, →5]
+export const EVOLVE_COST = [0, 0, 40, 80, 140, 220, 320] // [_, _, →2, →3, →4, →5, →6]
 export const SPEC_DISCOUNT = 0.7
 export const SPEC_BOOST = 1.3
-export const TIER_DMG = [0, 1, 1.5, 2.2, 3.2, 4.6]
-export const TIER_HP = [0, 1, 1.4, 1.9, 2.6, 3.5]
-export const TIER_RANGE = [0, 0, 0.2, 0.4, 0.6, 0.9]
+export const TIER_DMG = [0, 1, 1.5, 2.2, 3.2, 4.6, 6.4]
+export const TIER_HP = [0, 1, 1.4, 1.9, 2.6, 3.5, 4.8]
+export const TIER_RANGE = [0, 0, 0.2, 0.4, 0.6, 0.9, 1.2]
 // 탑의 공격 범위 (방장 계산 · 화면 표시가 같은 값을 쓴다)
 export const rangeOf = (kind: TowerKind, tier: number, br: number) => TOWERS[kind].range + TIER_RANGE[tier] + (kind === 'bow' && br === 2 ? 2 : 0)
-export const MAX_TOWER_TIER = 5
+export const MAX_TOWER_TIER = 6
+export const JOB_TIER = 4 // 이 단계부터는 내 직업 탑만 키울 수 있다
+export const WEAPON_NEED: Record<number, number> = { 5: 4, 6: 5 } // 탑 단계 → 필요한 내 직업 무기 단계 (영웅 · 전설)
+export const TIER_TITLE: Record<number, string> = { 5: '각성', 6: '전설' }
+// 4단계부터 직업 탑 곁에 나타나는 수호 신수 (6단계에서는 탑 대신 제단 위에)
+export const BEASTS: Record<TowerKind, { name: string; emoji: string }> = {
+  sword: { name: '백호', emoji: '🐯' },
+  bow: { name: '주작', emoji: '🐦‍🔥' },
+  staff: { name: '청룡', emoji: '🐉' },
+  axe: { name: '현무', emoji: '🐢' },
+  spear: { name: '해치', emoji: '🦁' },
+  hammer: { name: '불가사리', emoji: '🔥' },
+}
+// 다음 단계로 못 키우는 까닭 (없으면 null) — 방장 계산과 화면이 같은 규칙을 쓴다
+export function evolveBlock(kind: TowerKind, tier: number, job: string | null, wt: number): string | null {
+  const next = tier + 1
+  if (next >= JOB_TIER && job !== kind) return `🔒 ${JOB_TIER}단계부터는 내 직업 탑만 키울 수 있어요`
+  const need = WEAPON_NEED[next]
+  if (need && wt < need) {
+    const g = gradeOf(need)
+    return `🔒 ${next >= 6 ? '전설의 수호 신수가 되려면' : '각성하려면'} ${FAMILY_LABEL[kind]} 무기가 ${g.name}(${need}단계) 이상이어야 해요 (지금 ${wt}단계)`
+  }
+  return null
+}
 export const HOLD_S = 0.7 // 창 함정이 붙잡는 시간
 export const HEAL_PER_S = 5 // 대장간 기본 수리량 (초당)
 export const HEAL_R = 3 // 치유 주술사가 치료하는 범위
@@ -457,8 +481,8 @@ export const DEF_STAGE_LIST: StageDef[] = [
   { id: 3, name: '쌍둥이 굴', hpMult: 1.95, reward: [50, 40, 60] },
   { id: 4, name: '골짜기 늪', hpMult: 2.1, reward: [60, 50, 70] },
   { id: 5, name: '세 굴 요새', hpMult: 2.35, reward: [80, 60, 100] },
-  { id: 6, name: '유령 골짜기', hpMult: 2.45, reward: [100, 70, 120] },
-  { id: 7, name: '사방 요새', hpMult: 2.2, reward: [120, 90, 150] }, // 네 갈래 · 방패 기사가 있어서 체력 배율은 조금 낮춰도 가장 어렵다
+  { id: 6, name: '유령 골짜기', hpMult: 2.7, reward: [100, 70, 120] },
+  { id: 7, name: '사방 요새', hpMult: 2.45, reward: [120, 90, 150] }, // 직업 탑을 각성(영웅 무기)까지 키워야 잘 깨진다
 ]
 export const defStage = (s: number) => DEF_STAGE_LIST[Math.max(1, Math.min(DEF_STAGES, s)) - 1]
 // 남은 나무 체력 → 별

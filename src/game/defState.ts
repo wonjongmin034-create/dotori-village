@@ -12,6 +12,7 @@ import {
   HEAL_R,
   HOLD_S,
   MAX_TOWER_TIER,
+  evolveBlock,
   MONSTERS,
   OWNER_SHARE,
   PREP_MS,
@@ -48,7 +49,7 @@ import { isFamily } from './weapons'
 // 0.25초마다 지금 모습(장면)을 모두에게 알린다. 다른 사람은 "탑 짓기·진화·답"만 방장에게 보낸다.
 // 문제의 정답은 방장만 안다 (문제를 보낼 때 정답을 빼고 보낸다).
 
-export type DefMember = { n: string; jb: string | null; cl: number; tl: number } // 이름, 직업, 깬 단계, 오늘 남은 입장
+export type DefMember = { n: string; jb: string | null; cl: number; tl: number; wt: number } // 이름, 직업, 깬 단계, 오늘 남은 입장, 직업 무기 단계
 export type DefSt = 'prep' | 'wave' | 'break' | 'won' | 'lost' | 'aborted'
 // 탑: [id, 빈 터 번호, 종류, 단계, 갈림길(0·1·2), 주인, 체력 %, 전문가(1/0), 완벽 시공(1/0)]
 export type TowerRow = [number, number, TowerKind, number, number, string, number, number, number]
@@ -112,12 +113,15 @@ let tickTimer: ReturnType<typeof setInterval> | null = null
 let myCleared = 0
 let myLeft = 3
 let myJob: string | null = null
-export const setDefMe = (cleared: number, left: number, job: string | null) => {
+let myWt = 0
+export const setDefMe = (cleared: number, left: number, job: string | null, wt = myWt) => {
   myCleared = cleared
   myLeft = left
   myJob = job
+  myWt = wt
 }
-export const defPresence = () => ({ dm: { cl: myCleared, tl: myLeft } })
+export const myDefWt = () => myWt
+export const defPresence = () => ({ dm: { cl: myCleared, tl: myLeft, wt: myWt } })
 export const defMe = () => me
 export const isDefHost = () => useDef.getState().host === me
 
@@ -144,7 +148,7 @@ const flash = (text: string, ms = 3000) => {
 export const defBanner = flash
 
 /* ---------- 방 (presence) ---------- */
-type Meta = { avatar?: { jb?: string | null }; dm?: { cl?: number; tl?: number } }
+type Meta = { avatar?: { jb?: string | null }; dm?: { cl?: number; tl?: number; wt?: number } }
 export function defOnPresence(state: Record<string, Meta[]>, allowed: string[]) {
   const roster: DefMember[] = allowed.map((n) => {
     const m = state[n]?.[0]
@@ -154,6 +158,7 @@ export function defOnPresence(state: Record<string, Meta[]>, allowed: string[]) 
       jb: isFamily(jb) ? jb : null,
       cl: typeof m?.dm?.cl === 'number' ? Math.max(0, Math.min(DEF_STAGES, Math.round(m.dm.cl))) : 0,
       tl: typeof m?.dm?.tl === 'number' ? Math.max(0, Math.round(m.dm.tl)) : 3,
+      wt: typeof m?.dm?.wt === 'number' ? Math.max(0, Math.min(6, Math.round(m.dm.wt))) : 0,
     }
   })
   useDef.setState({ roster, host: allowed[0] ?? null })
@@ -225,6 +230,7 @@ class Sim {
   laneTurn = 0
   members: string[]
   jobs: Record<string, string | null>
+  wts: Record<string, number> // 직업 무기 단계 (각성 · 전설 조건)
   st: DefSt = 'prep'
   wave = 0
   tree = TREE_HP
@@ -245,13 +251,14 @@ class Sim {
   qid = 1
   seq = 1
 
-  constructor(gid: number, host: string, stage: number, members: string[], jobs: Record<string, string | null>) {
+  constructor(gid: number, host: string, stage: number, members: string[], jobs: Record<string, string | null>, wts: Record<string, number> = {}) {
     this.gid = gid
     this.host = host
     this.stage = stage
     this.map = mapOf(stage)
     this.members = members
     this.jobs = jobs
+    this.wts = wts
     for (const n of members) {
       this.gold[n] = START_GOLD + (stage - 1) * STAGE_GOLD
       this.kills[n] = 0
@@ -677,6 +684,7 @@ class Sim {
     const cost = evolveCost(x.kind, x.tier, this.jobs[n] ?? null)
     if (cost == null || (this.gold[n] ?? 0) < cost) return
     if (x.tier === 2 && br !== 1 && br !== 2) return // 3단계는 갈림길을 골라야 한다
+    if (evolveBlock(x.kind, x.tier, this.jobs[n] ?? null, this.wts[n] ?? 0)) return // 4단계↑ 직업 탑 · 각성/전설 무기 조건
     this.gold[n] -= cost
     x.tier += 1
     if (x.tier === 3) x.br = br!
@@ -742,7 +750,8 @@ export function startDefense(): string | null {
   const stage = Math.min(st.lobbyStage, maxStageFor(st.roster))
   const members = st.roster.map((r) => r.n)
   const jobs = Object.fromEntries(st.roster.map((r) => [r.n, r.jb]))
-  sim = new Sim(Math.max(Date.now(), (st.snap?.gid ?? 0) + 1), me, stage, members, jobs)
+  const wts = Object.fromEntries(st.roster.map((r) => [r.n, r.wt]))
+  sim = new Sim(Math.max(Date.now(), (st.snap?.gid ?? 0) + 1), me, stage, members, jobs, wts)
   lastTick = performance.now()
   publish()
   return null

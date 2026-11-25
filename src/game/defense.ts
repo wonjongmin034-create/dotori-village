@@ -24,7 +24,7 @@ export function enterDefense(room = 1) {
     return
   }
   s.setVisiting(null)
-  setDefMe(defClearedOf(d), dev ? Math.max(1, left) : left, s.job?.f ?? null)
+  setDefMe(defClearedOf(d), dev ? Math.max(1, left) : left, s.job?.f ?? null, s.job ? (s.weapons[s.job.f] ?? 0) : 0)
   useVillage.setState({ defRoom: room, plaza: null, raidRoom: false, bossRoom: null })
 }
 
@@ -43,7 +43,7 @@ export const useDefUi = create<{ picker: boolean }>(() => ({ picker: false }))
 onDefStart((snap) => {
   useVillage.getState().spendDefTry(snap.gid)
   const s = useVillage.getState()
-  setDefMe(defClearedOf(defOf(s.items)), defLeftOf(defOf(s.items)), s.job?.f ?? null)
+  setDefMe(defClearedOf(defOf(s.items)), defLeftOf(defOf(s.items)), s.job?.f ?? null, s.job ? (s.weapons[s.job.f] ?? 0) : 0)
 })
 onDefEnd((snap) => {
   const won = snap.st === 'won'
@@ -58,5 +58,5 @@ onDefEnd((snap) => {
   } else note = snap.st === 'aborted' ? '수비가 멈췄어요' : '도토리 나무가 쓰러졌어요… 다시 도전해요!'
   useDef.setState({ result: { gid: snap.gid, won, stage: snap.stage, stars, coins, note } })
   const s = useVillage.getState()
-  setDefMe(defClearedOf(defOf(s.items)), defLeftOf(defOf(s.items)), s.job?.f ?? null)
+  setDefMe(defClearedOf(defOf(s.items)), defLeftOf(defOf(s.items)), s.job?.f ?? null, s.job ? (s.weapons[s.job.f] ?? 0) : 0)
 })

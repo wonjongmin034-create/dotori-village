@@ -7,8 +7,9 @@ import { toonGradient } from './toon'
 import { Baked } from './Baked'
 import { Water } from './Water'
 import { DefEffects, pushBoom, pushHeal, pushShot } from './defFx'
-import { HEAL_R, SHIELD_R, TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
+import { HEAL_R, JOB_TIER, MAX_TOWER_TIER, SHIELD_R, TREE_HP, distToLanes, lanePos, mapOf, rangeOf, type DefMap, type Lane, type MonKind, type TowerKind } from './defData'
 import { claimBox, useDef, type MonRow, type TowerRow } from './defState'
+import { BeastAltar, BeastMount } from './beastModels'
 import { AcornTree, BuildPad, HealAura, MonModel, MonsterDen, ShieldAura, SpecMark, TowerModel, KIND_COLOR, type MonAnim, type TowerAnim } from './defModels'
 
 // 수비대 3D 장면 — 바다 위의 섬 · 돌길 · 빈 터 · 큰 도토리 나무 · 몬스터 굴 · 탑 · 몬스터 · 공격 연출
@@ -502,7 +503,17 @@ function Tower({ row, members, selected, map }: { row: TowerRow; members: string
   return (
     <group position={[x, 0, z]}>
       <group ref={g}>
-        <TowerModel kind={kind} tier={tier} br={br} anim={anim} />
+        {tier >= MAX_TOWER_TIER ? (
+          <>
+            {/* 6단계 전설: 탑 대신 제단 위의 수호 신수 */}
+            <BeastAltar color={KIND_COLOR[kind]} />
+            <BeastMount kind={kind} age={2} anim={anim} position={[0, 0.42, 0]} scale={1.05} />
+          </>
+        ) : (
+          <TowerModel kind={kind} tier={tier} br={br} anim={anim} />
+        )}
+        {/* 4단계 새끼 신수 · 5단계(각성) 자란 신수가 탑 곁에 */}
+        {tier >= JOB_TIER && tier < MAX_TOWER_TIER && <BeastMount kind={kind} age={tier >= 5 ? 1 : 0} anim={anim} position={[0.92, 0, 0.7]} scale={tier >= 5 ? 0.5 : 0.31} />}
       </group>
       {/* 누르기 쉽게: 보이지 않는 큰 기둥 */}
       <mesh position={[0, 1.2, 0]} onClick={onClick}>
@@ -531,7 +542,7 @@ function Tower({ row, members, selected, map }: { row: TowerRow; members: string
         <ringGeometry args={[0.98, selected ? 1.18 : 1.06, 32]} />
         <meshBasicMaterial color={selected ? '#ffd23c' : spec ? KIND_COLOR[kind] : color} transparent opacity={selected ? 1 : 0.55} depthWrite={false} />
       </mesh>
-      {spec ? <SpecMark color={KIND_COLOR[kind]} top={(kind === 'staff' ? 3.0 : kind === 'bow' ? 2.9 : 2.3) * (1.12 + tier * 0.06)} /> : null}
+      {spec && tier < MAX_TOWER_TIER ? <SpecMark color={KIND_COLOR[kind]} top={(kind === 'staff' ? 3.0 : kind === 'bow' ? 2.9 : 2.3) * (1.12 + tier * 0.06)} /> : null}
       {selected && <RangeCircle r={rangeOf(kind, tier, br)} color={KIND_COLOR[kind]} />}
       {perfect ? (
         <mesh position={[0.72, 0.3, 0.6]}>
@@ -543,7 +554,7 @@ function Tower({ row, members, selected, map }: { row: TowerRow; members: string
       {[...Array(tier)].map((_, i) => (
         <mesh key={i} position={[-0.36 + i * 0.18, 0.06, 1.0]} rotation={[-PI / 2, 0, 0]}>
           <circleGeometry args={[0.07, 5]} />
-          <meshBasicMaterial color={i >= 4 ? '#ff6fae' : i >= 2 ? '#ffd23c' : '#fff3c4'} />
+          <meshBasicMaterial color={i >= 5 ? '#ff9a1f' : i >= 4 ? '#ff6fae' : i >= 2 ? '#ffd23c' : '#fff3c4'} />
         </mesh>
       ))}
       {hp < 100 && <Bar pct={hp} y={kind === 'staff' ? 3.4 : kind === 'bow' ? 3.2 : 2.7} color={hp > 50 ? '#4cd964' : hp > 25 ? '#ffcc00' : '#ff3b30'} />}
