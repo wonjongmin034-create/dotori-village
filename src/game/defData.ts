@@ -24,7 +24,7 @@ export const DEF_STAGES = 7
 export const DEF_WAVES = 10
 export const START_GOLD = 150
 export const STAGE_GOLD = 40 // 단계마다 시작 돈 추가 (높은 단계는 처음부터 더 많이 짓게)
-export const TREE_HP = 20
+export const TREE_HP = 10
 export const QUIZ_MS = 7000 // 문제 제한 시간 (짧게 — 친구에게 묻지 않고 스스로)
 export const QUIZ_LONG_MS = 9000 // 글이 긴 문제·받아쓰기
 export const PREP_MS = 15_000 // 첫 웨이브 전 준비 시간
@@ -470,7 +470,7 @@ export const MONSTERS: Record<MonKind, MonDef> = {
   drake: { kind: 'drake', name: '새끼 용', emoji: '🐲', hp: 90, spd: 1.5, gold: 16, leak: 2, air: true, armor: 0.4, pierce: ['bow'], hint: '단단한 비늘로 하늘을 날아요 — 🏹 궁수탑이 비늘을 뚫어요' },
   ghost: { kind: 'ghost', name: '그림자 유령', emoji: '👻', hp: 55, spd: 1.6, gold: 14, leak: 2, armor: 0.3, pierce: ['sword', 'spear', 'hammer'], hint: '몸이 흐릿해서 멀리서 쏘는 화살·마법·돌이 거의 빠져나가요 — 🗡️ 검사 초소·🔱 창 함정·🔨 대장간처럼 가까이 베는 탑이 잘 먹혀요' },
   knight: { kind: 'knight', name: '방패 기사', emoji: '🛡️', hp: 110, spd: 1.0, gold: 20, leak: 2, armor: 0.5, pierce: ['hammer', 'axe'], weak: ['hammer', 2.5], shield: true, hint: '큰 방패로 주변 몬스터를 지켜 줘요 (받는 피해 40% 줄여요) — 🔨 대장간 망치가 먼저 노리고 방패를 깨요, 🪓 투석기도 잘 먹혀요' },
-  king: { kind: 'king', name: '몬스터 대왕', emoji: '👑', hp: 450, spd: 0.75, gold: 100, leak: 6, armor: 0.5, attack: 10, hint: '우두머리! 단단하고 탑을 부숴요 — 다 함께!' },
+  king: { kind: 'king', name: '몬스터 대왕', emoji: '👑', hp: 450, spd: 0.6, gold: 100, leak: 5, armor: 0.5, hint: '우두머리! 탑은 본체만체 곧장 나무로 가요 — 놓치면 생명이 절반이나 깎여요. 다 함께!' },
 }
 
 /* ---------- 단계 · 웨이브 ---------- */

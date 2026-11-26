@@ -35,7 +35,6 @@ import {
   myDefWt,
   requestBuild,
   requestEvolve,
-  sendGift,
   speak,
   startBlock,
   startDefense,
@@ -154,7 +153,7 @@ const MON_TIPS: [MonKindT, string][] = [
   ['drake', '하늘 + 단단한 비늘 — 🏹 궁수탑이 비늘을 뚫어요'],
   ['ghost', '🗡️ 검사·🔱 창·🔨 대장간처럼 가까이 베는 탑만 잘 먹혀요'],
   ['knight', '주변 몬스터 피해 -40% — 🔨 대장간이 먼저 노리고 방패를 깨요'],
-  ['king', '모두 함께! 긴급 퀴즈를 다 맞히면 기절해요'],
+  ['king', '탑을 무시하고 곧장 나무로! 놓치면 생명이 크게 깎여요 — 긴급 퀴즈를 다 맞히면 기절해요'],
 ]
 type MonKindT = keyof typeof MONSTERS
 
@@ -363,7 +362,6 @@ function TopBar() {
   const rcvAt = useDef((s) => s.rcvAt)
   const now = useNow(250)
   const me = defMe()
-  const [giftTo, setGiftTo] = useState<string | null>(null)
   void now
   const left = snap.left > 0 ? Math.max(0, Math.ceil((snap.left - (performance.now() - rcvAt)) / 1000)) : 0
   const mine = snap.gold[me] ?? 0
@@ -389,15 +387,9 @@ function TopBar() {
       </div>
       <div className="def-row small">
         {snap.members.map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`def-chip${n === me ? ' me' : ''}`}
-            style={{ borderColor: colorOf(snap.members, n) }}
-            onClick={() => n !== me && setGiftTo(giftTo === n ? null : n)}
-          >
+          <span key={n} className={`def-chip${n === me ? ' me' : ''}`} style={{ borderColor: colorOf(snap.members, n) }}>
             {n} 💰{snap.gold[n] ?? 0} · 👾{snap.kills[n] ?? 0}
-          </button>
+          </span>
         ))}
         {snap.next.length > 0 && (
           <span className="def-next" title={snap.next.map((k) => `${MONSTERS[k].name}: ${MONSTERS[k].hint}`).join('\n')}>
@@ -405,27 +397,6 @@ function TopBar() {
           </span>
         )}
       </div>
-      {giftTo && (
-        <div className="def-gift">
-          💝 {giftTo}님에게 보내기
-          {[10, 20, 50].map((a) => (
-            <button
-              key={a}
-              type="button"
-              disabled={mine < a}
-              onClick={() => {
-                sendGift(giftTo, a)
-                setGiftTo(null)
-              }}
-            >
-              {a}
-            </button>
-          ))}
-          <button type="button" onClick={() => setGiftTo(null)}>
-            ✕
-          </button>
-        </div>
-      )}
       {snap.st !== 'wave' && snap.next.length > 0 && (
         <div className="def-hint">
           {snap.next.map((k) => (
@@ -540,12 +511,7 @@ function SelPanel() {
           </button>
         )
       ) : (
-        <div className="def-sel-note">
-          주인만 진화시킬 수 있어요.{' '}
-          <button type="button" className="def-mini" disabled={gold < 20} onClick={() => sendGift(owner, 20)}>
-            💝 {owner}님에게 20 보내기
-          </button>
-        </div>
+        <div className="def-sel-note">주인만 진화시킬 수 있어요.</div>
       )}
       {spec && tier >= 3 ? <p className="def-sel-note small">🎖️ 전문가 강화 중: 핵심 능력 ×{SPEC_BOOST}</p> : null}
     </div>

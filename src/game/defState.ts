@@ -80,7 +80,6 @@ export type DefPayload =
   | { k: 'lb'; stage: number }
   | { k: 'req'; n: string; spot: number; kind: TowerKind }
   | { k: 'evo'; n: string; tid: number; br?: number }
-  | { k: 'gift'; n: string; to: string; amt: number }
   | { k: 'box'; n: string }
   | { k: 'q'; to: string; qid: number; q: Omit<DefQ, 'a'>; why: 'build' | 'box' | 'emq' }
   | { k: 'ans'; n: string; qid: number; p: number }
@@ -692,13 +691,6 @@ class Sim {
     x.hp = Math.min(max, x.hp + (max - x.max))
     x.max = max
   }
-  gift(n: string, to: string, amt: number) {
-    const a = Math.floor(amt)
-    if (a <= 0 || !this.members.includes(to) || to === n || (this.gold[n] ?? 0) < a) return
-    this.gold[n] -= a
-    this.gold[to] = (this.gold[to] ?? 0) + a
-    note(`💝 ${n}님이 ${to}님에게 ${a}원을 보냈어요`)
-  }
   claimBox(n: string) {
     if (this.box < 0 || this.st !== 'break') return
     this.box = -1
@@ -812,7 +804,6 @@ function onEvent(p: DefPayload) {
       if (st.host !== me || !sim) return
       if (p.k === 'req') sim.request(p.n, p.spot, p.kind)
       else if (p.k === 'evo') sim.evolve(p.n, p.tid, p.br)
-      else if (p.k === 'gift') sim.gift(p.n, p.to, p.amt)
       else if (p.k === 'box') sim.claimBox(p.n)
       else if (p.k === 'ans') sim.answer(p.n, p.qid, p.p)
   }
@@ -836,7 +827,6 @@ function onEventAsHost(p: DefPayload) {
   if (!sim) return
   if (p.k === 'req') sim.request(p.n, p.spot, p.kind)
   else if (p.k === 'evo') sim.evolve(p.n, p.tid, p.br)
-  else if (p.k === 'gift') sim.gift(p.n, p.to, p.amt)
   else if (p.k === 'box') sim.claimBox(p.n)
   else if (p.k === 'ans') sim.answer(p.n, p.qid, p.p)
 }
@@ -857,9 +847,6 @@ export function requestBuild(spot: number, kind: TowerKind) {
 export function requestEvolve(tid: number, br?: number) {
   act({ k: 'evo', n: me, tid, br })
   useDef.setState({ sel: null })
-}
-export function sendGift(to: string, amt: number) {
-  act({ k: 'gift', n: me, to, amt })
 }
 export function claimBox() {
   if (useDef.getState().myQ) return

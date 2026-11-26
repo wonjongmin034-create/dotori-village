@@ -211,32 +211,6 @@
 .def-next {
   font-size: 13px;
 }
-.def-gift {
-  align-self: center;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
-  border-radius: 12px;
-  background: #ffe9f1;
-  font-size: 13px;
-  font-weight: 700;
-  color: #8a3a5a;
-}
-.def-gift button,
-.def-mini {
-  padding: 3px 8px;
-  border: none;
-  border-radius: 8px;
-  background: #e86a9a;
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-}
-.def-gift button:disabled,
-.def-mini:disabled {
-  opacity: 0.4;
-}
 .def-hint {
   align-self: center;
   display: flex;
